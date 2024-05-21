@@ -9,7 +9,14 @@
  *
  * @package Wp\Restafari
  */
+if (!defined('ABSPATH')) {
+    die();
+}
 
+// Autoloader
+if (is_readable(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
 use Wp\Restafari\DI\Container;
 use Wp\Restafari\REST\Route;
 
