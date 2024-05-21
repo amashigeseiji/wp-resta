@@ -4,6 +4,7 @@ namespace Wp\Restafari\REST;
 use LogicException;
 use register_rest_route;
 use Wp\Restafari\DI\Container;
+use Wp\Restafari\REST\Schemas\Schemas;
 
 class Route
 {
@@ -72,7 +73,17 @@ class Route
                         'schema' => [$route, 'getSchema'],
                     ],
                 );
+                if ($route instanceof AbstractRoute) {
+                    $route->registerSwaggerResponse();
+                }
             }
         }
+        add_filter('swagger_api_components', function (): array {
+            /** @var Schemas */
+            $schemas = $this->container->getInstance()->get(Schemas::class);
+            return [
+                'schemas' => $schemas->schemas
+            ];
+        });
     }
 }
