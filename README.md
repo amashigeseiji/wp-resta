@@ -169,7 +169,7 @@ $ curl -X OPTIONS http://localhost:8000/wp-json/api/sample/123/a
 
 ### コールバック
 
-`AbstractRoute` を継承したクラスが `callback` という名のメソッドを持っている場合、このメソッドを呼びだしてレスポンスの body にします。body として返してよいのは、 `WP_REST_Response` が body として解釈できるものになります(ここはもうすこし抽象化したい)。
+`AbstractRoute` を継承したクラスが `callback` という名のメソッドを持っている場合、このメソッドを呼びだしてレスポンスの body にします。body として返してよいのは、 `WP_REST_Response` が body として解釈できるものになります。また、`WP_REST_Response` を返した場合にはそのまま利用されます。
 
 `callback` メソッドの引数は、 `URL変数` を受けとることができます。 `URL変数` に `id` を定義していれば `callback(int $id)` と定義して問題ありません。
 
@@ -229,11 +229,11 @@ class Sample extends AbstractRoute
 }
 ```
 
-interface を解決したい場合は、 `src/DI/config.php` などにバインドの定義を記述してください。
+interface を解決したい場合は、 `src/config.php` などにバインドの定義を記述してください。
 
 ```php
 <?php
-// src/DI/config.php
+// src/config.php
 return [
     PSR\Log\LoggerInterface::class => Monolog\Logger,
 ];
@@ -242,7 +242,7 @@ return [
 クラスのインスタンス化にネイティブの値などが定義されている場合、そのままでは解決できないので、関数などで解決させてください。
 ```php
 <?php
-// src/DI/config.php
+// src/config.php
 return [
     WP_Query::class => function () {
         return new WP_Query(['post_type' => 'post']);
