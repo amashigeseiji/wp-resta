@@ -78,12 +78,5 @@ class Route
                 }
             }
         }
-        add_filter('swagger_api_components', function (): array {
-            /** @var Schemas */
-            $schemas = $this->container->getInstance()->get(Schemas::class);
-            return [
-                'schemas' => $schemas->schemas
-            ];
-        });
     }
 }
