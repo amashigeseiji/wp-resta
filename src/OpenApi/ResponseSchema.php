@@ -10,32 +10,13 @@ use ReflectionClass;
 
 class ResponseSchema
 {
-    public const VERSION = '1.0';
+    private readonly Schemas $schemas;
+    private readonly Route $routes;
 
-    public readonly array $schema;
-
-    public function __construct(Schemas $schemas)
+    public function __construct(Schemas $schemas, Route $routes)
     {
-        $schemas = Container::getInstance()->get(Schemas::class);
-        $this->schema = [
-            'openapi' => '3.0.0',
-            'info' => [
-                'title' => 'WordPress REST API',
-                'description' => '',
-                'version' => self::VERSION,
-            ],
-            'tags' => [],
-            'servers' => [
-                [
-                    'url' => rest_url(),
-                ],
-            ],
-            'paths' => $this->getPaths(),
-            'components' => [
-                'securitySchemes' => [],
-                'schemas' => $schemas->schemas,
-            ],
-        ];
+        $this->routes = $routes;
+        $this->schemas = $schemas;
     }
 
     private function getPaths() : array
@@ -43,9 +24,7 @@ class ResponseSchema
         $paths = [];
 
         $container = Container::getInstance();
-        $routes = $container->get(Route::class);
-        assert($routes instanceof Route);
-        foreach ($routes->routes as $namespace => $routesInNamespace) {
+        foreach ($this->routes->routes as $namespace => $routesInNamespace) {
             foreach ($routesInNamespace as $r) {
                 $route = $container->get($r);
                 assert($route instanceof RouteInterface);
@@ -92,5 +71,45 @@ class ResponseSchema
         }
 
         return $paths;
+    }
+
+    public function init()
+    {
+        add_rewrite_tag('%rest_api_doc%', '([^&]+)');
+        add_rewrite_rule('^rest-api/schema/?', 'index.php?rest_api_doc=schema', 'top');
+        add_action('wp', function () {
+            if (
+                get_query_var('rest_api_doc') !== 'schema'
+                || !current_user_can('edit_pages')
+            ) {
+                return;
+            }
+            wp_send_json($this->responseSchema());
+        });
+    }
+
+    /**
+     * swagger json生成
+     */
+    public function responseSchema(): array
+    {
+        return [
+            'openapi' => '3.0.0',
+            'info' => [
+                'title' => 'WordPress REST API',
+                'description' => '',
+            ],
+            'tags' => [],
+            'servers' => [
+                [
+                    'url' => rest_url(),
+                ],
+            ],
+            'paths' => $this->getPaths(),
+            'components' => [
+                'securitySchemes' => [],
+                'schemas' => $this->schemas->schemas,
+            ],
+        ];
     }
 }
