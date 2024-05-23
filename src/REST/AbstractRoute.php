@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari\REST;
+namespace Wp\Resta\REST;
 
 use InvalidArgumentException;
 use LogicException;
@@ -7,7 +7,7 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionType;
 use RuntimeException;
-use Wp\Restafari\DI\Container;
+use Wp\Resta\DI\Container;
 use WP_Query;
 use WP_REST_Request;
 use WP_REST_Response;

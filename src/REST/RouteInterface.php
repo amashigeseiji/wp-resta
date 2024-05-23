@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari\REST;
+namespace Wp\Resta\REST;
 
 use WP_REST_Request;
 use WP_REST_Response;

@@ -1,10 +1,10 @@
-# Wp Restafari
+# Wp Resta
 
 クラスベースでREST API開発をするためのプラグインです。
 
 ## How to install
 
-* 管理画面から wp-restafari プラグインを有効化する
+* 管理画面から wp-resta プラグインを有効化する
 
 ## How to develop
 
@@ -16,9 +16,9 @@
 
 ```php
 <?php
-namespace Wp\Restafari\REST\Example\Routes;
+namespace Wp\Resta\REST\Example\Routes;
 
-use Wp\Restafari\REST\RouteInterface;
+use Wp\Resta\REST\RouteInterface;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -87,9 +87,9 @@ AbstractRoute を継承する場合、基本的にはURLパターン、URLパラ
 * `http://example.com/wp-json/api/sample/123/sample?first_name=abcd123`
 
 ```php
-namespace Wp\Restafari\REST\Routes;
+namespace Wp\Resta\REST\Routes;
 
-use Wp\Restafari\REST\AbstractRoute;
+use Wp\Resta\REST\AbstractRoute;
 
 class Sample extends AbstractRoute
 {
@@ -211,7 +211,7 @@ class Bar
 }
 
 // src/REST/Routes/Sample.php
-namespace Wp\Restafari\REST\Routes;
+namespace Wp\Resta\REST\Routes;
 use Foo;
 
 class Sample extends AbstractRoute

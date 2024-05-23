@@ -1,10 +1,10 @@
 <?php
-namespace Wp\Restafari\REST\Example\Routes;
+namespace Wp\Resta\REST\Example\Routes;
 
-use Wp\Restafari\REST\AbstractRoute;
-use Wp\Restafari\REST\Attributes\RouteMeta;
-use Wp\Restafari\REST\Route;
-use Wp\Restafari\REST\Example\Hoge;
+use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\RouteMeta;
+use Wp\Resta\REST\Route;
+use Wp\Resta\REST\Example\Hoge;
 use WP_REST_Request;
 
 #[RouteMeta(tags: ['サンプルAPI'])]

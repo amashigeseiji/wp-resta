@@ -1,11 +1,11 @@
 <?php
-namespace Wp\Restafari\OpenApi;
+namespace Wp\Resta\OpenApi;
 
-use Wp\Restafari\DI\Container;
-use Wp\Restafari\REST\Route;
-use Wp\Restafari\REST\Attributes\RouteMeta;
-use Wp\Restafari\REST\RouteInterface;
-use Wp\Restafari\REST\Schemas\Schemas;
+use Wp\Resta\DI\Container;
+use Wp\Resta\REST\Route;
+use Wp\Resta\REST\Attributes\RouteMeta;
+use Wp\Resta\REST\RouteInterface;
+use Wp\Resta\REST\Schemas\Schemas;
 use ReflectionClass;
 
 class ResponseSchema

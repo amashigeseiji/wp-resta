@@ -1,8 +1,8 @@
 <?php
-namespace Wp\Restafari\REST\Example\Routes;
+namespace Wp\Resta\REST\Example\Routes;
 
-use Wp\Restafari\REST\AbstractRoute;
-use Wp\Restafari\REST\Attributes\RouteMeta;
+use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\RouteMeta;
 
 #[RouteMeta(tags: ['サンプルAPI'])]
 class SampleStatic extends AbstractRoute

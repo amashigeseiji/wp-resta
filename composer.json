@@ -1,9 +1,9 @@
 {
-    "name": "wp/restafarian",
+    "name": "wp/resta",
     "type": "wordpress-plugin",
     "autoload": {
         "psr-4": {
-            "Wp\\Restafari\\": "src/"
+            "Wp\\Resta\\": "src/"
         }
     },
     "require": {

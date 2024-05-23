@@ -1,8 +1,8 @@
 <?php
-namespace Wp\Restafari\REST\Schemas;
+namespace Wp\Resta\REST\Schemas;
 
 use ReflectionClass;
-use Wp\Restafari\REST\Attributes\Schema\Property;
+use Wp\Resta\REST\Attributes\Schema\Property;
 
 abstract class ObjectType implements SchemaInterface
 {

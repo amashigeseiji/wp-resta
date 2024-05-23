@@ -1,10 +1,10 @@
 <?php
-namespace Wp\Restafari\REST;
+namespace Wp\Resta\REST;
 
 use LogicException;
 use register_rest_route;
-use Wp\Restafari\DI\Container;
-use Wp\Restafari\REST\Schemas\Schemas;
+use Wp\Resta\DI\Container;
+use Wp\Resta\REST\Schemas\Schemas;
 
 class Route
 {

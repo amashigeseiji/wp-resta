@@ -1,8 +1,8 @@
 <?php
-namespace Wp\Restafari\REST\Example\Routes;
+namespace Wp\Resta\REST\Example\Routes;
 
-use Wp\Restafari\REST\AbstractRoute;
-use Wp\Restafari\REST\Example\Schemas\Posts as SchemasPosts;
+use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Example\Schemas\Posts as SchemasPosts;
 use WP_Query;
 
 class Posts extends AbstractRoute

@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari\REST\Attributes\Schema;
+namespace Wp\Resta\REST\Attributes\Schema;
 
 use Attribute;
 

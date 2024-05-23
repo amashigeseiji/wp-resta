@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari\DI;
+namespace Wp\Resta\DI;
 
 use Exception;
 use ReflectionClass;

@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari\OpenApi;
+namespace Wp\Resta\OpenApi;
 
 class Doc
 {
@@ -14,7 +14,7 @@ class Doc
                     'REST API doc',
                     'REST API doc',
                     'edit_pages',
-                    'wp-restafari',
+                    'wp-resta',
                     function () {
                         wp_enqueue_style('rest-api-doc', plugin_dir_url(__FILE__) . 'assets/swagger-ui.css', [], self::VERSION);
                         wp_enqueue_script('rest-api-doc-swagger', plugin_dir_url(__FILE__) . 'assets/swagger-ui-bundle.js', [], self::VERSION);

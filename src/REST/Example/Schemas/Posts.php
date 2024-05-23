@@ -1,8 +1,8 @@
 <?php
-namespace Wp\Restafari\REST\Example\Schemas;
+namespace Wp\Resta\REST\Example\Schemas;
 
-use Wp\Restafari\REST\Attributes\Schema\Property;
-use Wp\Restafari\REST\Schemas\ArrayType;
+use Wp\Resta\REST\Attributes\Schema\Property;
+use Wp\Resta\REST\Schemas\ArrayType;
 use WP_Post;
 
 class Posts extends ArrayType

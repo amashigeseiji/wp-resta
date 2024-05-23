@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari\REST\Example;
+namespace Wp\Resta\REST\Example;
 
 class Hoge
 {

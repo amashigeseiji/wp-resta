@@ -14,10 +14,10 @@
 
 return [
     '__routeDirectory' => [
-        ['wp-content/plugins/wp-restafari/src/REST/Example/Routes', 'Wp\\Restafari\\REST\\Example\\Routes\\'],
-        ['wp-content/plugins/wp-restafari/src/Routes', 'Wp\\Restafari\\Routes\\'],
+        ['wp-content/plugins/wp-resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\'],
+        ['wp-content/plugins/wp-resta/src/Routes', 'Wp\\Resta\\Routes\\'],
     ],
     '__schemaDirectory' => [
-        ['wp-content/plugins/wp-restafari/src/REST/Example/Schemas', 'Wp\\Restafari\\REST\\Example\\Schemas\\'],
+        ['wp-content/plugins/wp-resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
     ],
 ];

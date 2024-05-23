@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari\REST\Attributes;
+namespace Wp\Resta\REST\Attributes;
 
 use Attribute;
 

@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari\REST\Schemas;
+namespace Wp\Resta\REST\Schemas;
 
 interface SchemaInterface
 {

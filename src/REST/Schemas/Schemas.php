@@ -1,10 +1,10 @@
 <?php
-namespace Wp\Restafari\REST\Schemas;
+namespace Wp\Resta\REST\Schemas;
 
 use ReflectionAttribute;
 use ReflectionClass;
-use Wp\Restafari\DI\Container;
-use Wp\Restafari\REST\Attributes\Schema\Property;
+use Wp\Resta\DI\Container;
+use Wp\Resta\REST\Attributes\Schema\Property;
 
 class Schemas
 {

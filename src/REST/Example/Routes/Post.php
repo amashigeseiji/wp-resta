@@ -1,9 +1,9 @@
 <?php
-namespace Wp\Restafari\REST\Example\Routes;
+namespace Wp\Resta\REST\Example\Routes;
 
-use Wp\Restafari\REST\AbstractRoute;
-use Wp\Restafari\REST\Attributes\RouteMeta;
-use Wp\Restafari\REST\Example\Schemas\Post as SchemasPost;
+use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\RouteMeta;
+use Wp\Resta\REST\Example\Schemas\Post as SchemasPost;
 use WP_Post;
 use WP_Query;
 
