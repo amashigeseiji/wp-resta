@@ -1,5 +1,5 @@
 <?php
-namespace Wp\Restafari;
+namespace Wp\Restafari\OpenApi;
 
 use Wp\Restafari\DI\Container;
 use Wp\Restafari\REST\Route;
@@ -8,13 +8,13 @@ use Wp\Restafari\REST\RouteInterface;
 use Wp\Restafari\REST\Schemas\Schemas;
 use ReflectionClass;
 
-class OpenApiResponseSchema
+class ResponseSchema
 {
     public const VERSION = '1.0';
 
     public readonly array $schema;
 
-    public function __construct()
+    public function __construct(Schemas $schemas)
     {
         $schemas = Container::getInstance()->get(Schemas::class);
         $this->schema = [

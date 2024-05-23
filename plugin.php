@@ -26,4 +26,7 @@ add_action('rest_api_init', function () {
     $routes->register();
 });
 
-add_action('init', [Wp\Restafari\OpenApiDoc::class, 'init']);
+add_action('init', function() {
+    $openApiDoc = Container::getInstance()->get(Wp\Restafari\OpenApi\Doc::class);
+    $openApiDoc->init();
+});
