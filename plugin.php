@@ -9,13 +9,17 @@
  *
  * @package Wp\Resta
  */
+
+use Composer\Autoload\ClassLoader;
+
 if (!defined('ABSPATH')) {
     die();
 }
 
-// Autoloader
-if (is_readable(__DIR__ . '/vendor/autoload.php')) {
-    require_once __DIR__ . '/vendor/autoload.php';
+$restaConfig = require(__DIR__ . '/config.php');
+$loader = require $restaConfig['autoloader'];
+if (!($loader instanceof ClassLoader)) {
+    die();
 }
 
 use Wp\Resta\DI\Container;
@@ -24,7 +28,7 @@ use Wp\Resta\OpenApi\Doc;
 use Wp\Resta\REST\Route;
 use Wp\Resta\Config;
 
-$config = new Config(require(__DIR__ . '/config.php'));
+$config = new Config($restaConfig);
 $container = Container::getInstance();
 $container->bind(Config::class, $config);
 $dependencies = $config->get('dependencies') ?: [];
