@@ -22,8 +22,19 @@ use Wp\Resta\DI\Container;
 use Wp\Resta\OpenApi\ResponseSchema;
 use Wp\Resta\OpenApi\Doc;
 use Wp\Resta\REST\Route;
+use Wp\Resta\Config;
 
+$config = new Config(require(__DIR__ . '/config.php'));
 $container = Container::getInstance();
+$container->bind(Config::class, $config);
+$dependencies = $config->get('dependencies') ?: [];
+foreach ($dependencies as $interface => $dependency) {
+    if (is_string($interface)) {
+        $container->bind($interface, $dependency);
+    } else {
+        $container->bind($dependency);
+    }
+}
 
 add_action('rest_api_init', function () use ($container) {
     /** @var Route */

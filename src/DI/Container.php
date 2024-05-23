@@ -13,18 +13,8 @@ class Container
 
     private array $binder = [];
 
-    private static $config = __DIR__ . '/../config.php';
-
     private function __construct()
     {
-        $binds = require(self::$config);
-        foreach ($binds as $interface => $bind) {
-            if (is_string($interface)) {
-                $this->bind($interface, $bind);
-            } else {
-                $this->bind($bind);
-            }
-        }
     }
 
     public static function getInstance(): self

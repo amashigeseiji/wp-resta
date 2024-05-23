@@ -3,6 +3,7 @@ namespace Wp\Resta\REST;
 
 use LogicException;
 use register_rest_route;
+use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Schemas\Schemas;
 
@@ -11,11 +12,11 @@ class Route
     private Container $container;
     public readonly Array $routes;
 
-    public function __construct()
+    public function __construct(Config $config)
     {
         $container = Container::getInstance();
 
-        $routeSettings = $container->get('__routeDirectory');
+        $routeSettings = $config->get('__routeDirectory');
         $routes = [];
         foreach ($routeSettings as $routeDir) {
             $dir = $routeDir[0];
@@ -28,7 +29,10 @@ class Route
                 if (!is_subclass_of($class, RouteInterface::class)) {
                     throw new LogicException("{$class} が RouteInterface を実装していません。");
                 }
-                $container->bind($class);
+                // namespace をセットする必要があるのでこのタイミングで初期化する
+                $routeObject = $container->get($class);
+                $routeObject->namespace = $apiNamespace;
+                $container->bind($class, $routeObject);
                 if (!isset($routes[$apiNamespace])) {
                     $routes[$apiNamespace] = [];
                 }
@@ -57,9 +61,6 @@ class Route
             foreach ($routes as $routeName) {
                 $route = $this->container->get($routeName);
                 assert($route instanceof RouteInterface);
-                if ($route instanceof AbstractRoute) {
-                    $route->namespace = $apiNamespace;
-                }
                 register_rest_route(
                     $route->getNamespace(),
                     $route->getRouteRegex(),

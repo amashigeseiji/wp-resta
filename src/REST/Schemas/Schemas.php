@@ -3,17 +3,16 @@ namespace Wp\Resta\REST\Schemas;
 
 use ReflectionAttribute;
 use ReflectionClass;
-use Wp\Resta\DI\Container;
+use Wp\Resta\Config;
 use Wp\Resta\REST\Attributes\Schema\Property;
 
 class Schemas
 {
     public readonly array $schemas;
 
-    public function __construct()
+    public function __construct(Config $config)
     {
-        $container = Container::getInstance();
-        $schemaSettings = $container->get('__schemaDirectory');
+        $schemaSettings = $config->get('__schemaDirectory');
 
         $schemas = [];
         foreach ($schemaSettings as $schemaDir) {
