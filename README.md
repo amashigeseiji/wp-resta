@@ -45,6 +45,62 @@ $ composer require composer/installers tenjuu99/wp-resta
 無事 wp-content/plugins 以下に展開できたら、管理画面からプラグインを有効化してください。
 
 
+## Example
+
+インストールしたら、管理画面に `REST API doc` というメニューが追加されます。
+
+このページでは、 Swagger UI を使ってAPI定義をドキュメント化しています。
+
+このサンプル実装は `src/REST/Example/Routes/` 以下にあります。
+
+自分のルーティング定義を追加するためには、 `functions.php` での初期化時のコードにルーティング用ディレクトリの設定を記述してください。
+
+`routeDirectory` に渡す配列は、 `['ディレクトリ名', 'php namespace', 'api namespace']` となっています。
+`schemaDirectory` は `['ディレクトリ名', 'php namespace']` です。
+
+```diff
+(new Wp\Resta\Resta)->init([
+    'routeDirectory' => [
+        ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example'],
++       ['src/Routes', 'MyREST\\Routes\\', 'myroute']
+    ],
+    'schemaDirectory' => [
+        ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
++       ['src/Schemas', 'MyREST\\Schemas\\']
+    ],
+]);
+```
+
+必要に応じて `composer.json` にも autoload 設定を追加してください。
+
+```diff
+  "autoload": {
++     "psr-4": {
++         "MyREST\\": "src/"
++     }
+  }
+```
+
+
+`src/Routes/NewRoute.php` を作ります。
+
+```php
+<?php
+namespace MyREST\Routes;
+
+use Wp\Resta\REST\AbstractRoute;
+
+class NewRoute extends AbstractRoute
+{
+}
+```
+
+次のURLが生成されます。
+
+```
+$ curl http://example.com/wp-json/myroute/newroute
+```
+
 ## How to develop
 
 `src/REST/Example/Routes/` 以下に例があります。
