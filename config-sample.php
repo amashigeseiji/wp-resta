@@ -16,11 +16,11 @@
 
 return [
     'autoloader' => __DIR__  . '/vendor/autoload.php',
-    '__routeDirectory' => [
+    'routeDirectory' => [
         ['wp-content/plugins/wp-resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example'],
         ['wp-content/plugins/wp-resta/src/Routes', 'Wp\\Resta\\Routes\\'],
     ],
-    '__schemaDirectory' => [
+    'schemaDirectory' => [
         ['wp-content/plugins/wp-resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
     ],
     'dependencies' => [

@@ -12,7 +12,7 @@ class Schemas
 
     public function __construct(Config $config)
     {
-        $schemaSettings = $config->get('__schemaDirectory');
+        $schemaSettings = $config->get('schemaDirectory');
 
         $schemas = [];
         foreach ($schemaSettings as $schemaDir) {

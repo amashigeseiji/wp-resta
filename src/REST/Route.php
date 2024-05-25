@@ -16,7 +16,7 @@ class Route
     {
         $container = Container::getInstance();
 
-        $routeSettings = $config->get('__routeDirectory');
+        $routeSettings = $config->get('routeDirectory');
         $routes = [];
         foreach ($routeSettings as $routeDir) {
             $dir = $routeDir[0];
