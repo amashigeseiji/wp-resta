@@ -10,43 +10,21 @@
  * @package Wp\Resta
  */
 
-use Composer\Autoload\ClassLoader;
-
 if (!defined('ABSPATH')) {
     die();
 }
 
-$restaConfig = require(__DIR__ . '/config.php');
+$restaConfigFile = getenv('RESTA_CONFIG_FILE');
+if (!$restaConfigFile || !file_exists($restaConfigFile)) {
+    $restaConfigFile = __DIR__ . '/config-sample.php';
+}
+if (!file_exists($restaConfigFile)) {
+    throw new RuntimeException('file does not exist: ' . $restaConfigFile);
+}
+$restaConfig = require($restaConfigFile);
 $loader = require $restaConfig['autoloader'];
-if (!($loader instanceof ClassLoader)) {
+if (!($loader instanceof Composer\Autoload\ClassLoader)) {
     die();
 }
 
-use Wp\Resta\DI\Container;
-use Wp\Resta\OpenApi\ResponseSchema;
-use Wp\Resta\OpenApi\Doc;
-use Wp\Resta\REST\Route;
-use Wp\Resta\Config;
-
-$config = new Config($restaConfig);
-$container = Container::getInstance();
-$container->bind(Config::class, $config);
-$dependencies = $config->get('dependencies') ?: [];
-foreach ($dependencies as $interface => $dependency) {
-    if (is_string($interface)) {
-        $container->bind($interface, $dependency);
-    } else {
-        $container->bind($dependency);
-    }
-}
-
-add_action('rest_api_init', function () use ($container) {
-    /** @var Route */
-    $routes = $container->get(Route::class);
-    $routes->register();
-});
-
-add_action('init', function() use ($container) {
-    $container->get(Doc::class)->init();
-    $container->get(ResponseSchema::class)->init();
-});
+(new Wp\Resta\Resta)->init($restaConfig);
