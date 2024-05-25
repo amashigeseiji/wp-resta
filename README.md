@@ -53,6 +53,8 @@ $ composer require composer/installers tenjuu99/wp-resta
 
 このサンプル実装は `src/REST/Example/Routes/` 以下にあります。
 
+## How to develop
+
 自分のルーティング定義を追加するためには、 `functions.php` での初期化時のコードにルーティング用ディレクトリの設定を記述してください。
 
 `routeDirectory` に渡す配列は、 `['ディレクトリ名', 'php namespace', 'api namespace']` となっています。
@@ -101,74 +103,50 @@ class NewRoute extends AbstractRoute
 $ curl http://example.com/wp-json/myroute/newroute
 ```
 
-## How to develop
+### URL定義とURL変数
 
-`src/REST/Example/Routes/` 以下に例があります。
+`myroute` が `functions.php` で定義した namespace で、 `newroute` はクラス名がそのまま利用されています。
 
-`src/REST/Example/Routes/` 以下に `RouteInterface` を実装したクラスを作成してください。
-
-このサンプルは `https://example.com/wp-json/test/v1/feed/{id}` のルートを表現したものです。
+URL 定義は `ROUTE` 定数を定義することで変更できます。ついでにURL変数も定義してみます。
 
 ```php
 <?php
-namespace Wp\Resta\REST\Example\Routes;
+namespace MyREST\Routes;
 
-use Wp\Resta\REST\RouteInterface;
-use WP_REST_Request;
-use WP_REST_Response;
+use Wp\Resta\REST\AbstractRoute;
 
-class Sample implements RouteInterface
+class NewRoute extends AbstractRoute
 {
-    public function getNamespace(): string
-    {
-        return 'test/v1';
-    }
-
-    public function getRouteRegex(): string
-    {
-        return 'feed/(?P<id>\d+)';
-    }
-
-    public function getMethods(): string
-    {
-        return 'GET';
-    }
-
-    public function invoke(WP_REST_Request $request): WP_REST_Response
-    {
-        return new WP_REST_Response([
-            'id' => $id,
-            'post' => get_post($id),
-        ], 200);
-    }
-
-    public function permissionCallback()
-    {
-        return '__return_true';
-    }
-
-    public function getArgs() : array
-    {
-        return [];
-    }
-
-    public function getSchema() : array|null
-    {
-        return null;
-    }
-
-    public function getReadableRoute(): string
-    {
-        return 'feed/{id}';
-    }
+    protected const ROUTE = 'modified/[id]';
+    protected const URL_PARAMS = [
+        'id' => 'integer',
+    ];
 }
 ```
 
+次のURLが生成されるとおもいます。
+
 ```
-$ curl http://example.com/wp-json/test/v1/feed/1
+$ curl http://example.com/wp-json/myroute/modified/1
 ```
 
-## AbstractRoute
+ROUTE定数のなかに `[var]` と `[]` で囲えばパスパラメータとして扱うことができます。
+
+変数は次のようなパターンを許容します。
+
+```php
+    protected const URL_PARAMS = [
+        'id' => 'integer',
+        'test_or_sample' => '(test|sample)',
+        'last_name' => '?string',
+        'first_name' => [
+            'type' => 'string',
+            'required' => false,
+            'regex' => '[a-z]+'
+        ],
+    ];
+```
+
 
 AbstractRoute を継承する場合、基本的にはURLパターン、URLパラメータ、コールバックを定義しましょう。
 
