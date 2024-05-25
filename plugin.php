@@ -1,10 +1,10 @@
 <?php
 /**
- * Plugin Name: Wp Resta
+ * Plugin Name: Wp\Resta
  * Plugin URI:
  * Description: REST ルート定義
- * Version: 1.0
- * Author:
+ * Version: 0.9.0
+ * Author: amashigeseiji
  * License: GPL2
  *
  * @package Wp\Resta

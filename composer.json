@@ -1,5 +1,5 @@
 {
-    "name": "wp/resta",
+    "name": "tenjuu99/wp-resta",
     "description": "WordPress REST Api development framework using DI",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
