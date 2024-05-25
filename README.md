@@ -4,6 +4,8 @@
 
 ## How to install
 
+前提: WordPress 管理画面からパーマリンク設定を「投稿名」などにしておいてください。
+
 ### 自作テーマで利用する
 
 ```
@@ -33,7 +35,14 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 WordPress のプラグインとしても利用できます。
 
-`wp-content/plugins/` 以下にソースコードを展開して、管理画面から有効化してください。
+次の例は `composer/installers` を利用して WordPress プラグインを `wp-content/plugins/` 以下に配置しています。
+
+```
+$ composer config "extra.installer-paths.wp-content/plugins/{\$name}/" "['type:wordpress-plugin']"
+$ composer require composer/installers tenjuu99/wp-resta
+```
+
+無事 wp-content/plugins 以下に展開できたら、管理画面からプラグインを有効化してください。
 
 
 ## How to develop
