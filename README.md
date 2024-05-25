@@ -8,7 +8,7 @@
 
 ```
 $ cd /path/to/theme
-$ composer install
+$ composer require tenjuu99/wp-resta
 ```
 
 `functions.php` で初期化
