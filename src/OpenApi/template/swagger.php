@@ -35,5 +35,8 @@ window.onload = function() {
   #wpcontent {
     padding-left: 0;
   }
+  .swagger-ui .arrow {
+    visibility: hidden;
+  }
 </style>
 <div id="swagger-ui"></div>
