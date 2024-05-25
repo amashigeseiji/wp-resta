@@ -1,10 +1,40 @@
-# Wp Resta
+# Wp\Resta
 
-クラスベースでREST API開発をするためのプラグインです。
+クラスベースで REST API 開発をするためのプラグインです。
 
 ## How to install
 
-* 管理画面から wp-resta プラグインを有効化する
+### 自作テーマで利用する
+
+```
+$ cd /path/to/theme
+$ composer install
+```
+
+`functions.php` で初期化
+
+以下は、サンプルのディレクトリにあるAPIを読みこむ設定です。
+
+```php
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
+
+(new Wp\Resta\Resta)->init([
+    'routeDirectory' => [
+        ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example']
+    ],
+    'schemaDirectory' => [
+        ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
+    ],
+]);
+```
+
+### プラグインで利用する場合
+
+WordPress のプラグインとしても利用できます。
+
+`wp-content/plugins/` 以下にソースコードを展開して、管理画面から有効化してください。
+
 
 ## How to develop
 

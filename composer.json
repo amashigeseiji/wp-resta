@@ -1,6 +1,14 @@
 {
     "name": "wp/resta",
+    "description": "WordPress REST Api development framework using DI",
     "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Seiji Amashige",
+            "email": "tenjuu99@gmail.com"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "Wp\\Resta\\": "src/"
