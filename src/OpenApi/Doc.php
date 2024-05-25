@@ -16,9 +16,9 @@ class Doc
                     'edit_pages',
                     'wp-resta',
                     function () {
-                        wp_enqueue_style('rest-api-doc', plugin_dir_url(__FILE__) . 'assets/swagger-ui.css', [], self::VERSION);
-                        wp_enqueue_script('rest-api-doc-swagger', plugin_dir_url(__FILE__) . 'assets/swagger-ui-bundle.js', [], self::VERSION);
-                        wp_enqueue_script('rest-api-doc-swagger-preset', plugin_dir_url(__FILE__) . 'assets/swagger-ui-standalone-preset.js', [], self::VERSION);
+                        wp_enqueue_style('rest-api-doc', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css', [], self::VERSION);
+                        wp_enqueue_script('rest-api-doc-swagger', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js', [], self::VERSION);
+                        wp_enqueue_script('rest-api-doc-swagger-preset', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js', [], self::VERSION);
                         require plugin_dir_path(__FILE__) . 'template/swagger.php';
                     },
                     'dashicons-book',
