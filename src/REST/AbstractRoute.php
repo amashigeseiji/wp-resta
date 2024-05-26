@@ -188,21 +188,4 @@ abstract class AbstractRoute implements RouteInterface
     {
         return $this::SCHEMA ?? null;
     }
-
-    public function registerSwaggerResponse(): void
-    {
-        $methodEndpoint = strtolower($this->getMethods()) .  str_replace('/', '_', $this->getReadableRoute());
-        add_filter('swagger_api_responses_' . $methodEndpoint, function () {
-            return [
-                '200' => [
-                    'description' => 'OK',
-                    'content' => [
-                        'application/json' => [
-                            'schema' => $this::SCHEMA ?? [],
-                        ]
-                    ],
-                ]
-            ];
-        });
-    }
 }

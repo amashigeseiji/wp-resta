@@ -74,9 +74,6 @@ class Route
                         'schema' => [$route, 'getSchema'],
                     ],
                 );
-                if ($route instanceof AbstractRoute) {
-                    $route->registerSwaggerResponse();
-                }
             }
         }
     }
