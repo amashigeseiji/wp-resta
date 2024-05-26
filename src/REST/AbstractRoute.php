@@ -64,61 +64,63 @@ abstract class AbstractRoute implements RouteInterface
 
     public function invoke(RequestInterface $request): ResponseInterface
     {
-        $container = Container::getInstance();
         if (is_callable([$this, 'callback'])) {
-            // この内部処理が実質的に WP_REST_Request の機能に依存している
-            // fixme こういう依存があるなら、invoke の引数の宣言を WP_REST_Request にすべき
-            // 実際問題として、この依存のためにユニットテストを動かすのが困難になる
-            assert($request instanceof WP_REST_Request);
-            $callback = new ReflectionMethod($this, 'callback');
-            $parameters = $callback->getParameters();
-            $args = [];
-            $define = $this->getArgs();
-            foreach ($parameters as $param) {
-                // URL定義されている値の解決
-                if (isset($define[$param->name])) {
-                    // fixme $request[$param->name] が解決できるのは WP_REST_Request であるため
-                    if ($define[$param->name]['required'] && !isset($request[$param->name])) {
-                        throw new RuntimeException($param->name . ' is missing.');
+            if ($request instanceof WP_REST_Request) {
+                try {
+                    $result = $this->invokeCallback(new ReflectionMethod($this, 'callback'), $request);
+                    if ($result instanceof ResponseInterface) {
+                        return $result;
                     }
-                    if (isset($request[$param->name])) {
-                        $regex = '/' . $define[$param->name]['regex'] . '/';
-                        if (preg_match($regex, $request[$param->name])) {
-                            $args[$param->name] = $request[$param->name];
-                        }
-                    } elseif ($param->isOptional()) {
-                        $args[$param->name] = $param->getDefaultValue();
+                    $this->body = $result;
+                } catch (\Exception $e) {
+                    if ($this->status === 200) {
+                        $this->status = 500;
                     }
-                    continue;
                 }
-                // URL定義中にない引数はDIでインジェクトする
-                $type = $param->getType();
-                if (!($type instanceof ReflectionNamedType)) {
-                    // ReflectionUnionType または ReflectionIntersectionType の場合は決定できない
-                    throw new InvalidArgumentException(static::class . '::callback() argument type ' . $type . ' cannot resolve.');
-                }
-                if ($type->isBuiltin()) {
-                    // ビルトイン型はURL定義にないものがこちらに紛れているとおもわれる
-                    throw new LogicException($this::class . "::callback() has invalid argument `{$type->getName()} \${$param->name}`. Please check URL_PARAMS has `{$param->name}` parameter.");
-                }
-                // クラス/インターフェースなど一意に確定できるものだけインジェクトする
-                $args[$param->name] = Container::getInstance()->get($type->getName());
-            }
-
-            try {
-                $result = $callback->invokeArgs($this, $args);
-                if ($result instanceof ResponseInterface) {
-                    return $result;
-                }
-                $this->body = $result;
-            } catch (\Exception $e) {
-                if ($this->status === 200) {
-                    $this->status = 500;
-                }
+            } else {
+                // todo
+                throw new RuntimeException('currently not supported.');
             }
         }
 
         return new WP_REST_PSR7_Response($this->body, $this->status, $this->headers);
+    }
+
+    private function invokeCallback(ReflectionMethod $callback, WP_REST_Request $request)
+    {
+        $parameters = $callback->getParameters();
+        $args = [];
+        $define = $this->getArgs();
+        foreach ($parameters as $param) {
+            // URL定義されている値の解決
+            if (isset($define[$param->name])) {
+                if ($define[$param->name]['required'] && !isset($request[$param->name])) {
+                    throw new RuntimeException($param->name . ' is missing.');
+                }
+                if (isset($request[$param->name])) {
+                    $regex = '/' . $define[$param->name]['regex'] . '/';
+                    if (preg_match($regex, $request[$param->name])) {
+                        $args[$param->name] = $request[$param->name];
+                    }
+                } elseif ($param->isOptional()) {
+                    $args[$param->name] = $param->getDefaultValue();
+                }
+                continue;
+            }
+            // URL定義中にない引数はDIでインジェクトする
+            $type = $param->getType();
+            if (!($type instanceof ReflectionNamedType)) {
+                // ReflectionUnionType または ReflectionIntersectionType の場合は決定できない
+                throw new InvalidArgumentException(static::class . '::callback() argument type ' . $type . ' cannot resolve.');
+            }
+            if ($type->isBuiltin()) {
+                // ビルトイン型はURL定義にないものがこちらに紛れているとおもわれる
+                throw new LogicException($this::class . "::callback() has invalid argument `{$type->getName()} \${$param->name}`. Please check URL_PARAMS has `{$param->name}` parameter.");
+            }
+            // クラス/インターフェースなど一意に確定できるものだけインジェクトする
+            $args[$param->name] = Container::getInstance()->get($type->getName());
+        }
+        return $callback->invokeArgs($this, $args);
     }
 
     public function permissionCallback()
