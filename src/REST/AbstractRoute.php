@@ -114,12 +114,7 @@ abstract class AbstractRoute implements RouteInterface
             }
         }
 
-        $response = new WP_REST_PSR7_Response($this->body, $this->status);
-        foreach ($this->headers as $key => $value) {
-            $response->header($key, $value);
-        }
-
-        return $response;
+        return new WP_REST_PSR7_Response($this->body, $this->status, $this->headers);
     }
 
     public function permissionCallback()
