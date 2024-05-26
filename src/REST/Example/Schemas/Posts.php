@@ -9,7 +9,7 @@ class Posts extends ArrayType
 {
     public const ID = '#/components/schemas/Posts';
 
-    #[Property(['$ref' => Post::class])]
+    #[Property(['$ref' => Post::ID])]
     public readonly array $items;
 
     /**
