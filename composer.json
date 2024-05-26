@@ -15,7 +15,8 @@
         }
     },
     "require": {
-      "php": ">=8.2"
+        "php": ">=8.2",
+        "papertower/wp-rest-api-psr7": "^0.8.0"
     },
     "require-dev": {
         "roots/wordpress": "^6.4",
