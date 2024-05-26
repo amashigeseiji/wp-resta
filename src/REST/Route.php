@@ -2,10 +2,15 @@
 namespace Wp\Resta\REST;
 
 use LogicException;
+use Psr\Http\Message\RequestInterface;
 use register_rest_route;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Schemas\Schemas;
+use WP_REST_Request;
+use WP_REST_Response;
+use WPRestApi\PSR7\WP_REST_PSR7_Request;
+use WPRestApi\PSR7\WP_REST_PSR7_Response;
 
 class Route
 {
@@ -67,7 +72,16 @@ class Route
                     [
                         [
                             'methods' => $route->getMethods(),
-                            'callback' => [$route, 'invoke'],
+                            'callback' => function (WP_REST_Request $request) use($route) : WP_REST_Response {
+                                $psr7request = WP_REST_PSR7_Request::fromRequest($request);
+                                $this->container->bind(WP_REST_Request::class, $psr7request);
+                                $this->container->bind(RequestInterface::class, $psr7request);
+                                $response = $route->invoke($psr7request);
+                                if ($response instanceof WP_REST_PSR7_Response) {
+                                    return $response;
+                                }
+                                return WP_REST_PSR7_Response::fromPSR7Response($response);
+                            },
                             'permission_callback' => [$route, 'permissionCallback'],
                             'args' => $route->getArgs(),
                         ],

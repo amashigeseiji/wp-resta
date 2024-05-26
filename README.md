@@ -179,7 +179,7 @@ ROUTE定数のなかに `[var]` と `[]` で囲えばパスパラメータとし
 
 ### コールバック
 
-`AbstractRoute` を継承したクラスが `callback` という名のメソッドを持っている場合、このメソッドを呼びだしてレスポンスの body にします。body として返してよいのは、 `WP_REST_Response` が body として解釈できるものになります。また、`WP_REST_Response` を返した場合にはそのまま利用されます。
+`AbstractRoute` を継承したクラスが `callback` という名のメソッドを持っている場合、このメソッドを呼びだしてレスポンスの body にします。body として返してよいのは、 `WP_REST_Response` が body として解釈できるものになります。また、`Psr\Http\Message\ResponseInterface` を返した場合にはそのまま利用されます。
 
 `callback` メソッドの引数は、URL変数を受けとることができます。 `URL変数` に `id` を定義していれば `callback(int $id)` と定義して問題ありません。
 
