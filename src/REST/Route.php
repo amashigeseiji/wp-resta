@@ -6,6 +6,10 @@ use register_rest_route;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Schemas\Schemas;
+use WP_REST_Request;
+use WP_REST_Response;
+use WPRestApi\PSR7\WP_REST_PSR7_Request;
+use WPRestApi\PSR7\WP_REST_PSR7_Response;
 
 class Route
 {
@@ -67,7 +71,10 @@ class Route
                     [
                         [
                             'methods' => $route->getMethods(),
-                            'callback' => [$route, 'invoke'],
+                            'callback' => function (WP_REST_Request $request) : WP_REST_Response {
+                                $response = $route->invoke(WP_REST_PSR7_Request::fromRequest($request));
+                                return WP_REST_PSR7_Response($response);
+                            },
                             'permission_callback' => [$route, 'permissionCallback'],
                             'args' => $route->getArgs(),
                         ],

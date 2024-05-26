@@ -3,14 +3,14 @@ namespace Wp\Resta\REST;
 
 use InvalidArgumentException;
 use LogicException;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
 use WP_Query;
-use WP_REST_Request;
-use WP_REST_Response;
 
 abstract class AbstractRoute implements RouteInterface
 {
@@ -61,10 +61,9 @@ abstract class AbstractRoute implements RouteInterface
         return 'GET';
     }
 
-    public function invoke(WP_REST_Request $request): WP_REST_Response
+    public function invoke(RequestInterface $request): ResponseInterface
     {
         $container = Container::getInstance();
-        $container->bind(WP_REST_Request::class, $request);
         $container->bind(WP_Query::class, [$this, 'wpQueryResolver']);
         if (is_callable([$this, 'callback'])) {
             $callback = new ReflectionMethod($this, 'callback');
@@ -103,7 +102,7 @@ abstract class AbstractRoute implements RouteInterface
 
             try {
                 $result = $callback->invokeArgs($this, $args);
-                if ($result instanceof WP_REST_Response) {
+                if ($result instanceof ResponseInterface) {
                     return $result;
                 }
                 $this->body = $result;
