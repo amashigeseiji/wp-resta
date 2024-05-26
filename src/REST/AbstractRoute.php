@@ -10,7 +10,7 @@ use ReflectionNamedType;
 use ReflectionType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
-use WP_Query;
+use WPRestApi\PSR7\WP_REST_PSR7_Response;
 
 abstract class AbstractRoute implements RouteInterface
 {
@@ -64,7 +64,7 @@ abstract class AbstractRoute implements RouteInterface
     public function invoke(RequestInterface $request): ResponseInterface
     {
         $container = Container::getInstance();
-        $container->bind(WP_Query::class, [$this, 'wpQueryResolver']);
+        $container->bind(RequestInterface::class, $request);
         if (is_callable([$this, 'callback'])) {
             $callback = new ReflectionMethod($this, 'callback');
             $parameters = $callback->getParameters();
@@ -73,6 +73,7 @@ abstract class AbstractRoute implements RouteInterface
             foreach ($parameters as $param) {
                 // URL定義されている値の解決
                 if (isset($define[$param->name])) {
+                    // fixme $request に実際には WP_REST_Request が入っているので $request[$param->name] を解決できているが、RequestInterface のみに依存するようにしたい
                     if ($define[$param->name]['required'] && !isset($request[$param->name])) {
                         throw new RuntimeException($param->name . ' is missing.');
                     }
@@ -113,17 +114,12 @@ abstract class AbstractRoute implements RouteInterface
             }
         }
 
-        $response = new WP_REST_Response($this->body, $this->status);
+        $response = new WP_REST_PSR7_Response($this->body, $this->status);
         foreach ($this->headers as $key => $value) {
             $response->header($key, $value);
         }
 
         return $response;
-    }
-
-    public function wpQueryResolver(WP_REST_Request $request) : WP_Query
-    {
-        return new WP_Query();
     }
 
     public function permissionCallback()

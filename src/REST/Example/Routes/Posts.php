@@ -17,8 +17,9 @@ class Posts extends AbstractRoute
         ],
     ];
 
-    public function callback(WP_Query $q)
+    public function callback()
     {
+        $q = new WP_Query();
         $posts = $q->query([
             'post_type' => 'post',
             'post_status' => 'publish',

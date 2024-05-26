@@ -71,9 +71,11 @@ class Route
                     [
                         [
                             'methods' => $route->getMethods(),
-                            'callback' => function (WP_REST_Request $request) : WP_REST_Response {
-                                $response = $route->invoke(WP_REST_PSR7_Request::fromRequest($request));
-                                return WP_REST_PSR7_Response($response);
+                            'callback' => function (WP_REST_Request $request) use($route) : WP_REST_Response {
+                                $psr7request = WP_REST_PSR7_Request::fromRequest($request);
+                                $this->container->bind(WP_REST_Request::class, $psr7request);
+                                $response = $route->invoke($psr7request);
+                                return new WP_REST_PSR7_Response($response);
                             },
                             'permission_callback' => [$route, 'permissionCallback'],
                             'args' => $route->getArgs(),
