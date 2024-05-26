@@ -29,6 +29,7 @@ require_once __DIR__ . '/vendor/autoload.php';
     'routeDirectory' => [
         ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example']
     ],
+    'use-swagger' => true,
     'schemaDirectory' => [
         ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
     ],

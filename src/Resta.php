@@ -29,9 +29,13 @@ class Resta
             $routes->register();
         });
 
-        add_action('init', function() use ($container) {
-            $container->get(Doc::class)->init();
-            $container->get(ResponseSchema::class)->init();
-        });
+        // use-swagger を false にしたら SwaggerUI や /rest-api/schema の出力をオフにする
+        $useSwagger = $config->hasKey('use-swagger') ? $config->get('use-swagger') : true;
+        if ($useSwagger) {
+            add_action('init', function() use ($container) {
+                $container->get(Doc::class)->init();
+                $container->get(ResponseSchema::class)->init();
+            });
+        }
     }
 }
