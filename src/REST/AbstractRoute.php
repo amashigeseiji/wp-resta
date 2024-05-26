@@ -10,6 +10,7 @@ use ReflectionNamedType;
 use ReflectionType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
+use WP_REST_Request;
 use WPRestApi\PSR7\WP_REST_PSR7_Response;
 
 abstract class AbstractRoute implements RouteInterface
@@ -64,8 +65,11 @@ abstract class AbstractRoute implements RouteInterface
     public function invoke(RequestInterface $request): ResponseInterface
     {
         $container = Container::getInstance();
-        $container->bind(RequestInterface::class, $request);
         if (is_callable([$this, 'callback'])) {
+            // この内部処理が実質的に WP_REST_Request の機能に依存している
+            // fixme こういう依存があるなら、invoke の引数の宣言を WP_REST_Request にすべき
+            // 実際問題として、この依存のためにユニットテストを動かすのが困難になる
+            assert($request instanceof WP_REST_Request);
             $callback = new ReflectionMethod($this, 'callback');
             $parameters = $callback->getParameters();
             $args = [];
@@ -73,7 +77,7 @@ abstract class AbstractRoute implements RouteInterface
             foreach ($parameters as $param) {
                 // URL定義されている値の解決
                 if (isset($define[$param->name])) {
-                    // fixme $request に実際には WP_REST_Request が入っているので $request[$param->name] を解決できているが、RequestInterface のみに依存するようにしたい
+                    // fixme $request[$param->name] が解決できるのは WP_REST_Request であるため
                     if ($define[$param->name]['required'] && !isset($request[$param->name])) {
                         throw new RuntimeException($param->name . ' is missing.');
                     }
