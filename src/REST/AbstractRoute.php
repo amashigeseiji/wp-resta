@@ -18,6 +18,7 @@ abstract class AbstractRoute implements RouteInterface
     protected const URL_PARAMS = [];
     public const SCHEMA = null;
 
+    protected array $headers = [];
     protected $body = '';
     protected $status = 200;
 
@@ -113,7 +114,12 @@ abstract class AbstractRoute implements RouteInterface
             }
         }
 
-        return new WP_REST_Response($this->body, $this->status);
+        $response = new WP_REST_Response($this->body, $this->status);
+        foreach ($this->headers as $key => $value) {
+            $response->header($key, $value);
+        }
+
+        return $response;
     }
 
     public function wpQueryResolver(WP_REST_Request $request) : WP_Query
