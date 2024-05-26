@@ -27,12 +27,15 @@ class Route
             $dir = $routeDir[0];
             $namespace = $routeDir[1];
             $apiNamespace = $routeDir[2] ?? 'default';
-            $files = glob(ABSPATH . "/{$dir}/*.php");
+            $files = glob(ABSPATH . "{$dir}/*.php");
             foreach ($files as $file) {
                 $basename = basename($file, '.php');
                 $class = "{$namespace}{$basename}";
+                if (!class_exists($class)) {
+                    throw new LogicException("class \"{$class}\" does not exist or cannot load.");
+                }
                 if (!is_subclass_of($class, RouteInterface::class)) {
-                    throw new LogicException("{$class} が RouteInterface を実装していません。");
+                    throw new LogicException("class \"{$class}\" does not implement RouteInterface.");
                 }
                 // namespace をセットする必要があるのでこのタイミングで初期化する
                 $routeObject = $container->get($class);
