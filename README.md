@@ -1,6 +1,10 @@
+[![Continuous Integration](https://github.com/amashigeseiji/wp-resta/actions/workflows/ci.yml/badge.svg)](https://github.com/amashigeseiji/wp-resta/actions/workflows/ci.yml)
+
 # Wp\Resta
 
-クラスベースで REST API 開発をするためのプラグインです。
+WordPress 上で REST API 開発をするためのプラグインです。
+
+アイデアやインターフェースは [BEAR.Sunday](https://bearsunday.github.io) から影響を受けています。
 
 ## How to install
 
