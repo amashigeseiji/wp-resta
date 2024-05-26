@@ -79,10 +79,7 @@ class ResponseSchema
         add_rewrite_rule('^rest-api/schema/?', 'index.php?rest_api_doc=schema', 'top');
         flush_rewrite_rules();
         add_action('wp', function () {
-            if (
-                get_query_var('rest_api_doc') !== 'schema'
-                || !current_user_can('edit_pages')
-            ) {
+            if ( get_query_var('rest_api_doc') !== 'schema') {
                 return;
             }
             wp_send_json($this->responseSchema());
