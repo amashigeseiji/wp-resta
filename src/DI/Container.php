@@ -65,31 +65,36 @@ class Container
         if (is_callable($bind)) {
             $func = is_array($bind) ? new ReflectionMethod($bind[0], $bind[1]) : new ReflectionFunction($bind);
             if ($func->getNumberOfParameters() === 0) {
-                return $bind();
-            }
-            $args = [];
-            foreach ($func->getParameters() as $param) {
-                $type = $param->getType();
-                // ReflectionUnionType or ReflectionIntersectionType cannot resolve because of multiple types.
-                if (!($type instanceof ReflectionNamedType)) {
-                    throw new Exception('$' . $param->getName() . ' is invalid');
+                $resolved = $bind();
+            } else {
+                $args = [];
+                foreach ($func->getParameters() as $param) {
+                    $type = $param->getType();
+                    // ReflectionUnionType or ReflectionIntersectionType cannot resolve because of multiple types.
+                    if (!($type instanceof ReflectionNamedType)) {
+                        throw new Exception('$' . $param->getName() . ' is invalid');
+                    }
+                    $typeName = $type->getName();
+                    if (!class_exists($typeName)) {
+                        throw new RuntimeException("\"\${$typeName}\" cannot resolve.");
+                    }
+                    $args[$param->name] = $this->get($typeName);
                 }
-                $typeName = $type->getName();
-                if (!class_exists($typeName)) {
-                    throw new RuntimeException("\"\${$typeName}\" cannot resolve.");
-                }
-                $args[$param->name] = $this->get($typeName);
+                $resolved = $func instanceof ReflectionMethod
+                    ? $func->invokeArgs($bind[0], $args)
+                    : $func->invokeArgs($args);
             }
-            return $func instanceof ReflectionMethod
-                ? $func->invokeArgs($bind[0], $args)
-                : $func->invokeArgs($args);
+            if (!($resolved instanceof $interface)) {
+                throw new RuntimeException();
+            }
+            return $resolved;
         }
         if (!is_string($bind)) {
-            throw new LogicException("\"\$${interface}\" cannot resolved.");
+            throw new LogicException("\"\${$interface}\" cannot resolved.");
         }
         // "$bind" is stil unresolved
         if ($bind === $interface || is_subclass_of($bind, $interface)) {
-            return $this->binder[$interface] = $this->factory($interface);
+            return $this->binder[$interface] = $this->factory($bind);
         }
         throw new RuntimeException('Bound unresolve.');
     }
