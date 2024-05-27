@@ -33,7 +33,7 @@ class Sample extends AbstractRoute
                 'example' => 1,
             ],
             'name' => [
-                'description' => 'requrested value',
+                'description' => 'requested value',
                 'type' => 'string',
                 'example' => 'hoge'
             ],
