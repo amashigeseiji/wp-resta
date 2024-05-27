@@ -35,5 +35,8 @@ jobs:
     - name: Check PSR-4 mapping
       run: composer dump-autoload --dev --optimize --strict-psr
 
+    - name: Run phpstan analyse
+      run: vendor/bin/phpstan analyse src/
+
     - name: Run test suite
       run: composer run-script test
