@@ -36,7 +36,7 @@ jobs:
       run: composer dump-autoload --dev --optimize --strict-psr
 
     - name: Run phpstan analyse
-      run: vendor/bin/phpstan analyse src/
+      run: vendor/bin/phpstan analyse
 
     - name: Run test suite
       run: composer run-script test
