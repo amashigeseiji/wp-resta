@@ -28,12 +28,12 @@ class Post extends AbstractRoute
 
     public function callback(int $id)
     {
-        /** @var WP_Post */
         $post = get_post($id);
-        if (!$post) {
+        if ($post === null) {
             $this->status = 404;
             return;
         }
+
         return [
             'post' => (array)new SchemasPost($post)
         ];

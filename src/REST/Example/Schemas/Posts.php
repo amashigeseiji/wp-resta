@@ -13,7 +13,7 @@ class Posts extends ArrayType
     public readonly array $items;
 
     /**
-     * @param WP_Post[]
+     * @param WP_Post[] $posts
      */
     public function __construct(array $posts)
     {
