@@ -39,7 +39,7 @@ class Route
                 }
                 // namespace をセットする必要があるのでこのタイミングで初期化する
                 $routeObject = $container->get($class);
-                $routeObject->namespace = $apiNamespace;
+                $routeObject->setNamespace($apiNamespace);
                 $container->bind($class, $routeObject);
                 if (!isset($routes[$apiNamespace])) {
                     $routes[$apiNamespace] = [];

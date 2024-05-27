@@ -7,6 +7,7 @@ use Psr\Http\Message\ResponseInterface;
 interface RouteInterface
 {
     public function getNamespace(): string;
+    public function setNamespace(string $namespace): void;
     public function getRouteRegex(): string;
     public function getMethods(): string;
     public function invoke(RequestInterface $request): ResponseInterface;
