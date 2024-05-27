@@ -2,10 +2,12 @@
 namespace Wp\Resta\DI;
 
 use Exception;
+use LogicException;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
+use RuntimeException;
 
 class Container
 {
@@ -25,17 +27,27 @@ class Container
         return self::$instance;
     }
 
-    public function bind(string $interface, $class = null)
+    /**
+     * @template T of object
+     * @param class-string<T> $interface
+     * @param T $class
+     */
+    public function bind(string $interface, string|object|callable $class = null) : void
     {
         $this->binder[$interface] = $class ?: $interface;
     }
 
-    public function unbind(string $interface)
+    public function unbind(string $interface) : void
     {
         unset($this->binder[$interface]);
     }
 
-    public function get(string $interface)
+    /**
+     * @template T of object
+     * @param class-string<T> $interface
+     * @return T
+     */
+    public function get(string $interface) : object
     {
         // 未定義の場合 class であれば呼びだすことができる
         if (!isset($this->binder[$interface])) {
@@ -46,6 +58,10 @@ class Container
             }
         }
         $bind = $this->binder[$interface];
+        // "$bind" is already resolved.
+        if ($bind instanceof $interface) {
+            return $bind;
+        }
         if (is_callable($bind)) {
             $func = is_array($bind) ? new ReflectionMethod($bind[0], $bind[1]) : new ReflectionFunction($bind);
             if ($func->getNumberOfParameters() === 0) {
@@ -54,27 +70,36 @@ class Container
             $args = [];
             foreach ($func->getParameters() as $param) {
                 $type = $param->getType();
+                // ReflectionUnionType or ReflectionIntersectionType cannot resolve because of multiple types.
                 if (!($type instanceof ReflectionNamedType)) {
                     throw new Exception('$' . $param->getName() . ' is invalid');
                 }
-                $args[$param->name] = $this->get($type->getName());
+                $typeName = $type->getName();
+                if (!class_exists($typeName)) {
+                    throw new RuntimeException("\"\${$typeName}\" cannot resolve.");
+                }
+                $args[$param->name] = $this->get($typeName);
             }
             return $func instanceof ReflectionMethod
                 ? $func->invokeArgs($bind[0], $args)
                 : $func->invokeArgs($args);
         }
-        // bindされているのが文字列である場合はクラスと見做すが、文字列以外はそのまま返す
-        // 配列とかだとそのまま
         if (!is_string($bind)) {
-            return $bind;
+            throw new LogicException("\"\$${interface}\" cannot resolved.");
         }
+        // "$bind" is stil unresolved
         if ($bind === $interface || is_subclass_of($bind, $interface)) {
             return $this->binder[$interface] = $this->factory($interface);
         }
-        return $bind;
+        throw new RuntimeException('Bound unresolve.');
     }
 
-    private function factory(string $class)
+    /**
+     * @template T of object
+     * @param class-string<T> $class
+     * @return T
+     */
+    private function factory(string $class) : object
     {
         $reflection = new ReflectionClass($class);
         $constructor = $reflection->getConstructor();
