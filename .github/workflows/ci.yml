@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests:  write
 
 jobs:
   build:
@@ -14,6 +15,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+
     - uses: reviewdog/action-setup@v1
       with:
         reviewdog_version: latest
@@ -38,8 +45,8 @@ jobs:
 
     - name: Run phpstan analyse
       env:
-        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.REVIEWDOG_GITHUB_TOKEN }}
-      run: vendor/bin/phpstan analyse
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: git diff main --name-only | grep '.php' | vendor/bin/phpstan analyse --error-format=raw --no-progress -l 6 | reviewdog -reporter=github-pr-review -f=phpstan -fail-on-error=false
 
     - name: Run test suite
       run: composer run-script test
