@@ -5,6 +5,7 @@ use Exception;
 use LogicException;
 use ReflectionClass;
 use ReflectionFunction;
+use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionNamedType;
 use RuntimeException;
@@ -13,6 +14,7 @@ class Container
 {
     private static Container|null $instance = null;
 
+    /** @var array<class-string, object|class-string|callable>*/
     private array $binder = [];
 
     private function __construct()
@@ -67,19 +69,7 @@ class Container
             if ($func->getNumberOfParameters() === 0) {
                 $resolved = $bind();
             } else {
-                $args = [];
-                foreach ($func->getParameters() as $param) {
-                    $type = $param->getType();
-                    // ReflectionUnionType or ReflectionIntersectionType cannot resolve because of multiple types.
-                    if (!($type instanceof ReflectionNamedType)) {
-                        throw new Exception('$' . $param->getName() . ' is invalid');
-                    }
-                    $typeName = $type->getName();
-                    if (!class_exists($typeName)) {
-                        throw new RuntimeException("\"\${$typeName}\" cannot resolve.");
-                    }
-                    $args[$param->name] = $this->get($typeName);
-                }
+                $args = $this->resolveParameters($func);
                 $resolved = $func instanceof ReflectionMethod
                     ? $func->invokeArgs($bind[0], $args)
                     : $func->invokeArgs($args);
@@ -111,17 +101,31 @@ class Container
         if (!$constructor) {
             $instance = $reflection->newInstance();
         } else {
-            $args = [];
-            foreach ($constructor->getParameters() as $param) {
-                /** @var ReflectionNamedType */
-                $type = $param->getType();
-                if (!($type instanceof ReflectionNamedType)) {
-                    throw new Exception('$' . $param->getName() . ' is invalid');
-                }
-                $args[$param->name] = $this->get($type->getName());
-            }
+            $args = $this->resolveParameters($constructor);
             $instance = $reflection->newInstanceArgs($args);
         }
         return $instance;
+    }
+
+    /**
+     * @param ReflectionFunctionAbstract $func
+     * @return object[]
+     */
+    private function resolveParameters(ReflectionFunctionAbstract $func): array
+    {
+        $args = [];
+        foreach ($func->getParameters() as $param) {
+            /** @var ReflectionNamedType */
+            $type = $param->getType();
+            if (!($type instanceof ReflectionNamedType)) {
+                throw new Exception('$' . $param->getName() . ' is invalid');
+            }
+            $typeName = $type->getName();
+            if (!class_exists($typeName)) {
+                throw new RuntimeException("\"\${$typeName}\" cannot resolve.");
+            }
+            $args[$param->name] = $this->get($typeName);
+        }
+        return $args;
     }
 }
