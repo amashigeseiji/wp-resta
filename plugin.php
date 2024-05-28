@@ -22,9 +22,13 @@ if (!file_exists($restaConfigFile)) {
     throw new RuntimeException('file does not exist: ' . $restaConfigFile);
 }
 $restaConfig = require($restaConfigFile);
-$loader = require $restaConfig['autoloader'];
-if (!($loader instanceof Composer\Autoload\ClassLoader)) {
-    die();
+if (isset($restaConfig['autoloader'])) {
+    $loader = require $restaConfig['autoloader'];
+    if (!($loader instanceof Composer\Autoload\ClassLoader)) {
+        throw new RuntimeException("autoloader config \"{$restaConfig['autoloader']}\" is not composer autoloader.");
+    }
+} elseif(!class_exists(Composer\Autoload\ClassLoader::class)) {
+    throw new RuntimeException('Composer\Autoload\ClassLoader does not defined. Make sure that autoloader is loaded.');
 }
 
 (new Wp\Resta\Resta)->init($restaConfig);

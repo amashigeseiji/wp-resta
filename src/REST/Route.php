@@ -27,7 +27,7 @@ class Route
             $dir = $routeDir[0];
             $namespace = $routeDir[1];
             $apiNamespace = $routeDir[2] ?? 'default';
-            $files = glob(ABSPATH . "{$dir}/*.php");
+            $files = glob("{$dir}/*.php");
             foreach ($files as $file) {
                 $basename = basename($file, '.php');
                 $class = "{$namespace}{$basename}";

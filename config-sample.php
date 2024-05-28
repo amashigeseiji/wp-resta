@@ -15,14 +15,14 @@
  */
 
 return [
-    'autoloader' => ABSPATH . '/vendor/autoload.php',
+    'autoloader' => ABSPATH . 'vendor/autoload.php',
     'routeDirectory' => [
-        ['wp-content/plugins/wp-resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example'],
-        ['wp-content/plugins/wp-resta/src/Routes', 'Wp\\Resta\\Routes\\'],
+        [ABSPATH . 'wp-content/plugins/wp-resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example'],
+        [ABSPATH . 'wp-content/plugins/wp-resta/src/Routes', 'Wp\\Resta\\Routes\\'],
     ],
     'use-swagger' => true,
     'schemaDirectory' => [
-        ['wp-content/plugins/wp-resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
+        [ABSPATH . 'wp-content/plugins/wp-resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
     ],
     'dependencies' => [
     ],
