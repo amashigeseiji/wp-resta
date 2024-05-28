@@ -33,6 +33,11 @@ abstract class AbstractRoute implements RouteInterface
         return $this->namespace;
     }
 
+    public function setNamespace(string $namespace) : void
+    {
+        $this->namespace = $namespace;
+    }
+
     public function getRouteRegex(): string
     {
         if (isset($this->routeRegex)) {
