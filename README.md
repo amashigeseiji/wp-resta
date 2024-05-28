@@ -27,11 +27,11 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 (new Wp\Resta\Resta)->init([
     'routeDirectory' => [
-        ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example']
+        [__DIR__ . '/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example']
     ],
     'use-swagger' => true,
     'schemaDirectory' => [
-        ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
+        [__DIR__ . '/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
     ],
 ]);
 ```

@@ -18,7 +18,7 @@ class Schemas
         foreach ($schemaSettings as $schemaDir) {
             $dir = $schemaDir[0];
             $namespace = $schemaDir[1];
-            $schemaFiles = glob(ABSPATH . "/" . $dir . '/*.php');
+            $schemaFiles = glob($dir . '/*.php');
             foreach ($schemaFiles as $schema) {
                 $typeName = basename($schema, '.php');
                 $class = $namespace . $typeName;
