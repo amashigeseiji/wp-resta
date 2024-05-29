@@ -1,7 +1,6 @@
 <?php
 namespace Wp\Resta\OpenApi;
 
-use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Route;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\RouteInterface;
@@ -19,14 +18,15 @@ class ResponseSchema
         $this->schemas = $schemas;
     }
 
+    /**
+     * @return array<string, array<string, mixed>>
+     */
     private function getPaths() : array
     {
         $paths = [];
 
-        $container = Container::getInstance();
         foreach ($this->routes->routes as $namespace => $routesInNamespace) {
-            foreach ($routesInNamespace as $r) {
-                $route = $container->get($r);
+            foreach ($routesInNamespace as $route) {
                 assert($route instanceof RouteInterface);
                 $path = $route->getReadableRoute();
 
