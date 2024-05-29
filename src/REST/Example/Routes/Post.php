@@ -26,16 +26,19 @@ class Post extends AbstractRoute
         ]
     ];
 
-    public function callback(int $id)
+    /**
+     * @return array<string, SchemasPost>|null
+     */
+    public function callback(int $id) : ?array
     {
         $post = get_post($id);
         if ($post === null) {
             $this->status = 404;
-            return;
+            return null;
         }
 
         return [
-            'post' => (array)new SchemasPost($post)
+            'post' => new SchemasPost($post)
         ];
     }
 }

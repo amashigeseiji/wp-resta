@@ -9,7 +9,11 @@ use Wp\Resta\Config;
 
 class Resta
 {
-    public function init(array $restaConfig)
+    /**
+     * @template T
+     * @param array<class-string<T>, T> $restaConfig
+     */
+    public function init(array $restaConfig) : void
     {
         $config = new Config($restaConfig);
         $container = Container::getInstance();
@@ -17,6 +21,7 @@ class Resta
         $dependencies = $config->get('dependencies') ?: [];
         foreach ($dependencies as $interface => $dependency) {
             if (is_string($interface)) {
+                assert(class_exists($interface));
                 $container->bind($interface, $dependency);
             } else {
                 $container->bind($dependency);

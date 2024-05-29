@@ -73,7 +73,7 @@ class ResponseSchema
         return $paths;
     }
 
-    public function init()
+    public function init() : void
     {
         add_rewrite_tag('%rest_api_doc%', '([^&]+)');
         add_rewrite_rule('^rest-api/schema/?', 'index.php?rest_api_doc=schema', 'top');
@@ -88,6 +88,7 @@ class ResponseSchema
 
     /**
      * swagger json生成
+     * @return array<string, mixed>
      */
     public function responseSchema(): array
     {

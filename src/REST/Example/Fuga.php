@@ -3,6 +3,6 @@ namespace Wp\Resta\REST\Example;
 
 class Fuga
 {
-    public $name = 'Fugaクラス';
-    public $desc = 'これはFugaクラスです';
+    public string $name = 'Fugaクラス';
+    public string $desc = 'これはFugaクラスです';
 }

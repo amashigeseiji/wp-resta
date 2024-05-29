@@ -3,14 +3,20 @@ namespace Wp\Resta;
 
 class Config
 {
+    /**
+     * @var array<string, mixed>
+     */
     private readonly array $config;
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function __construct(array $config)
     {
         $this->config = $config;
     }
 
-    public function get(string $key)
+    public function get(string $key) : mixed
     {
         return $this->config[$key] ?? null;
     }

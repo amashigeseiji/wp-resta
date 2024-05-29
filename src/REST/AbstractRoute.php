@@ -10,7 +10,7 @@ use ReflectionNamedType;
 use ReflectionType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
-use WP_REST_Request;
+use WPRestApi\PSR7\WP_REST_PSR7_Request;
 use WPRestApi\PSR7\WP_REST_PSR7_Response;
 
 abstract class AbstractRoute implements RouteInterface
@@ -19,11 +19,17 @@ abstract class AbstractRoute implements RouteInterface
     protected const URL_PARAMS = [];
     public const SCHEMA = null;
 
+    /** @var array<string, string> */
     protected array $headers = [];
+
+    /**
+     * @var mixed
+     */
     protected $body = '';
-    protected $status = 200;
+    protected int $status = 200;
 
     private string $routeRegex;
+    /** @var array<string, array<string, string|bool>>*/
     private array $args;
 
     public string $namespace = 'default';
@@ -70,7 +76,7 @@ abstract class AbstractRoute implements RouteInterface
     public function invoke(RequestInterface $request): ResponseInterface
     {
         if (is_callable([$this, 'callback'])) {
-            if ($request instanceof WP_REST_Request) {
+            if ($request instanceof WP_REST_PSR7_Request) {
                 try {
                     $result = $this->invokeCallback(new ReflectionMethod($this, 'callback'), $request);
                     if ($result instanceof ResponseInterface) {
@@ -91,7 +97,7 @@ abstract class AbstractRoute implements RouteInterface
         return new WP_REST_PSR7_Response($this->body, $this->status, $this->headers);
     }
 
-    private function invokeCallback(ReflectionMethod $callback, WP_REST_Request $request)
+    private function invokeCallback(ReflectionMethod $callback, WP_REST_PSR7_Request $request) : mixed
     {
         $parameters = $callback->getParameters();
         $args = [];
@@ -122,13 +128,17 @@ abstract class AbstractRoute implements RouteInterface
                 // ビルトイン型はURL定義にないものがこちらに紛れているとおもわれる
                 throw new LogicException($this::class . "::callback() has invalid argument `{$type->getName()} \${$param->name}`. Please check URL_PARAMS has `{$param->name}` parameter.");
             }
+            $class = $type->getName();
+            if (!class_exists($class)) {
+                throw new RuntimeException('cannot resolve type: ' . $class);
+            }
             // クラス/インターフェースなど一意に確定できるものだけインジェクトする
-            $args[$param->name] = Container::getInstance()->get($type->getName());
+            $args[$param->name] = Container::getInstance()->get($class);
         }
         return $callback->invokeArgs($this, $args);
     }
 
-    public function permissionCallback()
+    public function permissionCallback() : string
     {
         return '__return_true';
     }

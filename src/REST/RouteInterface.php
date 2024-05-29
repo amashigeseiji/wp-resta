@@ -11,9 +11,17 @@ interface RouteInterface
     public function getRouteRegex(): string;
     public function getMethods(): string;
     public function invoke(RequestInterface $request): ResponseInterface;
-    public function permissionCallback();
+    public function permissionCallback(): string;
+
+    /**
+     * @return array<string, array<string, string>>
+     */
     public function getArgs() : array;
-    /** JsonSchema */
+
+    /**
+     * JsonSchema
+     * @return array<string, mixed>|null
+     */
     public function getSchema() : array|null;
     public function getReadableRoute() : string;
 }

@@ -15,6 +15,9 @@ class Feed extends AbstractRoute
         'id' => '\d+',
     ];
 
+    /**
+     * @return array<mixed>
+     */
     public function callback(int $id, Hoge $hoge, RequestInterface $request, Route $route): array
     {
         return [$id, $id * 2, $hoge->getHoge(), $hoge->fuga, $route->routes];

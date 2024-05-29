@@ -17,7 +17,10 @@ class Posts extends AbstractRoute
         ],
     ];
 
-    public function callback()
+    /**
+     * @return array<string, \Wp\Resta\REST\Example\Schemas\Post[]>
+     */
+    public function callback() : array
     {
         $q = new WP_Query();
         $posts = $q->query([

@@ -5,7 +5,7 @@ class Doc
 {
     const VERSION = '1.0';
 
-    public function init()
+    public function init() : void
     {
         if (is_admin() && is_user_logged_in()) {
             // メニュー追加
