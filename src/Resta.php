@@ -11,7 +11,13 @@ class Resta
 {
     /**
      * @template T
-     * @param array<class-string<T>, T> $restaConfig
+     * @param array{
+     *    autoloader?: string,
+     *    routeDirectory: array<string[]>,
+     *    schemaDirectory?: array<string[]>,
+     *    dependencies?: array<class-string<T>, T|class-string<T>>,
+     *    use-swagger?: bool
+     * } $restaConfig
      */
     public function init(array $restaConfig) : void
     {
@@ -29,7 +35,6 @@ class Resta
         }
 
         add_action('rest_api_init', function () use ($container) {
-            /** @var Route */
             $routes = $container->get(Route::class);
             $routes->register();
         });
