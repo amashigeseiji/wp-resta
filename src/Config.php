@@ -9,7 +9,14 @@ class Config
     private readonly array $config;
 
     /**
-     * @param array<string, mixed> $config
+     * @template T
+     * @param array{
+     *    autoloader?: string,
+     *    routeDirectory: array<string[]>,
+     *    schemaDirectory?: array<string[]>,
+     *    dependencies?: array<class-string<T>, T|class-string<T>>,
+     *    use-swagger?: bool
+     * } $config
      */
     public function __construct(array $config)
     {
