@@ -15,6 +15,10 @@ use WPRestApi\PSR7\WP_REST_PSR7_Response;
 class Route
 {
     private Container $container;
+
+    /**
+     * @var array<string, RouteInterface[]>
+     */
     public readonly Array $routes;
 
     public function __construct(Config $config)
@@ -44,7 +48,7 @@ class Route
                 if (!isset($routes[$apiNamespace])) {
                     $routes[$apiNamespace] = [];
                 }
-                $routes[$apiNamespace][] = $class;
+                $routes[$apiNamespace][] = $routeObject;
             }
         }
         $this->routes = $routes;
@@ -66,8 +70,7 @@ class Route
             return $order;
         });
         foreach ($this->routes as $apiNamespace => $routes) {
-            foreach ($routes as $routeName) {
-                $route = $this->container->get($routeName);
+            foreach ($routes as $route) {
                 assert($route instanceof RouteInterface);
                 register_rest_route(
                     $route->getNamespace(),

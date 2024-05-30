@@ -9,7 +9,17 @@ use Wp\Resta\Config;
 
 class Resta
 {
-    public function init(array $restaConfig)
+    /**
+     * @template T
+     * @param array{
+     *    autoloader?: string,
+     *    routeDirectory: array<string[]>,
+     *    schemaDirectory?: array<string[]>,
+     *    dependencies?: array<class-string<T>, T|class-string<T>>,
+     *    use-swagger?: bool
+     * } $restaConfig
+     */
+    public function init(array $restaConfig) : void
     {
         $config = new Config($restaConfig);
         $container = Container::getInstance();
@@ -17,6 +27,7 @@ class Resta
         $dependencies = $config->get('dependencies') ?: [];
         foreach ($dependencies as $interface => $dependency) {
             if (is_string($interface)) {
+                assert(class_exists($interface));
                 $container->bind($interface, $dependency);
             } else {
                 $container->bind($dependency);
@@ -24,7 +35,6 @@ class Resta
         }
 
         add_action('rest_api_init', function () use ($container) {
-            /** @var Route */
             $routes = $container->get(Route::class);
             $routes->register();
         });

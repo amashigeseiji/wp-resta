@@ -1,7 +1,6 @@
 <?php
 namespace Wp\Resta\OpenApi;
 
-use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Route;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\RouteInterface;
@@ -19,14 +18,15 @@ class ResponseSchema
         $this->schemas = $schemas;
     }
 
+    /**
+     * @return array<string, array<string, mixed>>
+     */
     private function getPaths() : array
     {
         $paths = [];
 
-        $container = Container::getInstance();
         foreach ($this->routes->routes as $namespace => $routesInNamespace) {
-            foreach ($routesInNamespace as $r) {
-                $route = $container->get($r);
+            foreach ($routesInNamespace as $route) {
                 assert($route instanceof RouteInterface);
                 $path = $route->getReadableRoute();
 
@@ -73,7 +73,7 @@ class ResponseSchema
         return $paths;
     }
 
-    public function init()
+    public function init() : void
     {
         add_rewrite_tag('%rest_api_doc%', '([^&]+)');
         add_rewrite_rule('^rest-api/schema/?', 'index.php?rest_api_doc=schema', 'top');
@@ -88,6 +88,7 @@ class ResponseSchema
 
     /**
      * swagger json生成
+     * @return array<string, mixed>
      */
     public function responseSchema(): array
     {

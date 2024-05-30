@@ -8,6 +8,9 @@ use Wp\Resta\REST\Attributes\Schema\Property;
 
 class Schemas
 {
+    /**
+     * @var array<string, mixed>
+     */
     public readonly array $schemas;
 
     public function __construct(Config $config)

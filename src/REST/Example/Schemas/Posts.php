@@ -9,6 +9,9 @@ class Posts extends ArrayType
 {
     public const ID = '#/components/schemas/Posts';
 
+    /**
+     * @var Post[]
+     */
     #[Property(['$ref' => Post::ID])]
     public readonly array $items;
 
@@ -18,7 +21,7 @@ class Posts extends ArrayType
     public function __construct(array $posts)
     {
         $this->items = array_map(function (WP_Post $post) {
-            return (array) new Post($post);
+            return new Post($post);
         }, $posts);
     }
 }
