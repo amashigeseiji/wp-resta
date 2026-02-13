@@ -5,6 +5,7 @@ use Wp\Resta\DI\Container;
 use Wp\Resta\Config;
 use Wp\Resta\Hooks\HookProviderInterface;
 use Wp\Resta\Hooks\InternalHooks;
+use Wp\Resta\Hooks\SwaggerHooks;
 
 class Resta
 {
@@ -33,17 +34,11 @@ class Resta
             }
         }
 
-        // 内部フック（必須、設定ファイルから変更不可）
-        $internalHooks = [
-            InternalHooks::class,
-        ];
-
-        // ユーザーフック（設定ファイルから）
         /** @var array<class-string<\Wp\Resta\Hooks\HookProviderInterface>> */
-        $userHooks = $config->get('hooks') ?: [];
-
-        // マージして登録
-        $allHooks = array_merge($internalHooks, $userHooks);
+        $allHooks = array_merge([InternalHooks::class], $config->get('hooks') ?: []);
+        if ($config->get('use-swagger') && !in_array(SwaggerHooks::class, $allHooks)) {
+            array_push($allHooks, SwaggerHooks::class);
+        }
 
         foreach ($allHooks as $providerClass) {
             $provider = $container->get($providerClass);
