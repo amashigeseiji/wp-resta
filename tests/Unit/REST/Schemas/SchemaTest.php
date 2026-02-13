@@ -1,5 +1,5 @@
 <?php
-namespace Test\Resta;
+namespace Test\Resta\Unit\REST\Schemas;
 
 use PHPUnit\Framework\TestCase;
 use Wp\Resta\REST\Attributes\Schema\Property;
