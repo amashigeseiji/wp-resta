@@ -142,15 +142,6 @@ class ConfigTest extends TestCase
         $this->assertEquals(['HookClass', 'AnotherHook'], $config->hooks);
     }
 
-    public function testHooksArrayHandlesInvalidInput()
-    {
-        $config = new Config([
-            'hooks' => 'not an array',
-        ]);
-
-        $this->assertEquals([], $config->hooks);
-    }
-
     public function testUseSwaggerDefaultsToFalse()
     {
         $config = new Config([]);

@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     die();
 }
 
-$restaConfigFile = getenv('RESTA_CONFIG_FILE') ?: __DIR__ . '/config-sample.php';
+$restaConfigFile = getenv('RESTA_CONFIG_FILE') or __DIR__ . '/config-sample.php';
 if (!$restaConfigFile || !file_exists($restaConfigFile)) {
     throw new RuntimeException('file does not exist: ' . $restaConfigFile);
 }

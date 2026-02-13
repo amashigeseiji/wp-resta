@@ -3,10 +3,15 @@ namespace Wp\Resta;
 
 class Config
 {
+    /** @var array<string[]> */
     public readonly array $routeDirectory;
+    /** @var array<string[]> */
     public readonly array $schemaDirectory;
+    /** @var array<int|class-string, object|class-string> */
     public readonly array $dependencies;
+    /** @var array<class-string<\Wp\Resta\Hooks\HookProviderInterface>> */
     public readonly array $hooks;
+    /** @var bool */
     public readonly bool $useSwagger;
 
     /**
@@ -36,12 +41,9 @@ class Config
 
         // hooks のバリデーション: 文字列のみフィルタ、重複排除
         $hooks = $config['hooks'] ?? [];
-        if (is_array($hooks)) {
-            $hooks = array_filter($hooks, 'is_string');
-            $hooks = array_unique($hooks, SORT_STRING);
-        } else {
-            $hooks = [];
-        }
+        assert(is_array($hooks));
+        $hooks = array_filter($hooks, 'is_string');
+        $hooks = array_unique($hooks, SORT_STRING);
         $this->hooks = array_values($hooks);
 
         // use-swagger の後方互換性
