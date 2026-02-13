@@ -15,7 +15,7 @@ class Config
      *    routeDirectory: array<string[]>,
      *    schemaDirectory?: array<string[]>,
      *    dependencies?: array<class-string<T>, T|class-string<T>>,
-     *    use-swagger?: bool
+     *    hooks?: array<class-string<\Wp\Resta\Hooks\HookProviderInterface>>
      * } $config
      */
     public function __construct(array $config)

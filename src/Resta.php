@@ -2,10 +2,9 @@
 namespace Wp\Resta;
 
 use Wp\Resta\DI\Container;
-use Wp\Resta\OpenApi\ResponseSchema;
-use Wp\Resta\OpenApi\Doc;
-use Wp\Resta\REST\Route;
 use Wp\Resta\Config;
+use Wp\Resta\Hooks\HookProviderInterface;
+use Wp\Resta\Hooks\InternalHooks;
 
 class Resta
 {
@@ -16,7 +15,7 @@ class Resta
      *    routeDirectory: array<string[]>,
      *    schemaDirectory?: array<string[]>,
      *    dependencies?: array<class-string<T>, T|class-string<T>>,
-     *    use-swagger?: bool
+     *    hooks?: array<class-string<HookProviderInterface>>
      * } $restaConfig
      */
     public function init(array $restaConfig) : void
@@ -34,18 +33,27 @@ class Resta
             }
         }
 
-        add_action('rest_api_init', function () use ($container) {
-            $routes = $container->get(Route::class);
-            $routes->register();
-        });
+        // 内部フック（必須、設定ファイルから変更不可）
+        $internalHooks = [
+            InternalHooks::class,
+        ];
 
-        // use-swagger を false にしたら SwaggerUI や /rest-api/schema の出力をオフにする
-        $useSwagger = $config->hasKey('use-swagger') ? $config->get('use-swagger') : true;
-        if ($useSwagger) {
-            add_action('init', function() use ($container) {
-                $container->get(Doc::class)->init();
-                $container->get(ResponseSchema::class)->init();
-            });
+        // ユーザーフック（設定ファイルから）
+        $userHooks = $config->get('hooks') ?: [];
+
+        // マージして登録
+        $allHooks = array_merge($internalHooks, $userHooks);
+
+        foreach ($allHooks as $providerClass) {
+            $provider = $container->get($providerClass);
+
+            if (!($provider instanceof HookProviderInterface)) {
+                throw new \InvalidArgumentException(
+                    sprintf('%s must implement HookProviderInterface', $providerClass)
+                );
+            }
+
+            $provider->register();
         }
     }
 }
