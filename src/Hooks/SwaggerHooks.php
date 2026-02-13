@@ -1,7 +1,6 @@
 <?php
 namespace Wp\Resta\Hooks;
 
-use Wp\Resta\DI\Container;
 use Wp\Resta\OpenApi\Doc;
 use Wp\Resta\OpenApi\ResponseSchema;
 use Wp\Resta\Hooks\Attributes\AddAction;
@@ -13,13 +12,14 @@ use Wp\Resta\Hooks\Attributes\AddAction;
 class SwaggerHooks extends HookProvider
 {
     public function __construct(
-        private readonly Container $container
+        private readonly Doc $doc,
+        private readonly ResponseSchema $responseSchema
     ) {}
 
     #[AddAction('init')]
     public function registerSwagger(): void
     {
-        $this->container->get(Doc::class)->init();
-        $this->container->get(ResponseSchema::class)->init();
+        $this->doc->init();
+        $this->responseSchema->init();
     }
 }

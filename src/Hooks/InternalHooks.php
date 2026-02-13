@@ -1,7 +1,6 @@
 <?php
 namespace Wp\Resta\Hooks;
 
-use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Route;
 use Wp\Resta\Hooks\Attributes\AddAction;
 
@@ -12,13 +11,12 @@ use Wp\Resta\Hooks\Attributes\AddAction;
 class InternalHooks extends HookProvider
 {
     public function __construct(
-        private readonly Container $container
+        private readonly Route $route
     ) {}
 
     #[AddAction('rest_api_init')]
     public function registerRoutes(): void
     {
-        $routes = $this->container->get(Route::class);
-        $routes->register();
+        $this->route->register();
     }
 }

@@ -16,7 +16,7 @@ abstract class HookProvider implements HookProviderInterface
             $filters = $method->getAttributes(AddFilter::class);
             foreach ($filters as $filterAttr) {
                 $filter = $filterAttr->newInstance();
-                add_filter(
+                \add_filter(
                     $filter->hook,
                     [$this, $method->getName()],
                     $filter->priority,
@@ -28,7 +28,7 @@ abstract class HookProvider implements HookProviderInterface
             $actions = $method->getAttributes(AddAction::class);
             foreach ($actions as $actionAttr) {
                 $action = $actionAttr->newInstance();
-                add_action(
+                \add_action(
                     $action->hook,
                     [$this, $method->getName()],
                     $action->priority,

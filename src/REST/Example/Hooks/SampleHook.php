@@ -72,7 +72,7 @@ class SampleHook extends HookProvider
 
         // 条件付きで追加のフックを登録する例
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            add_filter('rest_pre_echo_response', [$this, 'debugResponse'], 10, 3);
+            \add_filter('rest_pre_echo_response', [$this, 'debugResponse'], 10, 3);
         }
     }
 
