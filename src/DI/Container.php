@@ -34,7 +34,7 @@ class Container
      * @param class-string<T> $interface
      * @param T $class
      */
-    public function bind(string $interface, string|object|callable $class = null) : void
+    public function bind(string $interface, string|object|callable|null $class = null) : void
     {
         $this->binder[$interface] = $class ?: $interface;
     }
