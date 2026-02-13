@@ -40,6 +40,6 @@
         }
     },
     "scripts": {
-        "test": ["phpunit --bootstrap=tests/bootstrap.php tests"]
+        "test": "phpunit"
     }
 }
