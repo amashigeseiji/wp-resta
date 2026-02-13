@@ -1,6 +1,7 @@
 <?php
 namespace Wp\Resta\Hooks;
 
+use Wp\Resta\DI\Container;
 use Wp\Resta\OpenApi\Doc;
 use Wp\Resta\OpenApi\ResponseSchema;
 use Wp\Resta\Hooks\Attributes\AddAction;
@@ -11,15 +12,17 @@ use Wp\Resta\Hooks\Attributes\AddAction;
  */
 class SwaggerHooks extends HookProvider
 {
-    public function __construct(
-        private readonly Doc $doc,
-        private readonly ResponseSchema $responseSchema
-    ) {}
-
     #[AddAction('init')]
     public function registerSwagger(): void
     {
-        $this->doc->init();
-        $this->responseSchema->init();
+        // Doc/ResponseSchema の解決を init 実行時まで遅延
+        // フック登録時ではなく、実際に使用する時点で依存を解決
+        // schemaDirectory 未設定時の warning を回避
+        $container = Container::getInstance();
+        $doc = $container->get(Doc::class);
+        $responseSchema = $container->get(ResponseSchema::class);
+
+        $doc->init();
+        $responseSchema->init();
     }
 }
