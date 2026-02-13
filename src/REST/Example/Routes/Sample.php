@@ -64,7 +64,7 @@ class Sample extends AbstractRoute
     /**
      * @return array<string, mixed>
      */
-    public function callback(int $id, string $name = null, string $a_or_b = 'a'): array
+    public function callback(int $id, string|null $name = null, string $a_or_b = 'a'): array
     {
         global $wpdb;
         $res = $wpdb->query($wpdb->prepare(
