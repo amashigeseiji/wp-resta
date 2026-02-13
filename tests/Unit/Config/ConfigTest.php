@@ -94,4 +94,67 @@ class ConfigTest extends TestCase
         $this->assertIsArray($config->get('array'));
         $this->assertNull($config->get('null'));
     }
+
+    public function testReadonlyPropertiesAreAccessible()
+    {
+        $config = new Config([
+            'routeDirectory' => [['/path', 'Namespace\\']],
+            'schemaDirectory' => [['/schema', 'Schema\\']],
+            'dependencies' => ['Interface' => 'Implementation'],
+            'hooks' => ['HookClass'],
+            'use-swagger' => true,
+        ]);
+
+        $this->assertEquals([['/path', 'Namespace\\']], $config->routeDirectory);
+        $this->assertEquals([['/schema', 'Schema\\']], $config->schemaDirectory);
+        $this->assertEquals(['Interface' => 'Implementation'], $config->dependencies);
+        $this->assertEquals(['HookClass'], $config->hooks);
+        $this->assertTrue($config->useSwagger);
+    }
+
+    public function testHooksArrayFiltersNonStringValues()
+    {
+        $config = new Config([
+            'hooks' => [
+                'ValidClass1',
+                123,
+                'ValidClass2',
+                null,
+                ['nested'],
+                'ValidClass3',
+            ],
+        ]);
+
+        $this->assertEquals(['ValidClass1', 'ValidClass2', 'ValidClass3'], $config->hooks);
+    }
+
+    public function testHooksArrayRemovesDuplicates()
+    {
+        $config = new Config([
+            'hooks' => [
+                'HookClass',
+                'HookClass',
+                'AnotherHook',
+                'HookClass',
+            ],
+        ]);
+
+        $this->assertEquals(['HookClass', 'AnotherHook'], $config->hooks);
+    }
+
+    public function testHooksArrayHandlesInvalidInput()
+    {
+        $config = new Config([
+            'hooks' => 'not an array',
+        ]);
+
+        $this->assertEquals([], $config->hooks);
+    }
+
+    public function testUseSwaggerDefaultsToFalse()
+    {
+        $config = new Config([]);
+
+        $this->assertFalse($config->useSwagger);
+    }
 }

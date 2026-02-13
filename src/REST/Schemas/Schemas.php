@@ -15,10 +15,8 @@ class Schemas
 
     public function __construct(Config $config)
     {
-        $schemaSettings = $config->get('schemaDirectory');
-
         $schemas = [];
-        foreach ($schemaSettings as $schemaDir) {
+        foreach ($config->schemaDirectory as $schemaDir) {
             $dir = $schemaDir[0];
             $namespace = $schemaDir[1];
             $schemaFiles = glob($dir . '/*.php');
