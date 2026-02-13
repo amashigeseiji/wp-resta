@@ -33,7 +33,7 @@ class RestaIntegrationTest extends TestCase
 
         $config = [
             'routeDirectory' => [
-                [__DIR__ . '/fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
+                [__DIR__ . '/Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
             ],
         ];
 
