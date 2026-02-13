@@ -152,4 +152,64 @@ class HookProviderTest extends TestCase
 
         $provider->register();
     }
+
+    public function testRegisterIgnoresPrivateMethods()
+    {
+        // private メソッドの Attribute は無視される（add_filter/add_action が呼ばれない）
+        Functions\expect('add_filter')->never();
+        Functions\expect('add_action')->never();
+
+        $provider = new class extends HookProvider {
+            #[AddFilter('private_filter')]
+            private function privateMethod($value) {
+                return $value;
+            }
+
+            #[AddAction('private_action')]
+            private function privateAction(): void {}
+        };
+
+        $provider->register();
+    }
+
+    public function testRegisterIgnoresProtectedMethods()
+    {
+        // protected メソッドの Attribute は無視される
+        Functions\expect('add_filter')->never();
+        Functions\expect('add_action')->never();
+
+        $provider = new class extends HookProvider {
+            #[AddFilter('protected_filter')]
+            protected function protectedMethod($value) {
+                return $value;
+            }
+        };
+
+        $provider->register();
+    }
+
+    public function testRegisterOnlyRegistersPublicMethods()
+    {
+        // public メソッドのみ登録される
+        Functions\expect('add_filter')
+            ->once()
+            ->with('public_filter', Mockery::type('array'), 10, 1);
+
+        Functions\expect('add_action')->never();
+
+        $provider = new class extends HookProvider {
+            #[AddFilter('public_filter')]
+            public function publicMethod($value) {
+                return $value;
+            }
+
+            #[AddAction('private_action')]
+            private function privateMethod(): void {}
+
+            #[AddAction('protected_action')]
+            protected function protectedMethod(): void {}
+        };
+
+        $provider->register();
+    }
 }

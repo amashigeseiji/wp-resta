@@ -55,7 +55,8 @@ abstract class HookProvider implements HookProviderInterface
     {
         $reflection = new ReflectionClass($this);
 
-        foreach ($reflection->getMethods() as $method) {
+        // public メソッドのみをスキャン（WordPress から呼び出し可能なメソッドに限定）
+        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
             // AddFilter アトリビュートの処理
             $filters = $method->getAttributes(AddFilter::class);
             foreach ($filters as $filterAttr) {
