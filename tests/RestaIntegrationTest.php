@@ -60,7 +60,7 @@ class RestaIntegrationTest extends TestCase
 
         $config = [
             'routeDirectory' => [
-                [__DIR__ . '/fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
+                [__DIR__ . '/Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
             ],
             'hooks' => [
                 get_class($testHook),
@@ -94,7 +94,7 @@ class RestaIntegrationTest extends TestCase
 
         $config = [
             'routeDirectory' => [
-                [__DIR__ . '/fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
+                [__DIR__ . '/Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
             ],
             'hooks' => [
                 get_class($testHook),
@@ -121,7 +121,7 @@ class RestaIntegrationTest extends TestCase
         // HookProviderInterface を実装していないクラス
         $config = [
             'routeDirectory' => [
-                [__DIR__ . '/fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
+                [__DIR__ . '/Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
             ],
             'hooks' => [
                 \stdClass::class,  // 無効なクラス
