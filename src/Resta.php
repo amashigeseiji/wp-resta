@@ -39,6 +39,7 @@ class Resta
         ];
 
         // ユーザーフック（設定ファイルから）
+        /** @var array<class-string<\Wp\Resta\Hooks\HookProviderInterface>> */
         $userHooks = $config->get('hooks') ?: [];
 
         // マージして登録

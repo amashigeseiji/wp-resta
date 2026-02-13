@@ -6,6 +6,9 @@ use Wp\Resta\Hooks\Attributes\AddFilter;
 use Wp\Resta\Hooks\Attributes\AddAction;
 use WP_REST_Response;
 use WP_REST_Request;
+use WP_REST_Server;
+use WP_HTTP_Response;
+use WP_Error;
 
 class SampleHook extends HookProvider
 {
@@ -14,8 +17,11 @@ class SampleHook extends HookProvider
      * カスタムヘッダーを追加
      */
     #[AddFilter('rest_pre_dispatch', priority: 10, acceptedArgs: 3)]
-    public function addCustomHeaders($result, $server, WP_REST_Request $request)
-    {
+    public function addCustomHeaders(
+        null|WP_HTTP_Response|WP_Error $result,
+        WP_REST_Server $server,
+        WP_REST_Request $request
+    ): null|WP_HTTP_Response|WP_Error {
         header('X-WP-Resta-Version: 0.8.4');
         header('X-WP-Resta-Sample: active');
         return $result;
@@ -24,10 +30,15 @@ class SampleHook extends HookProvider
     /**
      * REST API レスポンスの後処理
      * すべてのレスポンスにメタ情報を追加
+     *
+     * @param array<string, mixed> $handler
      */
     #[AddFilter('rest_request_after_callbacks', priority: 10, acceptedArgs: 3)]
-    public function addMetaToResponse($response, $handler, WP_REST_Request $request)
-    {
+    public function addMetaToResponse(
+        WP_HTTP_Response|WP_Error $response,
+        array $handler,
+        WP_REST_Request $request
+    ): WP_HTTP_Response|WP_Error {
         if ($response instanceof WP_REST_Response) {
             $data = $response->get_data();
 
@@ -78,9 +89,15 @@ class SampleHook extends HookProvider
 
     /**
      * デバッグモード時のレスポンス出力前処理
+     *
+     * @param array<string, mixed>|null $result
+     * @return array<string, mixed>|null
      */
-    public function debugResponse($result, $server, $request)
-    {
+    public function debugResponse(
+        array|null $result,
+        WP_REST_Server $server,
+        WP_REST_Request $request
+    ): array|null {
         error_log('REST API Request: ' . $request->get_route());
         return $result;
     }
