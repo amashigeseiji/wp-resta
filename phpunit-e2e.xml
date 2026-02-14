@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.0/phpunit.xsd"
+         bootstrap="tests/bootstrap-e2e.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache/e2e"
+         beStrictAboutTestsThatDoNotTestAnything="false">
+    <testsuites>
+        <testsuite name="E2E">
+            <directory>tests/E2E</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <!-- Docker container name for WordPress -->
+        <env name="E2E_BASE_URL" value="http://wordpress"/>
+        <env name="E2E_TIMEOUT" value="30"/>
+    </php>
+</phpunit>
