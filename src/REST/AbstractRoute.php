@@ -5,6 +5,8 @@ use InvalidArgumentException;
 use LogicException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use PsrMock\Psr7\Response;
+use PsrMock\Psr7\Stream;
 use ReflectionMethod;
 use ReflectionNamedType;
 use RuntimeException;
@@ -203,5 +205,26 @@ abstract class AbstractRoute implements RouteInterface
     public function getSchema(): array|null
     {
         return $this::SCHEMA ?? null;
+    }
+
+    /**
+     * Create PSR-7 Response from current state
+     */
+    private function createResponse(): ResponseInterface
+    {
+        $response = new Response($this->status);
+
+        // Add headers
+        foreach ($this->headers as $name => $value) {
+            $response = $response->withHeader($name, $value);
+        }
+
+        // Encode body as JSON if it's an array
+        $body = is_string($this->body)
+            ? $this->body
+            : json_encode($this->body, JSON_UNESCAPED_UNICODE);
+
+        $stream = new Stream($body);
+        return $response->withBody($stream);
     }
 }
