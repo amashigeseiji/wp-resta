@@ -92,14 +92,14 @@ class SampleHook extends HookProvider
     /**
      * デバッグモード時のレスポンス出力前処理
      *
-     * @param array<string, mixed>|null $result
-     * @return array<string, mixed>|null
+     * @param mixed $result
+     * @return mixed
      */
     public function debugResponse(
-        array|null $result,
+        mixed $result,
         WP_REST_Server $server,
         WP_REST_Request $request
-    ): array|null {
+    ): mixed {
         error_log('REST API Request: ' . $request->get_route());
         return $result;
     }

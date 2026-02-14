@@ -5,6 +5,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use PsrMock\Psr7\Request;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Http\TestRestaRequest;
 
 class AbstractRouteTest extends TestCase
 {
@@ -17,7 +18,10 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new Request('GET', 'http://example.com/test');
+        $request = new TestRestaRequest(
+            new Request('GET', 'http://example.com/test'),
+            $route
+        );
         $response = $route->invoke($request);
 
         $this->assertInstanceOf(ResponseInterface::class, $response);
@@ -41,7 +45,10 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new Request('GET', 'http://example.com/test');
+        $request = new TestRestaRequest(
+            new Request('GET', 'http://example.com/test'),
+            $route
+        );
         $response = $route->invoke($request);
 
         $headers = $response->getHeaders();
@@ -58,7 +65,10 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new Request('POST', 'http://example.com/test');
+        $request = new TestRestaRequest(
+            new Request('POST', 'http://example.com/test'),
+            $route
+        );
         $response = $route->invoke($request);
 
         $this->assertEquals(201, $response->getStatusCode());
@@ -73,7 +83,10 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new Request('GET', 'http://example.com/test');
+        $request = new TestRestaRequest(
+            new Request('GET', 'http://example.com/test'),
+            $route
+        );
         $response = $route->invoke($request);
 
         $this->assertEquals(500, $response->getStatusCode());
@@ -85,7 +98,10 @@ class AbstractRouteTest extends TestCase
             // No callback method
         };
 
-        $request = new Request('GET', 'http://example.com/test');
+        $request = new TestRestaRequest(
+            new Request('GET', 'http://example.com/test'),
+            $route
+        );
         $response = $route->invoke($request);
 
         $this->assertInstanceOf(ResponseInterface::class, $response);
@@ -103,7 +119,10 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new Request('POST', 'http://example.com/test');
+        $request = new TestRestaRequest(
+            new Request('POST', 'http://example.com/test'),
+            $route
+        );
         $response = $route->invoke($request);
 
         $this->assertEquals(201, $response->getStatusCode());

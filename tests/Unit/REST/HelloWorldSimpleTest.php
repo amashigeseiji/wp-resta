@@ -4,6 +4,7 @@ namespace Test\Resta\Unit\REST;
 use PHPUnit\Framework\TestCase;
 use PsrMock\Psr7\Request;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Http\TestRestaRequest;
 
 class HelloWorldSimpleTest extends TestCase
 {
@@ -14,7 +15,10 @@ class HelloWorldSimpleTest extends TestCase
             protected $body = 'Hello, world!';
         };
 
-        $request = new Request('GET', 'http://example.com/wp-json/myroute/helloworld');
+        $request = new TestRestaRequest(
+            new Request('GET', 'http://example.com/wp-json/myroute/helloworld'),
+            $route
+        );
         $response = $route->invoke($request);
 
         $this->assertEquals(200, $response->getStatusCode());

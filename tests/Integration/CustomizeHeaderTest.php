@@ -5,6 +5,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use PsrMock\Psr7\Request;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Http\TestRestaRequest;
 
 class CustomizeHeaderTest extends TestCase
 {
@@ -18,7 +19,10 @@ class CustomizeHeaderTest extends TestCase
         };
 
         // Pure PSR-7 Request (WordPress independent)
-        $request = new Request('GET', 'http://example.com/wp-json/example/');
+        $request = new TestRestaRequest(
+            new Request('GET', 'http://example.com/wp-json/example/'),
+            $route
+        );
         $response = $route->invoke($request);
 
         $this->assertInstanceOf(ResponseInterface::class, $response);
