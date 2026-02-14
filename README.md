@@ -58,6 +58,31 @@ $ composer require composer/installers tenjuu99/wp-resta
 
 このサンプル実装は `src/REST/Example/Routes/` 以下にあります。
 
+### Docker で動作確認する
+
+Docker を使って簡単に動作確認環境をセットアップできます。
+
+```bash
+# セットアップ（WordPress インストール + プラグイン有効化）
+./docker/setup.sh
+
+# API の動作確認
+./docker/test.sh
+```
+
+セットアップ完了後、以下の URL にアクセスできます：
+
+- WordPress: http://localhost:8080
+- 管理画面: http://localhost:8080/wp-admin (admin / admin)
+- サンプルAPI: http://localhost:8080/wp-json/example/sample/1
+- Swagger UI: http://localhost:8080/wp-admin/admin.php?page=resta-swagger-ui
+
+環境を停止するには：
+
+```bash
+docker compose down
+```
+
 ## How to develop
 
 自分のルーティング定義を追加するためには、 `functions.php` での初期化時のコードにルーティング用ディレクトリの設定を記述してください。

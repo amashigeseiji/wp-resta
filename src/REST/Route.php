@@ -25,9 +25,8 @@ class Route
     {
         $container = Container::getInstance();
 
-        $routeSettings = $config->get('routeDirectory');
         $routes = [];
-        foreach ($routeSettings as $routeDir) {
+        foreach ($config->routeDirectory as $routeDir) {
             $dir = $routeDir[0];
             $namespace = $routeDir[1];
             $apiNamespace = $routeDir[2] ?? 'default';

@@ -1,3 +1,7 @@
 vendor/
 wordpress
 composer.lock
+.phpunit.cache
+
+# Docker volumes
+docker/data/

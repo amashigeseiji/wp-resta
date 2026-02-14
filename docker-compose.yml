@@ -1,0 +1,69 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: wp-resta-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - wp-resta-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  wordpress:
+    image: wordpress:php8.2-apache
+    container_name: wp-resta-wordpress
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DEBUG: 1
+      RESTA_CONFIG_FILE: /var/www/html/wp-content/plugins/wp-resta/docker/config.php
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./:/var/www/html/wp-content/plugins/wp-resta
+    networks:
+      - wp-resta-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  wpcli:
+    image: wordpress:cli-php8.2
+    container_name: wp-resta-wpcli
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      RESTA_CONFIG_FILE: /var/www/html/wp-content/plugins/wp-resta/docker/config.php
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./:/var/www/html/wp-content/plugins/wp-resta
+    networks:
+      - wp-resta-network
+    depends_on:
+      db:
+        condition: service_healthy
+    command: tail -f /dev/null
+
+volumes:
+  db_data:
+  wordpress_data:
+
+networks:
+  wp-resta-network:
+    driver: bridge

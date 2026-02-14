@@ -1,11 +1,9 @@
 <?php
-define( 'ABSPATH', __DIR__ . '/../wordpress/' );
+/**
+ * Bootstrap for unit tests
+ *
+ * Unit tests use Brain Monkey for mocking WordPress functions.
+ * No WordPress installation required.
+ */
 
-require_once __DIR__ . '/../wordpress/wp-includes/class-wp-http-response.php';
-require_once __DIR__ . '/../wordpress/wp-includes/rest-api/class-wp-rest-response.php';
-
-if (!function_exists('absint')) {
-    function absint($val) {
-        return abs((int) $val);
-    }
-}
+require_once __DIR__ . '/../vendor/autoload.php';

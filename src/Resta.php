@@ -2,10 +2,10 @@
 namespace Wp\Resta;
 
 use Wp\Resta\DI\Container;
-use Wp\Resta\OpenApi\ResponseSchema;
-use Wp\Resta\OpenApi\Doc;
-use Wp\Resta\REST\Route;
 use Wp\Resta\Config;
+use Wp\Resta\Hooks\HookProviderInterface;
+use Wp\Resta\Hooks\InternalHooks;
+use Wp\Resta\Hooks\SwaggerHooks;
 
 class Resta
 {
@@ -13,10 +13,11 @@ class Resta
      * @template T
      * @param array{
      *    autoloader?: string,
-     *    routeDirectory: array<string[]>,
+     *    routeDirectory?: array<string[]>,
      *    schemaDirectory?: array<string[]>,
      *    dependencies?: array<class-string<T>, T|class-string<T>>,
-     *    use-swagger?: bool
+     *    hooks?: array<class-string<HookProviderInterface>>,
+     *    'use-swagger'?: bool
      * } $restaConfig
      */
     public function init(array $restaConfig) : void
@@ -24,8 +25,8 @@ class Resta
         $config = new Config($restaConfig);
         $container = Container::getInstance();
         $container->bind(Config::class, $config);
-        $dependencies = $config->get('dependencies') ?: [];
-        foreach ($dependencies as $interface => $dependency) {
+
+        foreach ($config->dependencies as $interface => $dependency) {
             if (is_string($interface)) {
                 assert(class_exists($interface));
                 $container->bind($interface, $dependency);
@@ -34,18 +35,30 @@ class Resta
             }
         }
 
-        add_action('rest_api_init', function () use ($container) {
-            $routes = $container->get(Route::class);
-            $routes->register();
-        });
+        // InternalHooks の重複を防ぐ
+        $userHooks = array_filter(
+            $config->hooks,
+            static fn(string $hook): bool => $hook !== InternalHooks::class
+        );
 
-        // use-swagger を false にしたら SwaggerUI や /rest-api/schema の出力をオフにする
-        $useSwagger = $config->hasKey('use-swagger') ? $config->get('use-swagger') : true;
-        if ($useSwagger) {
-            add_action('init', function() use ($container) {
-                $container->get(Doc::class)->init();
-                $container->get(ResponseSchema::class)->init();
-            });
+        /** @var array<class-string<\Wp\Resta\Hooks\HookProviderInterface>> */
+        $allHooks = [InternalHooks::class, ...$userHooks];
+
+        // use-swagger の後方互換性
+        if ($config->useSwagger && !in_array(SwaggerHooks::class, $allHooks, true)) {
+            $allHooks[] = SwaggerHooks::class;
+        }
+
+        foreach ($allHooks as $providerClass) {
+            $provider = $container->get($providerClass);
+
+            if (!($provider instanceof HookProviderInterface)) {
+                throw new \InvalidArgumentException(
+                    sprintf('%s must implement HookProviderInterface', $providerClass)
+                );
+            }
+
+            $provider->register();
         }
     }
 }
