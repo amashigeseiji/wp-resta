@@ -118,6 +118,12 @@ abstract class AbstractE2ETestCase extends TestCase
     protected function getJsonResponse(ResponseInterface $response): mixed
     {
         $body = (string) $response->getBody();
+
+        // 空のレスポンスボディを許可（404 エラーなどで発生）
+        if ($body === '') {
+            return '';
+        }
+
         $decoded = json_decode($body, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {

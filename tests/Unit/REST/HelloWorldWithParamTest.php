@@ -2,7 +2,6 @@
 namespace Test\Resta\Unit\REST;
 
 use PHPUnit\Framework\TestCase;
-use PsrMock\Psr7\Request;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Http\TestRestaRequest;
 
@@ -23,14 +22,14 @@ class HelloWorldWithParamTest extends TestCase
             }
         };
 
+        // namespace を設定（パスと一致させる）
+        $route->setNamespace('myroute');
+
         // TestRestaRequest が自動的にパスパラメータをパース
-        $request = new TestRestaRequest(
-            new Request('GET', 'http://example.com/wp-json/myroute/hello/amashige'),
-            $route
-        );
+        $request = new TestRestaRequest('/myroute/hello/amashige', $route);
         $response = $route->invoke($request);
 
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('Hello, amashige!', (string)$response->getBody());
+        $this->assertEquals('Hello, amashige!', $response->getData());
     }
 }

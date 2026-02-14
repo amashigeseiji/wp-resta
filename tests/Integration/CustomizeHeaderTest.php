@@ -2,9 +2,8 @@
 namespace Test\Resta\Integration;
 
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseInterface;
-use PsrMock\Psr7\Request;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\TestRestaRequest;
 
 class CustomizeHeaderTest extends TestCase
@@ -16,22 +15,28 @@ class CustomizeHeaderTest extends TestCase
                 'Cache-Control' => 'max-age=36400',
                 'Access-Control-Allow-Origins' => 'http://example.com',
             ];
+
+            public function callback(): string
+            {
+                return 'test response';
+            }
         };
 
-        // Pure PSR-7 Request (WordPress independent)
-        $request = new TestRestaRequest(
-            new Request('GET', 'http://example.com/wp-json/example/'),
-            $route
-        );
+        // WordPress 非依存のテストリクエスト
+        $request = new TestRestaRequest('/example/test', $route);
         $response = $route->invoke($request);
 
-        $this->assertInstanceOf(ResponseInterface::class, $response);
+        $this->assertInstanceOf(RestaResponseInterface::class, $response);
 
-        // Check custom headers are set
+        // ヘッダーの確認
         $headers = $response->getHeaders();
         $this->assertArrayHasKey('Cache-Control', $headers);
+        $this->assertEquals('max-age=36400', $headers['Cache-Control']);
         $this->assertArrayHasKey('Access-Control-Allow-Origins', $headers);
-        $this->assertEquals(['max-age=36400'], $headers['Cache-Control']);
-        $this->assertEquals(['http://example.com'], $headers['Access-Control-Allow-Origins']);
+        $this->assertEquals('http://example.com', $headers['Access-Control-Allow-Origins']);
+
+        // データを直接取得できる
+        $this->assertEquals('test response', $response->getData());
+        $this->assertEquals(200, $response->getStatusCode());
     }
 }

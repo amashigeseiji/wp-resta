@@ -2,9 +2,8 @@
 namespace Test\Resta\Unit\REST;
 
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseInterface;
-use PsrMock\Psr7\Request;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\TestRestaRequest;
 
 class AbstractRouteTest extends TestCase
@@ -18,18 +17,17 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new TestRestaRequest(
-            new Request('GET', 'http://example.com/test'),
-            $route
-        );
+        $request = new TestRestaRequest('/test', $route);
         $response = $route->invoke($request);
 
-        $this->assertInstanceOf(ResponseInterface::class, $response);
+        $this->assertInstanceOf(RestaResponseInterface::class, $response);
         $this->assertEquals(200, $response->getStatusCode());
 
-        $body = json_decode((string)$response->getBody(), true);
-        $this->assertEquals('ok', $body['status']);
-        $this->assertEquals('test', $body['message']);
+        // データを直接アサート - JSON decode 不要！
+        $data = $response->getData();
+        $this->assertIsArray($data);
+        $this->assertEquals('ok', $data['status']);
+        $this->assertEquals('test', $data['message']);
     }
 
     public function testInvokeWithCustomHeaders()
@@ -45,33 +43,31 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new TestRestaRequest(
-            new Request('GET', 'http://example.com/test'),
-            $route
-        );
+        $request = new TestRestaRequest('/test', $route);
         $response = $route->invoke($request);
 
         $headers = $response->getHeaders();
         $this->assertArrayHasKey('X-Custom-Header', $headers);
-        $this->assertEquals(['custom-value'], $headers['X-Custom-Header']);
+        $this->assertEquals('custom-value', $headers['X-Custom-Header']);
     }
 
     public function testInvokeReturnsResponseDirectly()
     {
         $route = new class extends AbstractRoute {
-            public function callback(): ResponseInterface
+            public function callback(): RestaResponseInterface
             {
-                return new \PsrMock\Psr7\Response(201);
+                return new \Wp\Resta\REST\Http\SimpleRestaResponse(
+                    data: ['created' => true],
+                    status: 201
+                );
             }
         };
 
-        $request = new TestRestaRequest(
-            new Request('POST', 'http://example.com/test'),
-            $route
-        );
+        $request = new TestRestaRequest('/test', $route);
         $response = $route->invoke($request);
 
         $this->assertEquals(201, $response->getStatusCode());
+        $this->assertEquals(['created' => true], $response->getData());
     }
 
     public function testInvokeHandlesException()
@@ -83,10 +79,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new TestRestaRequest(
-            new Request('GET', 'http://example.com/test'),
-            $route
-        );
+        $request = new TestRestaRequest('/test', $route);
         $response = $route->invoke($request);
 
         $this->assertEquals(500, $response->getStatusCode());
@@ -98,13 +91,10 @@ class AbstractRouteTest extends TestCase
             // No callback method
         };
 
-        $request = new TestRestaRequest(
-            new Request('GET', 'http://example.com/test'),
-            $route
-        );
+        $request = new TestRestaRequest('/test', $route);
         $response = $route->invoke($request);
 
-        $this->assertInstanceOf(ResponseInterface::class, $response);
+        $this->assertInstanceOf(RestaResponseInterface::class, $response);
         $this->assertEquals(200, $response->getStatusCode());
     }
 
@@ -119,15 +109,12 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $request = new TestRestaRequest(
-            new Request('POST', 'http://example.com/test'),
-            $route
-        );
+        $request = new TestRestaRequest('/test', $route);
         $response = $route->invoke($request);
 
         $this->assertEquals(201, $response->getStatusCode());
 
-        $body = json_decode((string)$response->getBody(), true);
-        $this->assertTrue($body['created']);
+        $data = $response->getData();
+        $this->assertTrue($data['created']);
     }
 }
