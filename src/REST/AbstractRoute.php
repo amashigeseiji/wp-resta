@@ -11,8 +11,6 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
-use WPRestApi\PSR7\WP_REST_PSR7_Request;
-use WPRestApi\PSR7\WP_REST_PSR7_Response;
 
 abstract class AbstractRoute implements RouteInterface
 {
@@ -77,28 +75,28 @@ abstract class AbstractRoute implements RouteInterface
     public function invoke(RequestInterface $request): ResponseInterface
     {
         if (is_callable([$this, 'callback'])) {
-            if ($request instanceof WP_REST_PSR7_Request) {
-                try {
-                    $result = $this->invokeCallback(new ReflectionMethod($this, 'callback'), $request);
-                    if ($result instanceof ResponseInterface) {
-                        return $result;
-                    }
-                    $this->body = $result;
-                } catch (\Exception $e) {
-                    if ($this->status === 200) {
-                        $this->status = 500;
-                    }
+            try {
+                $result = $this->invokeCallback(
+                    new ReflectionMethod($this, 'callback'),
+                    $request
+                );
+
+                if ($result instanceof ResponseInterface) {
+                    return $result;
                 }
-            } else {
-                // todo
-                throw new RuntimeException('currently not supported.');
+
+                $this->body = $result;
+            } catch (\Exception $e) {
+                if ($this->status === 200) {
+                    $this->status = 500;
+                }
             }
         }
 
-        return new WP_REST_PSR7_Response($this->body, $this->status, $this->headers);
+        return $this->createResponse();
     }
 
-    private function invokeCallback(ReflectionMethod $callback, WP_REST_PSR7_Request $request) : mixed
+    private function invokeCallback(ReflectionMethod $callback, RequestInterface $request) : mixed
     {
         $parameters = $callback->getParameters();
         $args = [];
@@ -106,13 +104,16 @@ abstract class AbstractRoute implements RouteInterface
         foreach ($parameters as $param) {
             // URL定義されている値の解決
             if (isset($define[$param->name])) {
-                if ($define[$param->name]['required'] && !isset($request[$param->name])) {
+                $value = $this->getUrlParam($request, $param->name);
+
+                if ($define[$param->name]['required'] && $value === null) {
                     throw new RuntimeException($param->name . ' is missing.');
                 }
-                if (isset($request[$param->name])) {
+
+                if ($value !== null) {
                     $regex = '/' . $define[$param->name]['regex'] . '/';
-                    if (preg_match($regex, $request[$param->name])) {
-                        $args[$param->name] = $request[$param->name];
+                    if (preg_match($regex, (string)$value)) {
+                        $args[$param->name] = $value;
                     }
                 } elseif ($param->isOptional()) {
                     $args[$param->name] = $param->getDefaultValue();
@@ -226,5 +227,23 @@ abstract class AbstractRoute implements RouteInterface
 
         $stream = new Stream($body);
         return $response->withBody($stream);
+    }
+
+    /**
+     * Get URL parameter from PSR-7 Request
+     *
+     * Supports both WP_REST_PSR7_Request (via getAttribute) and pure PSR-7 (via query params)
+     */
+    private function getUrlParam(RequestInterface $request, string $name): mixed
+    {
+        // WP_REST_PSR7_Request has getAttribute() method
+        if (method_exists($request, 'getAttribute')) {
+            return $request->getAttribute($name);
+        }
+
+        // Fallback: extract from query parameters
+        $queryParams = [];
+        parse_str($request->getUri()->getQuery(), $queryParams);
+        return $queryParams[$name] ?? null;
     }
 }
