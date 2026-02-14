@@ -24,7 +24,6 @@
         "papertower/wp-rest-api-psr7": "^0.8.0"
     },
     "require-dev": {
-        "roots/wordpress": "^6.4",
         "szepeviktor/phpstan-wordpress": "^1.3",
         "phpstan/extension-installer": "^1.3",
         "phpstan/phpstan": "^1.10",
@@ -36,13 +35,12 @@
     },
     "config": {
         "allow-plugins": {
-            "roots/wordpress-core-installer": true,
             "phpstan/extension-installer": true
         }
     },
     "scripts": {
         "test": "phpunit",
         "test:e2e": "./docker/e2e-test.sh",
-        "lint": "phpstan analyse"
+        "lint": "phpstan analyse --memory-limit=-1"
     }
 }

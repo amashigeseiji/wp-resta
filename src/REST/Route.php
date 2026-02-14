@@ -3,10 +3,8 @@ namespace Wp\Resta\REST;
 
 use LogicException;
 use Psr\Http\Message\RequestInterface;
-use register_rest_route;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
-use Wp\Resta\REST\Schemas\Schemas;
 use WP_REST_Request;
 use WP_REST_Response;
 use WPRestApi\PSR7\WP_REST_PSR7_Request;

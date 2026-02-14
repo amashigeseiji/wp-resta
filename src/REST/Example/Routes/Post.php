@@ -4,8 +4,6 @@ namespace Wp\Resta\REST\Example\Routes;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Schemas\Post as SchemasPost;
-use WP_Post;
-use WP_Query;
 
 #[RouteMeta(
     description: "サンプルです",

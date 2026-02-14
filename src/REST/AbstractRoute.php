@@ -7,7 +7,6 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use ReflectionMethod;
 use ReflectionNamedType;
-use ReflectionType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
 use WPRestApi\PSR7\WP_REST_PSR7_Request;
