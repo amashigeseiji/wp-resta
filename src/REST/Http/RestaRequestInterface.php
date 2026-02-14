@@ -1,19 +1,24 @@
 <?php
 namespace Wp\Resta\REST\Http;
 
-use Psr\Http\Message\RequestInterface;
-
 /**
- * Extended Request interface with attribute support for URL parameters
+ * wp-resta の内部リクエスト表現
+ *
+ * PSR-7 RequestInterface とは異なり、HTTP プロトコルの詳細ではなく、
+ * wp-resta が必要とする情報のみを抽象化する。
+ *
+ * このインターフェースは WordPress 非依存であり、テスト環境でも
+ * 実装可能な最小限のメソッドのみを定義する。
  */
-interface RestaRequestInterface extends RequestInterface
+interface RestaRequestInterface
 {
     /**
-     * Retrieve a single derived request attribute.
+     * URL パラメータを取得
      *
-     * @param string $name The attribute name.
-     * @param mixed $default Default value to return if the attribute does not exist.
-     * @return mixed
+     * ルート定義の [id] や [slug] などのパラメータを取得する。
+     *
+     * @param string $name パラメータ名
+     * @return mixed パラメータ値（存在しない場合は null）
      */
-    public function getAttribute(string $name, mixed $default = null): mixed;
+    public function getUrlParam(string $name): mixed;
 }

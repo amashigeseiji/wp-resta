@@ -1,165 +1,62 @@
 <?php
 namespace Wp\Resta\REST\Http;
 
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\StreamInterface;
-use Psr\Http\Message\UriInterface;
 use Wp\Resta\REST\AbstractRoute;
 
 /**
- * Test implementation of RestaRequestInterface (WordPress independent)
+ * テスト用の RestaRequestInterface 実装
  *
- * This implementation parses URL parameters from the request path
- * using the route pattern from AbstractRoute.
+ * WordPress 環境なしでテスト可能にする。
+ * URL パターンからパラメータを抽出する。
  */
 class TestRestaRequest implements RestaRequestInterface
 {
     /** @var array<string, mixed> */
-    private array $attributes = [];
-    private string $routePattern;
+    private array $urlParams = [];
 
+    /**
+     * @param string $path リクエストパス（例: '/example/post/123'）
+     * @param AbstractRoute $route ルートオブジェクト（パターンを取得するため）
+     */
     public function __construct(
-        private RequestInterface $inner,
+        private string $path,
         AbstractRoute $route
     ) {
-        // Get route regex pattern and store it
-        $this->routePattern = $route->getRouteRegex();
-        $this->parseUrlParams();
+        $this->parseUrlParams($route->getRouteRegex());
+    }
+
+    public function getUrlParam(string $name): mixed
+    {
+        return $this->urlParams[$name] ?? null;
     }
 
     /**
-     * Parse URL parameters from request path using route pattern
+     * URL パスからパラメータを抽出
+     *
+     * ルートのパターン（例: '(?P<id>\d+)'）を使って、
+     * 実際の URL パス（例: '/example/post/123'）から
+     * パラメータ（例: ['id' => '123']）を抽出する。
      */
-    private function parseUrlParams(): void
+    private function parseUrlParams(string $routePattern): void
     {
-        $path = $this->inner->getUri()->getPath();
-
-        // Remove namespace prefix from path if present
-        // e.g., /wp-json/myroute/hello/amashige -> /hello/amashige
-        $pathParts = explode('/', trim($path, '/'));
+        // namespace prefix を削除 (例: /wp-json/example/ を削除)
+        $pathParts = explode('/', trim($this->path, '/'));
         if (count($pathParts) >= 2) {
-            // Remove first two segments (wp-json, namespace)
-            array_shift($pathParts);
-            array_shift($pathParts);
+            array_shift($pathParts); // 'wp-json' など
+            array_shift($pathParts); // 'example' など
             $path = '/' . implode('/', $pathParts);
+        } else {
+            $path = $this->path;
         }
 
-        $pattern = '#^/?' . ltrim($this->routePattern, '/') . '$#';
-
+        // ルートパターンとマッチング
+        $pattern = '#^/?' . ltrim($routePattern, '/') . '$#';
         if (preg_match($pattern, $path, $matches)) {
             foreach ($matches as $key => $value) {
-                if (!is_numeric($key)) {  // Only named captures
-                    $this->attributes[$key] = $value;
+                if (!is_numeric($key)) {
+                    $this->urlParams[$key] = $value;
                 }
             }
         }
-    }
-
-    public function getAttribute(string $name, mixed $default = null): mixed
-    {
-        return $this->attributes[$name] ?? $default;
-    }
-
-    // Delegate all other methods to inner RequestInterface
-
-    public function getProtocolVersion(): string
-    {
-        return $this->inner->getProtocolVersion();
-    }
-
-    public function withProtocolVersion(string $version): static
-    {
-        $clone = clone $this;
-        $clone->inner = $this->inner->withProtocolVersion($version);
-        return $clone;
-    }
-
-    public function getHeaders(): array
-    {
-        return $this->inner->getHeaders();
-    }
-
-    public function hasHeader(string $name): bool
-    {
-        return $this->inner->hasHeader($name);
-    }
-
-    public function getHeader(string $name): array
-    {
-        return $this->inner->getHeader($name);
-    }
-
-    public function getHeaderLine(string $name): string
-    {
-        return $this->inner->getHeaderLine($name);
-    }
-
-    public function withHeader(string $name, $value): static
-    {
-        $clone = clone $this;
-        $clone->inner = $this->inner->withHeader($name, $value);
-        return $clone;
-    }
-
-    public function withAddedHeader(string $name, $value): static
-    {
-        $clone = clone $this;
-        $clone->inner = $this->inner->withAddedHeader($name, $value);
-        return $clone;
-    }
-
-    public function withoutHeader(string $name): static
-    {
-        $clone = clone $this;
-        $clone->inner = $this->inner->withoutHeader($name);
-        return $clone;
-    }
-
-    public function getBody(): StreamInterface
-    {
-        return $this->inner->getBody();
-    }
-
-    public function withBody(StreamInterface $body): static
-    {
-        $clone = clone $this;
-        $clone->inner = $this->inner->withBody($body);
-        return $clone;
-    }
-
-    public function getRequestTarget(): string
-    {
-        return $this->inner->getRequestTarget();
-    }
-
-    public function withRequestTarget(string $requestTarget): static
-    {
-        $clone = clone $this;
-        $clone->inner = $this->inner->withRequestTarget($requestTarget);
-        return $clone;
-    }
-
-    public function getMethod(): string
-    {
-        return $this->inner->getMethod();
-    }
-
-    public function withMethod(string $method): static
-    {
-        $clone = clone $this;
-        $clone->inner = $this->inner->withMethod($method);
-        return $clone;
-    }
-
-    public function getUri(): UriInterface
-    {
-        return $this->inner->getUri();
-    }
-
-    public function withUri(UriInterface $uri, bool $preserveHost = false): static
-    {
-        $clone = clone $this;
-        $clone->inner = $this->inner->withUri($uri, $preserveHost);
-        return $clone;
     }
 }

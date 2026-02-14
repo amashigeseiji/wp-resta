@@ -3,14 +3,13 @@ namespace Wp\Resta\REST;
 
 use InvalidArgumentException;
 use LogicException;
-use Psr\Http\Message\ResponseInterface;
-use PsrMock\Psr7\Response;
-use PsrMock\Psr7\Stream;
 use ReflectionMethod;
 use ReflectionNamedType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Http\RestaResponseInterface;
+use Wp\Resta\REST\Http\SimpleRestaResponse;
 
 abstract class AbstractRoute implements RouteInterface
 {
@@ -72,7 +71,7 @@ abstract class AbstractRoute implements RouteInterface
         return 'GET';
     }
 
-    public function invoke(RestaRequestInterface $request): ResponseInterface
+    public function invoke(RestaRequestInterface $request): RestaResponseInterface
     {
         if (is_callable([$this, 'callback'])) {
             try {
@@ -81,7 +80,7 @@ abstract class AbstractRoute implements RouteInterface
                     $request
                 );
 
-                if ($result instanceof ResponseInterface) {
+                if ($result instanceof RestaResponseInterface) {
                     return $result;
                 }
 
@@ -104,7 +103,7 @@ abstract class AbstractRoute implements RouteInterface
         foreach ($parameters as $param) {
             // URL定義されている値の解決
             if (isset($define[$param->name])) {
-                $value = $request->getAttribute($param->name);
+                $value = $request->getUrlParam($param->name);
 
                 if ($define[$param->name]['required'] && $value === null) {
                     throw new RuntimeException($param->name . ' is missing.');
@@ -209,34 +208,19 @@ abstract class AbstractRoute implements RouteInterface
     }
 
     /**
-     * Create PSR-7 Response from current state
+     * レスポンスを作成
      *
-     * PSR-7 仕様では、Response の body は StreamInterface (文字列) でなければならない。
-     * そのため、配列データは JSON エンコードして文字列に変換する。
+     * body を純粋な PHP データとして保持。
+     * JSON エンコードは行わない（WordPress 層 Route.php で必要に応じて行う）。
      *
-     * @return ResponseInterface PSR-7 Response (body は JSON 文字列)
+     * @return RestaResponseInterface レスポンス（body は純粋な PHP データ）
      */
-    private function createResponse(): ResponseInterface
+    private function createResponse(): RestaResponseInterface
     {
-        $response = new Response($this->status);
-
-        // カスタムヘッダーを追加
-        foreach ($this->headers as $name => $value) {
-            $response = $response->withHeader($name, $value);
-        }
-
-        // PSR-7 では body は文字列でなければならない
-        // null/false の場合は空文字列として扱う
-        // 配列の場合は JSON エンコード
-        if ($this->body === null || $this->body === false) {
-            $body = '';
-        } elseif (is_string($this->body)) {
-            $body = $this->body;
-        } else {
-            $body = json_encode($this->body, JSON_UNESCAPED_UNICODE);
-        }
-
-        $stream = new Stream($body);
-        return $response->withBody($stream);
+        return new SimpleRestaResponse(
+            data: $this->body,
+            status: $this->status,
+            headers: $this->headers
+        );
     }
 }
