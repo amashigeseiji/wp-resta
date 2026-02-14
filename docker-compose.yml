@@ -41,7 +41,9 @@ services:
         condition: service_healthy
 
   wpcli:
-    image: wordpress:cli-php8.2
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
     container_name: wp-resta-wpcli
     user: "33:33"
     environment:
