@@ -2,12 +2,12 @@
 namespace Wp\Resta\REST;
 
 use LogicException;
-use Psr\Http\Message\RequestInterface;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
+use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Http\WpRestaRequest;
 use WP_REST_Request;
 use WP_REST_Response;
-use WPRestApi\PSR7\WP_REST_PSR7_Request;
 use WPRestApi\PSR7\WP_REST_PSR7_Response;
 
 class Route
@@ -76,14 +76,40 @@ class Route
                         [
                             'methods' => $route->getMethods(),
                             'callback' => function (WP_REST_Request $request) use($route) : WP_REST_Response {
-                                $psr7request = WP_REST_PSR7_Request::fromRequest($request);
-                                $this->container->bind(WP_REST_Request::class, $psr7request);
-                                $this->container->bind(RequestInterface::class, $psr7request);
+                                $psr7request = WpRestaRequest::fromWpRequest($request);
+                                $this->container->bind(WP_REST_Request::class, $request);
+                                $this->container->bind(RestaRequestInterface::class, $psr7request);
+
+                                // AbstractRoute を実行 (WordPress 非依存レイヤー)
+                                // 戻り値: PSR-7 Response (body は JSON 文字列)
                                 $response = $route->invoke($psr7request);
-                                if ($response instanceof WP_REST_PSR7_Response) {
-                                    return $response;
+
+                                /**
+                                 * PSR-7 Response → WordPress REST Response への変換
+                                 *
+                                 * AbstractRoute は WordPress 非依存のため、PSR-7 Response を返す。
+                                 * PSR-7 では body は Stream (文字列) でなければならないため、
+                                 * 配列データは JSON エンコードされている。
+                                 *
+                                 * 一方、WordPress REST API では WP_REST_Response が配列データを保持し、
+                                 * フック（rest_request_after_callbacks など）で配列を直接操作できる必要がある。
+                                 *
+                                 * そのため、ここで JSON デコードして配列に戻し、
+                                 * WP_REST_Response として WordPress に返す。
+                                 *
+                                 * この変換は Route.php の責務：WordPress システムとの境界
+                                 */
+                                $body = (string)$response->getBody();
+                                $data = json_decode($body, true) ?? $body;
+
+                                $wpResponse = new WP_REST_Response($data, $response->getStatusCode());
+
+                                // PSR-7 のヘッダーを WP_REST_Response にコピー
+                                foreach ($response->getHeaders() as $name => $values) {
+                                    $wpResponse->header($name, implode(', ', $values));
                                 }
-                                return WP_REST_PSR7_Response::fromPSR7Response($response);
+
+                                return $wpResponse;
                             },
                             'permission_callback' => [$route, 'permissionCallback'],
                             'args' => $route->getArgs(),

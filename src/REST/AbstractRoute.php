@@ -3,7 +3,6 @@ namespace Wp\Resta\REST;
 
 use InvalidArgumentException;
 use LogicException;
-use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use PsrMock\Psr7\Response;
 use PsrMock\Psr7\Stream;
@@ -11,6 +10,7 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
+use Wp\Resta\REST\Http\RestaRequestInterface;
 
 abstract class AbstractRoute implements RouteInterface
 {
@@ -72,7 +72,7 @@ abstract class AbstractRoute implements RouteInterface
         return 'GET';
     }
 
-    public function invoke(RequestInterface $request): ResponseInterface
+    public function invoke(RestaRequestInterface $request): ResponseInterface
     {
         if (is_callable([$this, 'callback'])) {
             try {
@@ -96,7 +96,7 @@ abstract class AbstractRoute implements RouteInterface
         return $this->createResponse();
     }
 
-    private function invokeCallback(ReflectionMethod $callback, RequestInterface $request) : mixed
+    private function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
     {
         $parameters = $callback->getParameters();
         $args = [];
@@ -104,7 +104,7 @@ abstract class AbstractRoute implements RouteInterface
         foreach ($parameters as $param) {
             // URL定義されている値の解決
             if (isset($define[$param->name])) {
-                $value = $this->getUrlParam($request, $param->name);
+                $value = $request->getAttribute($param->name);
 
                 if ($define[$param->name]['required'] && $value === null) {
                     throw new RuntimeException($param->name . ' is missing.');
@@ -227,23 +227,5 @@ abstract class AbstractRoute implements RouteInterface
 
         $stream = new Stream($body);
         return $response->withBody($stream);
-    }
-
-    /**
-     * Get URL parameter from PSR-7 Request
-     *
-     * Supports both WP_REST_PSR7_Request (via getAttribute) and pure PSR-7 (via query params)
-     */
-    private function getUrlParam(RequestInterface $request, string $name): mixed
-    {
-        // WP_REST_PSR7_Request has getAttribute() method
-        if (method_exists($request, 'getAttribute')) {
-            return $request->getAttribute($name);
-        }
-
-        // Fallback: extract from query parameters
-        $queryParams = [];
-        parse_str($request->getUri()->getQuery(), $queryParams);
-        return $queryParams[$name] ?? null;
     }
 }
