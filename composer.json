@@ -41,6 +41,7 @@
     "scripts": {
         "test": "phpunit",
         "test:e2e": "./docker/e2e-test.sh",
+        "test:coverage": "./docker/coverage.sh",
         "lint": "phpstan analyse --memory-limit=-1"
     }
 }
