@@ -16,13 +16,13 @@ class TestRestaRequest implements RestaRequestInterface
 
     /**
      * @param string $path リクエストパス（例: '/example/post/123'）
-     * @param AbstractRoute $route ルートオブジェクト（パターンを取得するため）
+     * @param AbstractRoute $route ルートオブジェクト（パターンと namespace を取得するため）
      */
     public function __construct(
         private string $path,
         AbstractRoute $route
     ) {
-        $this->parseUrlParams($route->getRouteRegex());
+        $this->parseUrlParams($route->getRouteRegex(), $route->getNamespace());
     }
 
     public function getUrlParam(string $name): mixed
@@ -36,17 +36,25 @@ class TestRestaRequest implements RestaRequestInterface
      * ルートのパターン（例: '(?P<id>\d+)'）を使って、
      * 実際の URL パス（例: '/example/post/123'）から
      * パラメータ（例: ['id' => '123']）を抽出する。
+     *
+     * Route オブジェクトから namespace を取得することで、
+     * スラッシュを含む namespace (例: 'my/route') にも対応。
+     *
+     * @param string $routePattern ルートの正規表現パターン
+     * @param string $namespace API namespace
      */
-    private function parseUrlParams(string $routePattern): void
+    private function parseUrlParams(string $routePattern, string $namespace): void
     {
-        // namespace prefix を削除 (例: /wp-json/example/ を削除)
-        $pathParts = explode('/', trim($this->path, '/'));
-        if (count($pathParts) >= 2) {
-            array_shift($pathParts); // 'wp-json' など
-            array_shift($pathParts); // 'example' など
-            $path = '/' . implode('/', $pathParts);
-        } else {
-            $path = $this->path;
+        $path = $this->path;
+
+        // wp-json プレフィックスを削除（WordPress 本番環境の場合）
+        $path = preg_replace('#^/?wp-json/?#', '/', $path);
+
+        // namespace を削除
+        // preg_quote で namespace 内の特殊文字をエスケープ
+        if ($namespace && $namespace !== 'default') {
+            $namespacePattern = '#^/?' . preg_quote($namespace, '#') . '/?#';
+            $path = preg_replace($namespacePattern, '/', $path);
         }
 
         // ルートパターンとマッチング
