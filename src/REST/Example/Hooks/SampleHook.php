@@ -42,14 +42,16 @@ class SampleHook extends HookProvider
         if ($response instanceof WP_REST_Response) {
             $data = $response->get_data();
 
-            // メタ情報を追加
-            $data['_resta_meta'] = [
-                'processed_at' => current_time('mysql'),
-                'plugin_version' => '0.8.4',
-                'request_route' => $request->get_route(),
-            ];
+            // メタ情報を追加（data が配列の場合のみ）
+            if (is_array($data)) {
+                $data['_resta_meta'] = [
+                    'processed_at' => current_time('mysql'),
+                    'plugin_version' => '0.8.4',
+                    'request_route' => $request->get_route(),
+                ];
 
-            $response->set_data($data);
+                $response->set_data($data);
+            }
         }
 
         return $response;

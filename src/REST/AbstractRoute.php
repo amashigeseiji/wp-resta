@@ -210,20 +210,31 @@ abstract class AbstractRoute implements RouteInterface
 
     /**
      * Create PSR-7 Response from current state
+     *
+     * PSR-7 仕様では、Response の body は StreamInterface (文字列) でなければならない。
+     * そのため、配列データは JSON エンコードして文字列に変換する。
+     *
+     * @return ResponseInterface PSR-7 Response (body は JSON 文字列)
      */
     private function createResponse(): ResponseInterface
     {
         $response = new Response($this->status);
 
-        // Add headers
+        // カスタムヘッダーを追加
         foreach ($this->headers as $name => $value) {
             $response = $response->withHeader($name, $value);
         }
 
-        // Encode body as JSON if it's an array
-        $body = is_string($this->body)
-            ? $this->body
-            : json_encode($this->body, JSON_UNESCAPED_UNICODE);
+        // PSR-7 では body は文字列でなければならない
+        // null/false の場合は空文字列として扱う
+        // 配列の場合は JSON エンコード
+        if ($this->body === null || $this->body === false) {
+            $body = '';
+        } elseif (is_string($this->body)) {
+            $body = $this->body;
+        } else {
+            $body = json_encode($this->body, JSON_UNESCAPED_UNICODE);
+        }
 
         $stream = new Stream($body);
         return $response->withBody($stream);
