@@ -289,6 +289,64 @@ class Sample extends AbstractRoute
 ]);
 ```
 
+## Testing Your Routes
+
+wp-resta を使って作成した Route クラスは、WordPress 環境なしでテストできます。
+
+### 基本的なテスト
+
+```php
+<?php
+use PHPUnit\Framework\TestCase;
+use PsrMock\Psr7\Request;
+use MyREST\Routes\HelloWorld;
+
+class HelloWorldTest extends TestCase
+{
+    public function testHelloWorld()
+    {
+        $route = new HelloWorld();
+
+        $request = new Request('GET', 'http://example.com/wp-json/myroute/helloworld');
+        $response = $route->invoke($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('Hello, world!', (string)$response->getBody());
+    }
+}
+```
+
+### URL パラメータを使ったテスト
+
+URL パラメータが定義されている Route のテストでは、クエリパラメータとして渡します：
+
+```php
+<?php
+class HelloWorldWithParamTest extends TestCase
+{
+    public function testHelloWithName()
+    {
+        // ROUTE = 'hello/[name]' の Route
+        $route = new HelloWorld();
+
+        // URL パラメータはクエリパラメータとして渡す
+        $request = new Request('GET', 'http://example.com/wp-json/myroute/hello/amashige?name=amashige');
+        $response = $route->invoke($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('Hello, amashige!', (string)$response->getBody());
+    }
+}
+```
+
+### 必要なパッケージ
+
+```bash
+composer require --dev phpunit/phpunit psr-mock/http-message-implementation
+```
+
+---
+
 ### Docker で動作確認する
 
 Docker を使って簡単に動作確認環境をセットアップできます。
