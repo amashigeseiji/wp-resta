@@ -58,30 +58,6 @@ $ composer require composer/installers tenjuu99/wp-resta
 
 このサンプル実装は `src/REST/Example/Routes/` 以下にあります。
 
-### Docker で動作確認する
-
-Docker を使って簡単に動作確認環境をセットアップできます。
-
-```bash
-# セットアップ（WordPress インストール + プラグイン有効化）
-./docker/setup.sh
-
-# API の動作確認
-./docker/test.sh
-```
-
-セットアップ完了後、以下の URL にアクセスできます：
-
-- WordPress: http://localhost:8080
-- 管理画面: http://localhost:8080/wp-admin (admin / admin)
-- サンプルAPI: http://localhost:8080/wp-json/example/sample/1
-- Swagger UI: http://localhost:8080/wp-admin/admin.php?page=resta-swagger-ui
-
-環境を停止するには：
-
-```bash
-docker compose down
-```
 
 ## How to develop
 
@@ -311,4 +287,51 @@ class Sample extends AbstractRoute
 +       }
     ],
 ]);
+```
+
+### Docker で動作確認する
+
+Docker を使って簡単に動作確認環境をセットアップできます。
+
+```bash
+# セットアップ（WordPress インストール + プラグイン有効化）
+./docker/setup.sh
+
+# API の動作確認
+./docker/test.sh
+```
+
+セットアップ完了後、以下の URL にアクセスできます：
+
+- WordPress: http://localhost:8080
+- 管理画面: http://localhost:8080/wp-admin (admin / admin)
+- サンプルAPI: http://localhost:8080/wp-json/example/sample/1
+- Swagger UI: http://localhost:8080/wp-admin/admin.php?page=resta-swagger-ui
+
+環境を停止するには：
+
+```bash
+docker compose down
+```
+
+## テスト
+
+### Unit/Integration テスト
+
+```bash
+composer test
+```
+
+### E2E テスト
+
+Docker 環境で実際の WordPress REST API に対してテストを実行:
+
+```bash
+# Docker 環境を起動（初回のみ）
+./docker/setup.sh
+
+# E2E テスト実行
+composer test:e2e
+# または
+./docker/e2e-test.sh
 ```

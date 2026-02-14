@@ -31,7 +31,8 @@
         "phpunit/phpunit": "^11.1",
         "psr-mock/http-message-implementation": "^1.0",
         "brain/monkey": "^2.7",
-        "mockery/mockery": "^1.6"
+        "mockery/mockery": "^1.6",
+        "guzzlehttp/guzzle": "^7.10"
     },
     "config": {
         "allow-plugins": {
@@ -40,6 +41,8 @@
         }
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "test:e2e": "./docker/e2e-test.sh",
+        "lint": "phpstan analyse"
     }
 }
