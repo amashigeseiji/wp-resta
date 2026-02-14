@@ -185,11 +185,11 @@ ROUTE定数のなかに `[var]` と `[]` で囲えばパスパラメータとし
 
 ### コールバック
 
-`AbstractRoute` を継承したクラスが `callback` という名のメソッドを持っている場合、このメソッドを呼びだしてレスポンスの body にします。body として返してよいのは、 `WP_REST_Response` が body として解釈できるものになります。また、`Psr\Http\Message\ResponseInterface` を返した場合にはそのまま利用されます。
+`AbstractRoute` を継承したクラスが `callback` という名のメソッドを持っている場合、このメソッドを呼びだしてレスポンスの body にします。body として返してよいのは、配列、文字列、オブジェクトなど、WordPress REST API がレスポンスとして扱える任意のデータです。また、`Wp\Resta\REST\Http\RestaResponseInterface` を返した場合にはそのまま利用されます。
 
 `callback` メソッドの引数は、URL変数を受けとることができます。 `URL変数` に `id` を定義していれば `callback(int $id)` と定義して問題ありません。
 
-また、簡易な DI があるため、解決可能なクラスを引数に定義すると受け取ることができます。ランタイムに値が決まるもの(例えば `WP_REST_Response` )などはコンストラクタインジェクションでは値が決まっていませんが、コールバックが呼び出される時点では確定しているので、利用できます。
+また、簡易な DI があるため、解決可能なクラスを引数に定義すると受け取ることができます。ランタイムに値が決まるもの(例えば `WP_REST_Request` )などはコンストラクタインジェクションでは値が決まっていませんが、コールバックが呼び出される時点では確定しているので、利用できます。
 
 ## DI
 
@@ -291,14 +291,14 @@ class Sample extends AbstractRoute
 
 ## Testing Your Routes
 
-wp-resta を使って作成した Route クラスは、WordPress 環境なしでテストできます。
+wp-resta を使って作成した Route クラスは、**WordPress 環境なしで**テストできます。
 
 ### 基本的なテスト
 
 ```php
 <?php
 use PHPUnit\Framework\TestCase;
-use PsrMock\Psr7\Request;
+use Wp\Resta\REST\Http\TestRestaRequest;
 use MyREST\Routes\HelloWorld;
 
 class HelloWorldTest extends TestCase
@@ -307,42 +307,67 @@ class HelloWorldTest extends TestCase
     {
         $route = new HelloWorld();
 
-        $request = new Request('GET', 'http://example.com/wp-json/myroute/helloworld');
+        // TestRestaRequest でシンプルにテスト
+        $request = new TestRestaRequest('/helloworld', $route);
         $response = $route->invoke($request);
 
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('Hello, world!', (string)$response->getBody());
+        $this->assertEquals('Hello, world!', $response->getData());
     }
 }
 ```
 
 ### URL パラメータを使ったテスト
 
-URL パラメータが定義されている Route のテストでは、クエリパラメータとして渡します：
+URL パラメータが定義されている Route では、TestRestaRequest が自動的にパラメータをパースします：
 
 ```php
 <?php
+use PHPUnit\Framework\TestCase;
+use Wp\Resta\REST\Http\TestRestaRequest;
+use MyREST\Routes\HelloWorld;
+
 class HelloWorldWithParamTest extends TestCase
 {
     public function testHelloWithName()
     {
         // ROUTE = 'hello/[name]' の Route
         $route = new HelloWorld();
+        $route->setNamespace('myroute');  // namespace を設定
 
-        // URL パラメータはクエリパラメータとして渡す
-        $request = new Request('GET', 'http://example.com/wp-json/myroute/hello/amashige?name=amashige');
+        // URL パラメータは自動的にパースされる
+        $request = new TestRestaRequest('/myroute/hello/amashige', $route);
         $response = $route->invoke($request);
 
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('Hello, amashige!', (string)$response->getBody());
+        $this->assertEquals('Hello, amashige!', $response->getData());
     }
+}
+```
+
+### 配列データのテスト
+
+レスポンスが配列の場合も、`getData()` で直接アクセスできます：
+
+```php
+<?php
+public function testJsonResponse()
+{
+    $route = new MyApiRoute();
+    $request = new TestRestaRequest('/api/user/123', $route);
+    $response = $route->invoke($request);
+
+    $data = $response->getData();
+    $this->assertIsArray($data);
+    $this->assertEquals(123, $data['user']['id']);
+    $this->assertEquals('John', $data['user']['name']);
 }
 ```
 
 ### 必要なパッケージ
 
 ```bash
-composer require --dev phpunit/phpunit psr-mock/http-message-implementation
+composer require --dev phpunit/phpunit
 ```
 
 ---
