@@ -1,10 +1,7 @@
 <?php
 namespace Wp\Resta\REST\Schemas;
 
-use ReflectionAttribute;
-use ReflectionClass;
 use Wp\Resta\Config;
-use Wp\Resta\REST\Attributes\Schema\Property;
 
 class Schemas
 {
