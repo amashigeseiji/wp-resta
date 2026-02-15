@@ -1,8 +1,8 @@
 <?php
 namespace Wp\Resta\REST;
 
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
+use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 
 interface RouteInterface
 {
@@ -10,7 +10,7 @@ interface RouteInterface
     public function setNamespace(string $namespace): void;
     public function getRouteRegex(): string;
     public function getMethods(): string;
-    public function invoke(RequestInterface $request): ResponseInterface;
+    public function invoke(RestaRequestInterface $request): RestaResponseInterface;
     public function permissionCallback(): string;
 
     /**

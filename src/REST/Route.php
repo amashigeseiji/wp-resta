@@ -2,13 +2,12 @@
 namespace Wp\Resta\REST;
 
 use LogicException;
-use Psr\Http\Message\RequestInterface;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
+use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Http\WpRestaRequest;
 use WP_REST_Request;
 use WP_REST_Response;
-use WPRestApi\PSR7\WP_REST_PSR7_Request;
-use WPRestApi\PSR7\WP_REST_PSR7_Response;
 
 class Route
 {
@@ -75,15 +74,30 @@ class Route
                     [
                         [
                             'methods' => $route->getMethods(),
-                            'callback' => function (WP_REST_Request $request) use($route) : WP_REST_Response {
-                                $psr7request = WP_REST_PSR7_Request::fromRequest($request);
-                                $this->container->bind(WP_REST_Request::class, $psr7request);
-                                $this->container->bind(RequestInterface::class, $psr7request);
-                                $response = $route->invoke($psr7request);
-                                if ($response instanceof WP_REST_PSR7_Response) {
-                                    return $response;
+                            'callback' => function (WP_REST_Request $request) use($route): WP_REST_Response {
+                                // WordPress Request → RestaRequest
+                                $restaRequest = WpRestaRequest::fromWpRequest($request);
+
+                                // DI container に登録
+                                $this->container->bind(WP_REST_Request::class, $request);
+                                $this->container->bind(RestaRequestInterface::class, $restaRequest);
+
+                                // AbstractRoute を実行（WordPress 非依存レイヤー）
+                                $response = $route->invoke($restaRequest);
+
+                                // RestaResponse → WordPress REST Response
+                                // データを直接渡す - JSON encode/decode 不要！
+                                $wpResponse = new WP_REST_Response(
+                                    $response->getData(),
+                                    $response->getStatusCode()
+                                );
+
+                                // ヘッダーをコピー
+                                foreach ($response->getHeaders() as $name => $value) {
+                                    $wpResponse->header($name, $value);
                                 }
-                                return WP_REST_PSR7_Response::fromPSR7Response($response);
+
+                                return $wpResponse;
                             },
                             'permission_callback' => [$route, 'permissionCallback'],
                             'args' => $route->getArgs(),

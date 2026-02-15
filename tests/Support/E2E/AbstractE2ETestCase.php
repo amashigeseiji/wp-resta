@@ -107,12 +107,23 @@ abstract class AbstractE2ETestCase extends TestCase
     /**
      * Decode JSON response body
      *
+     * Note: json_decode() can return various types depending on the JSON content:
+     * - array (JSON object or array)
+     * - string, number, boolean, null (JSON scalar values)
+     * - null (empty string or invalid JSON with error)
+     *
      * @param ResponseInterface $response
-     * @return array<string, mixed>
+     * @return mixed
      */
-    protected function getJsonResponse(ResponseInterface $response): array
+    protected function getJsonResponse(ResponseInterface $response): mixed
     {
         $body = (string) $response->getBody();
+
+        // 空のレスポンスボディを許可（404 エラーなどで発生）
+        if ($body === '') {
+            return '';
+        }
+
         $decoded = json_decode($body, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
@@ -139,38 +150,5 @@ abstract class AbstractE2ETestCase extends TestCase
             $actualCode,
             $message ?: "Expected status code {$expectedCode}, got {$actualCode}. Response body: {$body}"
         );
-    }
-
-    /**
-     * Assert response is JSON and contains specific data
-     *
-     * @param ResponseInterface $response
-     * @param array<string, mixed> $expectedData
-     */
-    protected function assertJsonResponse(ResponseInterface $response, array $expectedData): void
-    {
-        $this->assertEquals('application/json', $response->getHeaderLine('Content-Type'));
-
-        $data = $this->getJsonResponse($response);
-
-        foreach ($expectedData as $key => $value) {
-            $this->assertArrayHasKey($key, $data, "Response missing key: {$key}");
-            $this->assertEquals($value, $data[$key], "Value mismatch for key: {$key}");
-        }
-    }
-
-    /**
-     * Assert JSON response has specific structure
-     *
-     * @param ResponseInterface $response
-     * @param array<int, string> $keys
-     */
-    protected function assertJsonStructure(ResponseInterface $response, array $keys): void
-    {
-        $data = $this->getJsonResponse($response);
-
-        foreach ($keys as $key) {
-            $this->assertArrayHasKey($key, $data, "Response missing key: {$key}");
-        }
     }
 }

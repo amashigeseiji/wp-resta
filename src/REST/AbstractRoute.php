@@ -3,14 +3,13 @@ namespace Wp\Resta\REST;
 
 use InvalidArgumentException;
 use LogicException;
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use ReflectionMethod;
 use ReflectionNamedType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
-use WPRestApi\PSR7\WP_REST_PSR7_Request;
-use WPRestApi\PSR7\WP_REST_PSR7_Response;
+use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Http\RestaResponseInterface;
+use Wp\Resta\REST\Http\SimpleRestaResponse;
 
 abstract class AbstractRoute implements RouteInterface
 {
@@ -72,31 +71,31 @@ abstract class AbstractRoute implements RouteInterface
         return 'GET';
     }
 
-    public function invoke(RequestInterface $request): ResponseInterface
+    public function invoke(RestaRequestInterface $request): RestaResponseInterface
     {
         if (is_callable([$this, 'callback'])) {
-            if ($request instanceof WP_REST_PSR7_Request) {
-                try {
-                    $result = $this->invokeCallback(new ReflectionMethod($this, 'callback'), $request);
-                    if ($result instanceof ResponseInterface) {
-                        return $result;
-                    }
-                    $this->body = $result;
-                } catch (\Exception $e) {
-                    if ($this->status === 200) {
-                        $this->status = 500;
-                    }
+            try {
+                $result = $this->invokeCallback(
+                    new ReflectionMethod($this, 'callback'),
+                    $request
+                );
+
+                if ($result instanceof RestaResponseInterface) {
+                    return $result;
                 }
-            } else {
-                // todo
-                throw new RuntimeException('currently not supported.');
+
+                $this->body = $result;
+            } catch (\Exception $e) {
+                if ($this->status === 200) {
+                    $this->status = 500;
+                }
             }
         }
 
-        return new WP_REST_PSR7_Response($this->body, $this->status, $this->headers);
+        return new SimpleRestaResponse($this->body, $this->status, $this->headers);
     }
 
-    private function invokeCallback(ReflectionMethod $callback, WP_REST_PSR7_Request $request) : mixed
+    private function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
     {
         $parameters = $callback->getParameters();
         $args = [];
@@ -104,13 +103,16 @@ abstract class AbstractRoute implements RouteInterface
         foreach ($parameters as $param) {
             // URL定義されている値の解決
             if (isset($define[$param->name])) {
-                if ($define[$param->name]['required'] && !isset($request[$param->name])) {
+                $value = $request->getUrlParam($param->name);
+
+                if ($define[$param->name]['required'] && $value === null) {
                     throw new RuntimeException($param->name . ' is missing.');
                 }
-                if (isset($request[$param->name])) {
+
+                if ($value !== null) {
                     $regex = '/' . $define[$param->name]['regex'] . '/';
-                    if (preg_match($regex, $request[$param->name])) {
-                        $args[$param->name] = $request[$param->name];
+                    if (preg_match($regex, (string)$value)) {
+                        $args[$param->name] = $value;
                     }
                 } elseif ($param->isOptional()) {
                     $args[$param->name] = $param->getDefaultValue();

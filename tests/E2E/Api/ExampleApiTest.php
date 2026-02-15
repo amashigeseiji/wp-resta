@@ -109,8 +109,10 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // Should still have _resta_meta
-        $this->assertArrayHasKey('_resta_meta', $data);
+        // Post route returns null for non-existent post, which becomes empty string
+        // SampleHook only adds _resta_meta to array responses
+        $this->assertIsString($data);
+        $this->assertEmpty($data);
     }
 
     public function testSampleStaticApiReturnsStaticValue(): void
