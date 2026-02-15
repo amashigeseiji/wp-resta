@@ -92,7 +92,7 @@ abstract class AbstractRoute implements RouteInterface
             }
         }
 
-        return $this->createResponse();
+        return new SimpleRestaResponse($this->body, $this->status, $this->headers);
     }
 
     private function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
@@ -205,22 +205,5 @@ abstract class AbstractRoute implements RouteInterface
     public function getSchema(): array|null
     {
         return $this::SCHEMA ?? null;
-    }
-
-    /**
-     * レスポンスを作成
-     *
-     * body を純粋な PHP データとして保持。
-     * JSON エンコードは行わない（WordPress 層 Route.php で必要に応じて行う）。
-     *
-     * @return RestaResponseInterface レスポンス（body は純粋な PHP データ）
-     */
-    private function createResponse(): RestaResponseInterface
-    {
-        return new SimpleRestaResponse(
-            data: $this->body,
-            status: $this->status,
-            headers: $this->headers
-        );
     }
 }
