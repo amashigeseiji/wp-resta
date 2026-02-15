@@ -30,6 +30,7 @@ class Route
             $files = glob("{$dir}/*.php");
             foreach ($files as $file) {
                 $basename = basename($file, '.php');
+                /** @var class-string<RouteInterface> $class */
                 $class = "{$namespace}{$basename}";
                 if (!class_exists($class)) {
                     throw new LogicException("class \"{$class}\" does not exist or cannot load.");
