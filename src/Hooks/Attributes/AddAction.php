@@ -2,6 +2,7 @@
 namespace Wp\Resta\Hooks\Attributes;
 
 use Attribute;
+use BackedEnum;
 
 /**
  * Attribute to register a method as a WordPress action callback.
@@ -10,18 +11,31 @@ use Attribute;
  * the method should be attached to, as well as its execution priority and
  * the number of arguments it expects from WordPress.
  *
- * @param string $hook         The WordPress action name to hook into.
- * @param int    $priority     The priority at which the callback should run
- *                             (lower values run earlier, default is 10).
- * @param int    $acceptedArgs The number of arguments the callback accepts
- *                             from WordPress (default is 1).
+ * @param string|BackedEnum $hook         The WordPress action name to hook into.
+ *                                        Can be a string or a BackedEnum (e.g., RestApiHook::API_INIT).
+ * @param int               $priority     The priority at which the callback should run
+ *                                        (lower values run earlier, default is 10).
+ * @param int               $acceptedArgs The number of arguments the callback accepts
+ *                                        from WordPress (default is 1).
  */
 #[Attribute(Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 class AddAction
 {
     public function __construct(
-        public readonly string $hook,
+        public readonly string|BackedEnum $hook,
         public readonly int $priority = 10,
         public readonly int $acceptedArgs = 1
     ) {}
+
+    /**
+     * Get the hook name as a string.
+     *
+     * @return string
+     */
+    public function getHookName(): string
+    {
+        return $this->hook instanceof BackedEnum
+            ? $this->hook->value
+            : $this->hook;
+    }
 }
