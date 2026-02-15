@@ -62,7 +62,7 @@ abstract class HookProvider implements HookProviderInterface
             foreach ($filters as $filterAttr) {
                 $filter = $filterAttr->newInstance();
                 \add_filter(
-                    $filter->hook,
+                    $filter->getHookName(),
                     [$this, $method->getName()],
                     $filter->priority,
                     $filter->acceptedArgs
@@ -74,7 +74,7 @@ abstract class HookProvider implements HookProviderInterface
             foreach ($actions as $actionAttr) {
                 $action = $actionAttr->newInstance();
                 \add_action(
-                    $action->hook,
+                    $action->getHookName(),
                     [$this, $method->getName()],
                     $action->priority,
                     $action->acceptedArgs

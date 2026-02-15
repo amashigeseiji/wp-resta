@@ -4,6 +4,7 @@ namespace Wp\Resta\REST\Example\Hooks;
 use Wp\Resta\Hooks\HookProvider;
 use Wp\Resta\Hooks\Attributes\AddFilter;
 use Wp\Resta\Hooks\Attributes\AddAction;
+use Wp\Resta\Hooks\Enum\RestApiHook;
 use WP_REST_Response;
 use WP_REST_Request;
 use WP_REST_Server;
@@ -16,7 +17,7 @@ class SampleHook extends HookProvider
      * REST API リクエストの前処理
      * カスタムヘッダーを追加
      */
-    #[AddFilter('rest_pre_dispatch', priority: 10, acceptedArgs: 3)]
+    #[AddFilter(RestApiHook::PRE_DISPATCH, priority: 10, acceptedArgs: 3)]
     public function addCustomHeaders(
         null|WP_HTTP_Response|WP_Error $result,
         WP_REST_Server $server,
@@ -33,7 +34,7 @@ class SampleHook extends HookProvider
      *
      * @param array<string, mixed> $handler
      */
-    #[AddFilter('rest_request_after_callbacks', priority: 10, acceptedArgs: 3)]
+    #[AddFilter(RestApiHook::REQUEST_AFTER_CALLBACKS, priority: 10, acceptedArgs: 3)]
     public function addMetaToResponse(
         WP_HTTP_Response|WP_Error $response,
         array $handler,
@@ -60,7 +61,7 @@ class SampleHook extends HookProvider
     /**
      * REST API 初期化時の処理
      */
-    #[AddAction('rest_api_init')]
+    #[AddAction(RestApiHook::API_INIT)]
     public function onRestApiInit(): void
     {
         // REST API 初期化時の処理サンプル
@@ -85,7 +86,7 @@ class SampleHook extends HookProvider
 
         // 条件付きで追加のフックを登録する例
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            \add_filter('rest_pre_echo_response', [$this, 'debugResponse'], 10, 3);
+            \add_filter(RestApiHook::PRE_ECHO_RESPONSE->value, [$this, 'debugResponse'], 10, 3);
         }
     }
 

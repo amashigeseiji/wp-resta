@@ -4,6 +4,7 @@ namespace Wp\Resta\Hooks;
 use Wp\Resta\DI\Container;
 use Wp\Resta\Hooks\Attributes\AddAction;
 use Wp\Resta\Hooks\Attributes\AddFilter;
+use Wp\Resta\Hooks\Enum\RestApiHook;
 use Wp\Resta\REST\RegisterRestRoutes;
 
 /**
@@ -12,7 +13,7 @@ use Wp\Resta\REST\RegisterRestRoutes;
  */
 class InternalHooks extends HookProvider
 {
-    #[AddAction('rest_api_init')]
+    #[AddAction(RestApiHook::API_INIT)]
     public function registerRoutes(): void
     {
         // Route の解決を rest_api_init 実行時まで遅延
@@ -32,7 +33,7 @@ class InternalHooks extends HookProvider
      * @param array<int, string> $order
      * @return array<int, string>
      */
-    #[AddFilter('rest_request_parameter_order', priority: 10, acceptedArgs: 1)]
+    #[AddFilter(RestApiHook::REQUEST_PARAMETER_ORDER, priority: 10, acceptedArgs: 1)]
     public function prioritizeUrlParameters(array $order): array
     {
         if ($order[0] === 'GET' && $order[1] === 'URL') {
