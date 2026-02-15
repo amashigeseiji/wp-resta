@@ -9,6 +9,15 @@ use Wp\Resta\REST\Http\WpRestaRequest;
 use WP_REST_Request;
 use WP_REST_Response;
 
+/**
+ * ルート情報を一括して登録する
+ *
+ * {@see Wp\Resta\Hooks\InternalHooks} の {@see rest_api_init} フックを通じて
+ * WordPress にルート情報を登録する。
+ * {@see register_rest_route} に渡される callback は {@see WP_REST_Request}を受けとり
+ * {@see WP_REST_Response} を返す。ここで wp-resta の内部処理と WordPress の表現の変換が
+ * 行われている。
+ */
 class RegisterRestRoutes
 {
     private Container $container;
