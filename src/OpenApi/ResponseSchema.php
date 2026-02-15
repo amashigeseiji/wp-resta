@@ -1,7 +1,7 @@
 <?php
 namespace Wp\Resta\OpenApi;
 
-use Wp\Resta\REST\Route;
+use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\RouteInterface;
 use Wp\Resta\REST\Schemas\Schemas;
@@ -10,9 +10,9 @@ use ReflectionClass;
 class ResponseSchema
 {
     private readonly Schemas $schemas;
-    private readonly Route $routes;
+    private readonly RegisterRestRoutes $routes;
 
-    public function __construct(Schemas $schemas, Route $routes)
+    public function __construct(Schemas $schemas, RegisterRestRoutes $routes)
     {
         $this->routes = $routes;
         $this->schemas = $schemas;

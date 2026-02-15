@@ -9,7 +9,16 @@ use Wp\Resta\REST\Http\WpRestaRequest;
 use WP_REST_Request;
 use WP_REST_Response;
 
-class Route
+/**
+ * ルート情報を一括して登録する
+ *
+ * {@see Wp\Resta\Hooks\InternalHooks} の {@see rest_api_init} フックを通じて
+ * WordPress にルート情報を登録する。
+ * {@see register_rest_route} に渡される callback は {@see WP_REST_Request}を受けとり
+ * {@see WP_REST_Response} を返す。ここで wp-resta の内部処理と WordPress の表現の変換が
+ * 行われている。
+ */
+class RegisterRestRoutes
 {
     private Container $container;
 
@@ -30,6 +39,7 @@ class Route
             $files = glob("{$dir}/*.php");
             foreach ($files as $file) {
                 $basename = basename($file, '.php');
+                /** @var class-string<RouteInterface> $class */
                 $class = "{$namespace}{$basename}";
                 if (!class_exists($class)) {
                     throw new LogicException("class \"{$class}\" does not exist or cannot load.");
@@ -53,18 +63,6 @@ class Route
 
     public function register() : void
     {
-        /**
-         * ルート定義が /path/to/[id] のとき、id は埋め込みパラメータだが、クエリとしても受けとることができる。
-         * /path/to/123?id=456 というリクエストがきたとき、デフォルトではクエリパラメータが優先されるが埋め込みパラメータを優先する。
-         * 理由は、正規のURL /path/to/123 にクエリを付け加えることを防ぐことはできないのに、正規URLにたいして任意のidを入れることができてしまうため。
-         */
-        add_filter('rest_request_parameter_order', function($order) {
-            if ($order[0] === 'GET' && $order[1] === 'URL') {
-                $order[0] = 'URL';
-                $order[1] = 'GET';
-            }
-            return $order;
-        });
         foreach ($this->routes as $apiNamespace => $routes) {
             foreach ($routes as $route) {
                 assert($route instanceof RouteInterface);
