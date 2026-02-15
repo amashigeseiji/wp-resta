@@ -3,6 +3,7 @@ namespace Wp\Resta\REST\Example\Routes;
 
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\RouteMeta;
+use wpdb;
 
 #[RouteMeta(
     description: "サンプルです",
@@ -66,9 +67,10 @@ class Sample extends AbstractRoute
      */
     public function callback(int $id, string|null $name = null, string $a_or_b = 'a'): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
-        $res = $wpdb->query($wpdb->prepare(
-            'SELECT * FROM wp_posts WHERE ID = %s',
+        $res = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->posts} WHERE ID = %d",
             $id
         ));
         return [
@@ -77,7 +79,7 @@ class Sample extends AbstractRoute
             'a_or_b' => $a_or_b,
             'route' => $this->getRouteRegex(),
             'post' => get_post($id),
-            'result' => $wpdb->last_result,
+            'result' => $res,
             'queries' => $wpdb->last_query,
         ];
     }
