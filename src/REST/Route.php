@@ -53,18 +53,6 @@ class Route
 
     public function register() : void
     {
-        /**
-         * ルート定義が /path/to/[id] のとき、id は埋め込みパラメータだが、クエリとしても受けとることができる。
-         * /path/to/123?id=456 というリクエストがきたとき、デフォルトではクエリパラメータが優先されるが埋め込みパラメータを優先する。
-         * 理由は、正規のURL /path/to/123 にクエリを付け加えることを防ぐことはできないのに、正規URLにたいして任意のidを入れることができてしまうため。
-         */
-        add_filter('rest_request_parameter_order', function($order) {
-            if ($order[0] === 'GET' && $order[1] === 'URL') {
-                $order[0] = 'URL';
-                $order[1] = 'GET';
-            }
-            return $order;
-        });
         foreach ($this->routes as $apiNamespace => $routes) {
             foreach ($routes as $route) {
                 assert($route instanceof RouteInterface);
