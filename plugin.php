@@ -3,7 +3,7 @@
  * Plugin Name: Wp\Resta
  * Plugin URI:
  * Description: REST ルート定義
- * Version: 0.9.0
+ * Version: 0.10.0
  * Author: amashigeseiji
  * License: GPL2
  *
