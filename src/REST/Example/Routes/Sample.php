@@ -70,7 +70,7 @@ class Sample extends AbstractRoute
         /** @var wpdb $wpdb */
         global $wpdb;
         $res = $wpdb->get_results($wpdb->prepare(
-            'SELECT * FROM wp_posts WHERE ID = %s',
+            "SELECT * FROM {$wpdb->posts} WHERE ID = %d",
             $id
         ));
         return [
