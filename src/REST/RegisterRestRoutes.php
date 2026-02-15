@@ -9,7 +9,7 @@ use Wp\Resta\REST\Http\WpRestaRequest;
 use WP_REST_Request;
 use WP_REST_Response;
 
-class Route
+class RegisterRestRoutes
 {
     private Container $container;
 

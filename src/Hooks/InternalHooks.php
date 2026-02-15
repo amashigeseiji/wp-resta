@@ -2,9 +2,9 @@
 namespace Wp\Resta\Hooks;
 
 use Wp\Resta\DI\Container;
-use Wp\Resta\REST\Route;
 use Wp\Resta\Hooks\Attributes\AddAction;
 use Wp\Resta\Hooks\Attributes\AddFilter;
+use Wp\Resta\REST\RegisterRestRoutes;
 
 /**
  * システム内部で必須のフック
@@ -17,7 +17,7 @@ class InternalHooks extends HookProvider
     {
         // Route の解決を rest_api_init 実行時まで遅延
         // 非 REST リクエストでは Route が構築されないため、不要なディレクトリスキャンを回避
-        $route = Container::getInstance()->get(Route::class);
+        $route = Container::getInstance()->get(RegisterRestRoutes::class);
         $route->register();
     }
 
