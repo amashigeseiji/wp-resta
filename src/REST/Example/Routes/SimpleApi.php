@@ -7,7 +7,7 @@ use Wp\Resta\REST\Attributes\RouteMeta;
 /**
  * AbstractRoute を使用したシンプルなAPI
  *
- * EnvelopeRoute を使わない場合の例。
+ * Envelope を使わない場合の例。
  * エンベロープパターンを使わず、直接データを返します。
  */
 #[RouteMeta(

@@ -13,8 +13,10 @@ use Wp\Resta\REST\Schemas\ArrayType;
  * ```
  * namespace Wp\Resta\REST\Example\Routes;
  * use Wp\Resta\REST\Example\Schemas\Posts as SchemasPosts;
+ * use Wp\Resta\REST\Attributes\Envelope;
  *
- * class Posts extends EnvelopeRoute
+ * [Envelope]
+ * class Posts extends AbstractRoute
  * {
  *   public const SCHEMA = ['$ref' => SchemasPosts::ID];
  * }
