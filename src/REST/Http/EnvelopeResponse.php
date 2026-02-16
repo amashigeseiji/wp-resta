@@ -64,6 +64,8 @@ class EnvelopeResponse implements RestaResponseInterface
 
     /**
      * メタデータを一括設定
+     *
+     * @param array<string, mixed> $meta
      */
     public function setMeta(array $meta): self
     {
@@ -73,6 +75,8 @@ class EnvelopeResponse implements RestaResponseInterface
 
     /**
      * ファクトリーメソッド：成功レスポンス
+     *
+     * @param array<string, mixed> $meta
      */
     public static function success(mixed $data, array $meta = [], int $status = 200): self
     {
@@ -81,6 +85,8 @@ class EnvelopeResponse implements RestaResponseInterface
 
     /**
      * ファクトリーメソッド：エラーレスポンス
+     *
+     * @param array<string, mixed> $meta
      */
     public static function error(string $message, int $code = 500, array $meta = []): self
     {
