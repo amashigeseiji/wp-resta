@@ -85,10 +85,10 @@ class RegisterRestRoutes
                                 do_action('resta_before_invoke', $route, $restaRequest);
 
                                 // AbstractRoute を実行（WordPress 非依存レイヤー）
-                                $response = $route->invoke($restaRequest);
+                                $responseBefore = $route->invoke($restaRequest);
 
                                 // After invoke hook - レスポンスを変換可能
-                                $response = apply_filters('resta_after_invoke', $response, $route, $restaRequest);
+                                $response = apply_filters('resta_after_invoke', $responseBefore, $route, $restaRequest);
 
                                 // 型チェック
                                 if (!$response instanceof RestaResponseInterface) {
@@ -96,8 +96,8 @@ class RegisterRestRoutes
                                         'resta_after_invoke hook must return RestaResponseInterface, got ' . get_debug_type($response),
                                         E_USER_WARNING
                                     );
-                                    // フォールバック: 元のレスポンスを再実行
-                                    $response = $route->invoke($restaRequest);
+                                    // フォールバック: 元のレスポンスにする
+                                    $response = $responseBefore;
                                 }
 
                                 // RestaResponse → WordPress REST Response
