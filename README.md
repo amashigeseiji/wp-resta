@@ -418,3 +418,90 @@ composer test:e2e
 # または
 ./docker/e2e-test.sh
 ```
+
+## Schema
+
+wp-resta は OpenAPI 3.0 によるスキーマ定義をサポートしています。ルートクラスで定義したスキーマは自動的に OpenAPI 仕様として出力され、Swagger UI でドキュメント化されます。
+
+### エンベロープパターン
+
+wp-resta では、REST API レスポンスを統一的な構造でラップする**エンベロープパターン**をサポートしています。
+
+エンベロープパターンは、すべての API レスポンスを以下の構造で統一します：
+
+```json
+{
+  "data": {
+    // 実際のレスポンスデータ
+  },
+  "meta": {
+    "processed_at": "2026-02-17 12:00:00",
+    "plugin_version": "0.8.4",
+    "request_route": "/example/posts"
+  }
+}
+```
+
+#### EnvelopeRoute の使い方
+
+エンベロープパターンを使うには、`AbstractRoute` の代わりに `EnvelopeRoute` を継承します：
+
+```php
+<?php
+namespace MyREST\Routes;
+
+use Wp\Resta\REST\EnvelopeRoute;
+
+class Posts extends EnvelopeRoute
+{
+    protected const ROUTE = 'posts';
+
+    // スキーマはデータ部分のみ定義
+    public const SCHEMA = [
+        'type' => 'array',
+        'items' => [
+            '$ref' => '#/components/schemas/Post'
+        ],
+    ];
+
+    // 普通に配列を返すだけ（自動的にエンベロープでラップされる）
+    public function callback(): array
+    {
+        $posts = get_posts(['post_type' => 'post']);
+        return $posts;
+    }
+}
+```
+
+**レスポンス：**
+```json
+{
+  "data": [
+    { "ID": 1, "post_title": "Hello World" },
+    { "ID": 2, "post_title": "Sample Post" }
+  ],
+  "meta": {
+    "processed_at": "2026-02-17 12:00:00",
+    "plugin_version": "0.8.4",
+    "request_route": "/myroute/posts"
+  }
+}
+```
+
+`EnvelopeRoute` を使うと、`callback()` メソッドで返した値が自動的に `data` プロパティにラップされ、`meta` プロパティにメタデータが追加されます。OpenAPI スキーマもエンベロープ構造として自動生成されます。
+
+### OpenAPI スキーマの確認
+
+生成された OpenAPI スキーマは以下の URL で確認できます：
+
+```
+http://localhost:8080/rest-api/schema
+```
+
+Swagger UI で視覚的に確認できます：
+
+```
+http://localhost:8080/wp-admin/admin.php?page=wp-resta
+```
+
+エンベロープパターンを使用したルートは、OpenAPI スキーマでも自動的にエンベロープ構造（`type: object` with `data` and `meta` properties）として定義されます。
