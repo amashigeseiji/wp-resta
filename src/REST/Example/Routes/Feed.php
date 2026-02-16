@@ -1,13 +1,13 @@
 <?php
 namespace Wp\Resta\REST\Example\Routes;
 
-use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\EnvelopeRoute;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Hoge;
 use Wp\Resta\REST\RegisterRestRoutes;
 
 #[RouteMeta(tags: ['サンプルAPI'])]
-class Feed extends AbstractRoute
+class Feed extends EnvelopeRoute
 {
     protected const ROUTE = 'feed/[id]';
     protected const URL_PARAMS = [
