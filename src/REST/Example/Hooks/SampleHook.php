@@ -30,7 +30,7 @@ class SampleHook extends HookProvider
 
     /**
      * REST API レスポンスの後処理
-     * すべてのレスポンスにメタ情報を追加
+     * エンベロープパターンのメタ情報を追加
      *
      * @param array<string, mixed> $handler
      */
@@ -43,13 +43,11 @@ class SampleHook extends HookProvider
         if ($response instanceof WP_REST_Response) {
             $data = $response->get_data();
 
-            // メタ情報を追加（data が配列の場合のみ）
-            if (is_array($data)) {
-                $data['_resta_meta'] = [
-                    'processed_at' => current_time('mysql'),
-                    'plugin_version' => '0.8.4',
-                    'request_route' => $request->get_route(),
-                ];
+            // エンベロープ構造の場合、meta にメタ情報を追加
+            if (is_array($data) && isset($data['data'], $data['meta']) && is_array($data['meta'])) {
+                $data['meta']['processed_at'] = current_time('mysql');
+                $data['meta']['plugin_version'] = '0.8.4';
+                $data['meta']['request_route'] = $request->get_route();
 
                 $response->set_data($data);
             }
