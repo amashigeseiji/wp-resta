@@ -20,6 +20,7 @@ return [
     // WordPress フックプロバイダー
     'hooks' => [
         \Wp\Resta\Hooks\SwaggerHooks::class,
+        \Wp\Resta\REST\Hooks\EnvelopeHook::class,
         \Wp\Resta\REST\Example\Hooks\SampleHook::class,
     ],
 

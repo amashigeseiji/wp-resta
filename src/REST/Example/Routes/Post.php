@@ -2,6 +2,7 @@
 namespace Wp\Resta\REST\Example\Routes;
 
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Schemas\Post as SchemasPost;
 
@@ -9,6 +10,7 @@ use Wp\Resta\REST\Example\Schemas\Post as SchemasPost;
     description: "サンプルです",
     tags: ["サンプルAPI"]
 )]
+#[Envelope]
 class Post extends AbstractRoute
 {
     protected const ROUTE = 'post/[id]';
@@ -17,10 +19,9 @@ class Post extends AbstractRoute
     ];
 
     public const SCHEMA = [
-        '$schema' => 'http://json-schema.org/draft-04/schema#',
         'type' => 'object',
         'properties' => [
-            'post' => ['$ref' => '#/components/schemas/Post']
+            'post' => ['$ref' => SchemasPost::ID]
         ]
     ];
 

@@ -29,9 +29,12 @@ require_once __DIR__ . '/vendor/autoload.php';
     'routeDirectory' => [
         [__DIR__ . '/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example']
     ],
-    'use-swagger' => true,
     'schemaDirectory' => [
         [__DIR__ . '/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
+    ],
+    'hooks' => [
+        \Wp\Resta\Hooks\SwaggerHooks::class,          // Swagger UI を有効化
+        \Wp\Resta\REST\Hooks\EnvelopeHook::class,     // エンベロープパターンを有効化
     ],
 ]);
 ```
@@ -418,3 +421,193 @@ composer test:e2e
 # または
 ./docker/e2e-test.sh
 ```
+
+## Schema
+
+wp-resta は OpenAPI 3.0 によるスキーマ定義をサポートしています。ルートクラスで定義したスキーマは自動的に OpenAPI 仕様として出力され、Swagger UI でドキュメント化されます。
+
+### Envelope Pattern
+
+wp-resta では、REST API レスポンスを統一的な構造でラップする**Envelope Pattern**をサポートしています。
+
+Envelope Patternは、すべての API レスポンスを以下の構造で統一します：
+
+```json
+{
+  "data": {
+    // 実際のレスポンスデータ
+  },
+  "meta": {
+    // メタデータ（オプション）
+  }
+}
+```
+
+#### エンベロープパターンの使い方
+
+エンベロープパターンを使うには、`#[Envelope]` 属性をルートクラスに追加します：
+
+```php
+<?php
+namespace MyREST\Routes;
+
+use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Envelope;
+
+#[Envelope]
+class Posts extends AbstractRoute
+{
+    protected const ROUTE = 'posts';
+
+    // スキーマはデータ部分のみ定義
+    public const SCHEMA = [
+        'type' => 'array',
+        'items' => [
+            '$ref' => '#/components/schemas/Post'
+        ],
+    ];
+
+    // 普通に配列を返すだけ（自動的にエンベロープでラップされる）
+    public function callback(): array
+    {
+        $posts = get_posts(['post_type' => 'post']);
+        return $posts;
+    }
+}
+```
+
+**設定ファイルで EnvelopeHook を有効化**
+
+`functions.php` または設定ファイルで `EnvelopeHook` を登録してください：
+
+```php
+<?php
+(new Wp\Resta\Resta)->init([
+    'routeDirectory' => [
+        // ...
+    ],
+    'hooks' => [
+        \Wp\Resta\REST\Hooks\EnvelopeHook::class,  // エンベロープパターンを有効化
+    ],
+]);
+```
+
+**レスポンス：**
+```json
+{
+  "data": [
+    { "ID": 1, "post_title": "Hello World" },
+    { "ID": 2, "post_title": "Sample Post" }
+  ],
+  "meta": {
+    "processed_at": "2026-02-17 12:00:00",
+    "plugin_version": "0.8.4",
+    "request_route": "/myroute/posts"
+  }
+}
+```
+
+`#[Envelope]` 属性を追加すると、`callback()` メソッドで返した値が自動的に `data` プロパティにラップされます。OpenAPI スキーマもエンベロープ構造として自動生成されます。
+
+#### メタデータのカスタマイズ
+
+`meta` プロパティは、カスタムフックで追加できます：
+
+```php
+<?php
+namespace MyREST\Hooks;
+
+use Wp\Resta\Hooks\Attributes\AddFilter;
+use Wp\Resta\Hooks\HookProvider;
+use Wp\Resta\REST\Http\RestaResponseInterface;
+use Wp\Resta\REST\Http\EnvelopeResponse;
+use Wp\Resta\REST\RouteInterface;
+use Wp\Resta\REST\Http\RestaRequestInterface;
+
+class CustomMetaHook extends HookProvider
+{
+    #[AddFilter('resta_after_invoke', priority: 20, acceptedArgs: 3)]
+    public function addCustomMeta(
+        RestaResponseInterface $response,
+        RouteInterface $route,
+        RestaRequestInterface $request
+    ): RestaResponseInterface {
+        if (!$response instanceof EnvelopeResponse) {
+            return $response;
+        }
+
+        // メタデータを追加
+        return $response->addMeta('processed_at', current_time('mysql'))
+                        ->addMeta('plugin_version', '0.8.4');
+    }
+}
+```
+
+設定ファイルに追加：
+
+```php
+'hooks' => [
+    \Wp\Resta\REST\Hooks\EnvelopeHook::class,
+    \MyREST\Hooks\CustomMetaHook::class,  // カスタムメタデータを追加
+],
+```
+
+#### グローバル設定でエンベロープを制御
+
+`#[Envelope]` 属性を使わずに、フックでエンベロープパターンの適用を制御できます。
+
+**フック**: `resta_use_envelope_for_route`
+
+**パラメータ**:
+- `bool $should_use` - デフォルト値（`false`）
+- `RouteInterface $route` - 対象のルートオブジェクト
+
+**優先順位**:
+1. `#[Envelope]` 属性が最優先（属性があれば必ずエンベロープを使う）
+2. 属性がない場合のみ、このフックで判定
+
+**使用例**:
+
+```php
+// 例1: すべてのルートでエンベロープを使う
+add_filter('resta_use_envelope_for_route', '__return_true');
+
+// 例2: 特定の名前空間のルートだけエンベロープを使う
+add_filter('resta_use_envelope_for_route', function($should_use, $route) {
+    $class = get_class($route);
+    // API v2 のルートだけエンベロープを適用
+    return str_starts_with($class, 'MyApp\\API\\V2\\');
+}, 10, 2);
+
+// 例3: 本番環境でのみエンベロープを使う
+add_filter('resta_use_envelope_for_route', function($should_use, $route) {
+    return wp_get_environment_type() === 'production';
+}, 10, 2);
+
+// 例4: 特定のルートだけ除外
+add_filter('resta_use_envelope_for_route', function($should_use, $route) {
+    // SimpleAPI だけはエンベロープを使わない
+    if ($route instanceof \MyREST\Routes\SimpleAPI) {
+        return false;
+    }
+    return $should_use;
+}, 10, 2);
+```
+
+このフックを使えば、個別のルートに `#[Envelope]` 属性を付けなくても、プロジェクト全体の方針として一括でエンベロープパターンを適用できます。
+
+### OpenAPI スキーマの確認
+
+生成された OpenAPI スキーマは以下の URL で確認できます：
+
+```
+http://localhost:8080/rest-api/schema
+```
+
+Swagger UI で視覚的に確認できます：
+
+```
+http://localhost:8080/wp-admin/admin.php?page=wp-resta
+```
+
+エンベロープパターンを使用したルートは、OpenAPI スキーマでも自動的にエンベロープ構造（`type: object` with `data` and `meta` properties）として定義されます。

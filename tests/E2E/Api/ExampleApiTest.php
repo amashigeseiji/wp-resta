@@ -21,22 +21,25 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // Assert basic structure
-        $this->assertArrayHasKey('id', $data);
-        $this->assertArrayHasKey('name', $data);
-        $this->assertArrayHasKey('a_or_b', $data);
-        $this->assertArrayHasKey('route', $data);
-        $this->assertArrayHasKey('_resta_meta', $data);
+        // Assert envelope structure
+        $this->assertArrayHasKey('data', $data);
+        $this->assertArrayHasKey('meta', $data);
+
+        // Assert data structure
+        $this->assertArrayHasKey('id', $data['data']);
+        $this->assertArrayHasKey('name', $data['data']);
+        $this->assertArrayHasKey('a_or_b', $data['data']);
+        $this->assertArrayHasKey('route', $data['data']);
 
         // Assert values
-        $this->assertEquals(1, $data['id']);
-        $this->assertEquals('test', $data['name']);
-        $this->assertEquals('a', $data['a_or_b']);
+        $this->assertEquals(1, $data['data']['id']);
+        $this->assertEquals('test', $data['data']['name']);
+        $this->assertEquals('a', $data['data']['a_or_b']);
 
-        // Assert _resta_meta structure
-        $this->assertArrayHasKey('processed_at', $data['_resta_meta']);
-        $this->assertArrayHasKey('plugin_version', $data['_resta_meta']);
-        $this->assertArrayHasKey('request_route', $data['_resta_meta']);
+        // Assert meta structure
+        $this->assertArrayHasKey('processed_at', $data['meta']);
+        $this->assertArrayHasKey('plugin_version', $data['meta']);
+        $this->assertArrayHasKey('request_route', $data['meta']);
     }
 
     public function testSampleApiWithDifferentParameters(): void
@@ -50,9 +53,9 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        $this->assertEquals(999, $data['id']);
-        $this->assertEquals('custom', $data['name']);
-        $this->assertEquals('b', $data['a_or_b']);
+        $this->assertEquals(999, $data['data']['id']);
+        $this->assertEquals('custom', $data['data']['name']);
+        $this->assertEquals('b', $data['data']['a_or_b']);
     }
 
     public function testSampleApiWithoutOptionalParameters(): void
@@ -63,9 +66,9 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        $this->assertEquals(1, $data['id']);
-        $this->assertNull($data['name']);
-        $this->assertEquals('a', $data['a_or_b']); // Default value
+        $this->assertEquals(1, $data['data']['id']);
+        $this->assertNull($data['data']['name']);
+        $this->assertEquals('a', $data['data']['a_or_b']); // Default value
     }
 
     public function testPostsApiReturnsPostList(): void
@@ -76,12 +79,19 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        $this->assertArrayHasKey('items', $data);
-        $this->assertIsArray($data['items']);
-        $this->assertGreaterThan(0, count($data['items']));
+        // Assert envelope structure
+        $this->assertArrayHasKey('data', $data);
+        $this->assertArrayHasKey('meta', $data);
+        $this->assertIsArray($data['data']);
+        $this->assertGreaterThan(0, count($data['data']));
+
+        // Assert meta structure
+        $this->assertArrayHasKey('processed_at', $data['meta']);
+        $this->assertArrayHasKey('plugin_version', $data['meta']);
+        $this->assertArrayHasKey('request_route', $data['meta']);
 
         // Check first post structure
-        $firstPost = $data['items'][0];
+        $firstPost = $data['data'][0];
         $this->assertArrayHasKey('ID', $firstPost);
         $this->assertArrayHasKey('post_title', $firstPost);
         $this->assertArrayHasKey('post_status', $firstPost);
@@ -95,9 +105,10 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        $this->assertArrayHasKey('post', $data);
-        $this->assertArrayHasKey('ID', $data['post']);
-        $this->assertEquals(1, $data['post']['ID']);
+        $this->assertArrayHasKey('data', $data);
+        $this->assertArrayHasKey('post', $data['data']);
+        $this->assertArrayHasKey('ID', $data['data']['post']);
+        $this->assertEquals(1, $data['data']['post']['ID']);
     }
 
     public function testPostApiWithNonExistentId(): void
@@ -109,10 +120,9 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // Post route returns null for non-existent post, which becomes empty string
-        // SampleHook only adds _resta_meta to array responses
-        $this->assertIsString($data);
-        $this->assertEmpty($data);
+        // Post route returns null for non-existent post, wrapped in envelope
+        $this->assertArrayHasKey('data', $data);
+        $this->assertNull($data['data']);
     }
 
     public function testSampleStaticApiReturnsStaticValue(): void
@@ -123,9 +133,10 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        $this->assertArrayHasKey('name', $data);
-        $this->assertArrayHasKey('body', $data);
-        $this->assertEquals('static_parameter', $data['name']);
+        $this->assertArrayHasKey('data', $data);
+        $this->assertArrayHasKey('name', $data['data']);
+        $this->assertArrayHasKey('body', $data['data']);
+        $this->assertEquals('static_parameter', $data['data']['name']);
     }
 
     public function testApiNamespaceRoute(): void
@@ -157,5 +168,28 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $this->assertArrayHasKey('code', $data);
         $this->assertEquals('rest_no_route', $data['code']);
+    }
+
+    /**
+     * AbstractRoute を使用したシンプルなAPIのテスト
+     * エンベロープパターンを使わない例
+     */
+    public function testSimpleApiWithoutEnvelope(): void
+    {
+        $response = $this->get('/wp-json/example/simpleapi');
+
+        $this->assertResponseCode(200, $response);
+
+        $data = $this->getJsonResponse($response);
+
+        // エンベロープなし - 直接データ構造を確認
+        $this->assertArrayNotHasKey('data', $data, 'SimpleApi should NOT use envelope pattern');
+        $this->assertArrayNotHasKey('meta', $data, 'SimpleApi should NOT use envelope pattern');
+
+        // 直接データにアクセス
+        $this->assertArrayHasKey('message', $data);
+        $this->assertArrayHasKey('status', $data);
+        $this->assertEquals('This is a simple API response', $data['message']);
+        $this->assertEquals('ok', $data['status']);
     }
 }

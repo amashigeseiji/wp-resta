@@ -2,6 +2,7 @@
 namespace Wp\Resta\REST\Example\Routes;
 
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use wpdb;
 
@@ -9,6 +10,7 @@ use wpdb;
     description: "サンプルです",
     tags: ["サンプルAPI", "ほげほげ"]
 )]
+#[Envelope]
 class Sample extends AbstractRoute
 {
     protected const ROUTE = 'sample/[id]';

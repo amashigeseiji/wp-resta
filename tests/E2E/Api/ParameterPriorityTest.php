@@ -39,12 +39,12 @@ class ParameterPriorityTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // URLパラメータ (1) が優先されることを確認
+        // URLパラメータ (1) が優先されることを確認 (envelope構造)
         // フィルターが動作していない場合、このアサーションは失敗し、
         // id=30 (クエリパラメータの値) が返される
         $this->assertEquals(
             1,
-            $data['id'],
+            $data['data']['id'],
             'URL parameter (1) should take priority over query parameter (30). ' .
             'If this fails, the rest_request_parameter_order filter may not be working.'
         );
@@ -64,10 +64,10 @@ class ParameterPriorityTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // URLパラメータ (999) が優先されることを確認
+        // URLパラメータ (999) が優先されることを確認 (envelope構造)
         $this->assertEquals(
             999,
-            $data['id'],
+            $data['data']['id'],
             'URL parameter (999) should take priority over query parameter (123)'
         );
     }
@@ -88,12 +88,12 @@ class ParameterPriorityTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // URLパラメータ
-        $this->assertEquals(5, $data['id']);
+        // URLパラメータ (envelope構造)
+        $this->assertEquals(5, $data['data']['id']);
 
-        // クエリパラメータは正常に機能する
-        $this->assertEquals('test_name', $data['name']);
-        $this->assertEquals('b', $data['a_or_b']);
+        // クエリパラメータは正常に機能する (envelope構造)
+        $this->assertEquals('test_name', $data['data']['name']);
+        $this->assertEquals('b', $data['data']['a_or_b']);
     }
 
     /**
@@ -111,15 +111,15 @@ class ParameterPriorityTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // URLパラメータ (1) が優先される
+        // URLパラメータ (1) が優先される (envelope構造)
         $this->assertEquals(
             1,
-            $data['id'],
+            $data['data']['id'],
             'URL parameter (1) should take priority even with large query parameter (999999)'
         );
 
-        // 他のクエリパラメータは正常に機能
-        $this->assertEquals('edge_case', $data['name']);
+        // 他のクエリパラメータは正常に機能 (envelope構造)
+        $this->assertEquals('edge_case', $data['data']['name']);
     }
 
     /**
@@ -136,8 +136,9 @@ class ParameterPriorityTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // URLパラメータ (1) が優先される
-        $this->assertArrayHasKey('post', $data);
-        $this->assertEquals(1, $data['post']['ID']);
+        // URLパラメータ (1) が優先される (envelope構造)
+        $this->assertArrayHasKey('data', $data);
+        $this->assertArrayHasKey('post', $data['data']);
+        $this->assertEquals(1, $data['data']['post']['ID']);
     }
 }

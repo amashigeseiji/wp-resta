@@ -2,11 +2,13 @@
 namespace Wp\Resta\REST\Example\Routes;
 
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Hoge;
 use Wp\Resta\REST\RegisterRestRoutes;
 
 #[RouteMeta(tags: ['サンプルAPI'])]
+#[Envelope]
 class Feed extends AbstractRoute
 {
     protected const ROUTE = 'feed/[id]';

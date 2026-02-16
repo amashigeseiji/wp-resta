@@ -2,25 +2,26 @@
 namespace Wp\Resta\REST\Example\Routes;
 
 use Wp\Resta\REST\AbstractRoute;
-use Wp\Resta\REST\Example\Schemas\Posts as SchemasPosts;
+use Wp\Resta\REST\Attributes\Envelope;
+use Wp\Resta\REST\Example\Schemas\Post;
 use WP_Query;
 
+#[Envelope]
 class Posts extends AbstractRoute
 {
     protected const ROUTE = 'posts';
 
     public const SCHEMA = [
-        '$schema' => 'http://json-schema.org/draft-04/schema#',
         'type' => 'array',
         'items' => [
-            '$ref' => '#/components/schemas/Post'
+            '$ref' => Post::ID
         ],
     ];
 
     /**
-     * @return array<string, \Wp\Resta\REST\Example\Schemas\Post[]>
+     * @return Post[]
      */
-    public function callback() : array
+    public function callback(): array
     {
         $q = new WP_Query();
         $posts = $q->query([
@@ -30,6 +31,9 @@ class Posts extends AbstractRoute
             'order' => 'DESC',
             'posts_per_page' => 10
         ]);
-        return (array) new SchemasPosts($posts);
+
+        // スキーマクラスは OpenAPI 定義のみに使用
+        // データは Post オブジェクトの配列として返す
+        return array_map(fn($post) => new Post($post), $posts);
     }
 }
