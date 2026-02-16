@@ -11,18 +11,24 @@ use Wp\Resta\REST\Schemas\ArrayType;
  * 配列タイプとして認識される。
  *
  * ```
- * namespace Wp\Resta\REST\Example\Routes;
- * use Wp\Resta\REST\Example\Schemas\Posts as SchemasPosts;
- * use Wp\Resta\REST\Attributes\Envelope;
- *
- * [Envelope]
- * class Posts extends AbstractRoute
- * {
  *   public const SCHEMA = ['$ref' => SchemasPosts::ID];
- * }
  * ```
+ *
+ * Route クラス内で以下のように記述することと実質的に等価
+ *
+ * ```
+ *   public const SCHEMA = [
+ *       'type' => 'array',
+ *       'items' => [
+ *           '$ref' => Post::ID
+ *       ],
+ *   ];
+ * ```
+ *
+ *
  * ただし、ここに独自の配列型を定義しても必要となるユースケースは少ないと考えるため、
  * サンプルとしてのみ残している。
+ *
  */
 class Posts extends ArrayType
 {
