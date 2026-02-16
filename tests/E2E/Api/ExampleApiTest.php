@@ -169,4 +169,27 @@ class ExampleApiTest extends AbstractE2ETestCase
         $this->assertArrayHasKey('code', $data);
         $this->assertEquals('rest_no_route', $data['code']);
     }
+
+    /**
+     * AbstractRoute を使用したシンプルなAPIのテスト
+     * エンベロープパターンを使わない例
+     */
+    public function testSimpleApiWithoutEnvelope(): void
+    {
+        $response = $this->get('/wp-json/example/simpleapi');
+
+        $this->assertResponseCode(200, $response);
+
+        $data = $this->getJsonResponse($response);
+
+        // エンベロープなし - 直接データ構造を確認
+        $this->assertArrayNotHasKey('data', $data, 'SimpleApi should NOT use envelope pattern');
+        $this->assertArrayNotHasKey('meta', $data, 'SimpleApi should NOT use envelope pattern');
+
+        // 直接データにアクセス
+        $this->assertArrayHasKey('message', $data);
+        $this->assertArrayHasKey('status', $data);
+        $this->assertEquals('This is a simple API response', $data['message']);
+        $this->assertEquals('ok', $data['status']);
+    }
 }
