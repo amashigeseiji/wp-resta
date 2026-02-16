@@ -3,6 +3,7 @@ namespace Wp\Resta\OpenApi;
 
 use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\Attributes\RouteMeta;
+use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\RouteInterface;
 use Wp\Resta\REST\Schemas\Schemas;
 use ReflectionClass;
@@ -16,6 +17,45 @@ class ResponseSchema
     {
         $this->routes = $routes;
         $this->schemas = $schemas;
+    }
+
+    /**
+     * スキーマをエンベロープ構造でラップ
+     *
+     * @param array<string, mixed> $schema
+     * @return array<string, mixed>
+     */
+    private function wrapSchemaInEnvelope(array $schema): array
+    {
+        return [
+            '$schema' => $schema['$schema'] ?? 'http://json-schema.org/draft-04/schema#',
+            'type' => 'object',
+            'properties' => [
+                'data' => $this->extractDataSchema($schema),
+                'meta' => [
+                    'type' => 'object',
+                    'description' => 'Response metadata',
+                    'additionalProperties' => true
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * スキーマからデータ部分を抽出
+     *
+     * $schema や title などのメタ情報を除外して、実際のデータ構造のみを抽出します。
+     *
+     * @param array<string, mixed> $schema
+     * @return array<string, mixed>
+     */
+    private function extractDataSchema(array $schema): array
+    {
+        // $schema や title などのメタ情報は除外
+        $dataSchema = $schema;
+        unset($dataSchema['$schema']);
+
+        return $dataSchema;
     }
 
     /**
@@ -50,6 +90,16 @@ class ResponseSchema
                 foreach ($reflection->getAttributes(RouteMeta::class) as $attr) {
                     $meta = $attr->newInstance();
                 }
+
+                // スキーマを取得
+                $schema = $route->getSchema() ?? [];
+
+                // #[Envelope] 属性があればエンベロープ構造でラップ
+                $hasEnvelope = count($reflection->getAttributes(Envelope::class)) > 0;
+                if ($hasEnvelope && !empty($schema)) {
+                    $schema = $this->wrapSchemaInEnvelope($schema);
+                }
+
                 $paths[$path] = [
                     strtolower($route->getMethods()) => [
                         'description' => $meta->description,
@@ -60,7 +110,7 @@ class ResponseSchema
                                 'description' => 'OK',
                                 'content' => [
                                     'application/json' => [
-                                        'schema' => $route->getSchema() ?? []
+                                        'schema' => $schema
                                     ]
                                 ]
                             ]
