@@ -28,7 +28,7 @@ class ResponseSchema
     private function wrapSchemaInEnvelope(array $schema): array
     {
         return [
-            '$schema' => $schema['$schema'] ?? 'http://json-schema.org/draft-04/schema#',
+            '$schema' => 'http://json-schema.org/draft-04/schema#',
             'type' => 'object',
             'properties' => [
                 'data' => $this->extractDataSchema($schema),
@@ -44,16 +44,32 @@ class ResponseSchema
     /**
      * スキーマからデータ部分を抽出
      *
-     * $schema や title などのメタ情報を除外して、実際のデータ構造のみを抽出します。
+     * トップレベルの $schema や title などのメタ情報を除外して、実際のデータ構造のみを抽出します。
+     * プロパティ定義配下の description や default などはそのまま保持されます。
      *
      * @param array<string, mixed> $schema
      * @return array<string, mixed>
      */
     private function extractDataSchema(array $schema): array
     {
-        // $schema や title などのメタ情報は除外
+        // トップレベルの JSON Schema メタ情報は除外する
         $dataSchema = $schema;
-        unset($dataSchema['$schema']);
+
+        $metaKeys = [
+            '$schema',
+            '$id',
+            '$comment',
+            'title',
+            'description',
+            'default',
+            'examples',
+        ];
+
+        foreach ($metaKeys as $metaKey) {
+            if (array_key_exists($metaKey, $dataSchema)) {
+                unset($dataSchema[$metaKey]);
+            }
+        }
 
         return $dataSchema;
     }

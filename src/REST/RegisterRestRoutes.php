@@ -92,12 +92,9 @@ class RegisterRestRoutes
 
                                 // 型チェック
                                 if (!$response instanceof RestaResponseInterface) {
-                                    trigger_error(
-                                        'resta_after_invoke hook must return RestaResponseInterface, got ' . get_debug_type($response),
-                                        E_USER_WARNING
+                                    throw new LogicException(
+                                        'resta_after_invoke hook must return RestaResponseInterface, got ' . get_debug_type($response)
                                     );
-                                    // フォールバック: 元のレスポンスにする
-                                    $response = $responseBefore;
                                 }
 
                                 // RestaResponse → WordPress REST Response
