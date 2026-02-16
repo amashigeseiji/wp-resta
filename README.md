@@ -518,13 +518,13 @@ class Posts extends AbstractRoute
 namespace MyREST\Hooks;
 
 use Wp\Resta\Hooks\Attributes\AddFilter;
-use Wp\Resta\Hooks\HookProviderInterface;
+use Wp\Resta\Hooks\HookProvider;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\EnvelopeResponse;
 use Wp\Resta\REST\RouteInterface;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 
-class CustomMetaHook implements HookProviderInterface
+class CustomMetaHook extends HookProvider
 {
     #[AddFilter('resta_after_invoke', priority: 20, acceptedArgs: 3)]
     public function addCustomMeta(
@@ -537,10 +537,8 @@ class CustomMetaHook implements HookProviderInterface
         }
 
         // メタデータを追加
-        return $response->withMeta([
-            'processed_at' => current_time('mysql'),
-            'plugin_version' => '0.8.4',
-        ]);
+        return $response->addMeta('processed_at', current_time('mysql'))
+                        ->addMeta('plugin_version', '0.8.4');
     }
 }
 ```
