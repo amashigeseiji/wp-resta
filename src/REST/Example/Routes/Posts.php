@@ -1,11 +1,13 @@
 <?php
 namespace Wp\Resta\REST\Example\Routes;
 
-use Wp\Resta\REST\EnvelopeRoute;
+use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Example\Schemas\Post;
 use WP_Query;
 
-class Posts extends EnvelopeRoute
+#[Envelope]
+class Posts extends AbstractRoute
 {
     protected const ROUTE = 'posts';
 
