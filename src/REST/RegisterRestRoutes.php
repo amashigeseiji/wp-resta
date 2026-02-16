@@ -5,6 +5,7 @@ use LogicException;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\WpRestaRequest;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -80,8 +81,24 @@ class RegisterRestRoutes
                                 $this->container->bind(WP_REST_Request::class, $request);
                                 $this->container->bind(RestaRequestInterface::class, $restaRequest);
 
+                                // Before invoke hook
+                                do_action('resta_before_invoke', $route, $restaRequest);
+
                                 // AbstractRoute を実行（WordPress 非依存レイヤー）
                                 $response = $route->invoke($restaRequest);
+
+                                // After invoke hook - レスポンスを変換可能
+                                $response = apply_filters('resta_after_invoke', $response, $route, $restaRequest);
+
+                                // 型チェック
+                                if (!$response instanceof RestaResponseInterface) {
+                                    trigger_error(
+                                        'resta_after_invoke hook must return RestaResponseInterface, got ' . get_debug_type($response),
+                                        E_USER_WARNING
+                                    );
+                                    // フォールバック: 元のレスポンスを再実行
+                                    $response = $route->invoke($restaRequest);
+                                }
 
                                 // RestaResponse → WordPress REST Response
                                 // データを直接渡す - JSON encode/decode 不要！

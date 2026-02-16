@@ -29,8 +29,10 @@ return [
     // WordPress フックプロバイダー（オプション）
     // HookProviderInterface を実装したクラスを指定
     // SwaggerHooks: Swagger UI を有効化（開発環境推奨、本番では削除）
+    // EnvelopeHook: エンベロープパターン（#[Envelope] Attribute）を有効化
     'hooks' => [
         \Wp\Resta\Hooks\SwaggerHooks::class,
+        \Wp\Resta\REST\Hooks\EnvelopeHook::class,
         \Wp\Resta\REST\Example\Hooks\SampleHook::class,
     ],
 
