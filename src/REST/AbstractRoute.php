@@ -95,7 +95,7 @@ abstract class AbstractRoute implements RouteInterface
         return new SimpleRestaResponse($this->body, $this->status, $this->headers);
     }
 
-    private function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
+    protected function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
     {
         $parameters = $callback->getParameters();
         $args = [];
