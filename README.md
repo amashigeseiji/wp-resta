@@ -29,9 +29,12 @@ require_once __DIR__ . '/vendor/autoload.php';
     'routeDirectory' => [
         [__DIR__ . '/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example']
     ],
-    'use-swagger' => true,
     'schemaDirectory' => [
         [__DIR__ . '/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
+    ],
+    'hooks' => [
+        \Wp\Resta\Hooks\SwaggerHooks::class,          // Swagger UI を有効化
+        \Wp\Resta\REST\Hooks\EnvelopeHook::class,     // エンベロープパターンを有効化
     ],
 ]);
 ```
@@ -423,11 +426,11 @@ composer test:e2e
 
 wp-resta は OpenAPI 3.0 によるスキーマ定義をサポートしています。ルートクラスで定義したスキーマは自動的に OpenAPI 仕様として出力され、Swagger UI でドキュメント化されます。
 
-### エンベロープパターン
+### Envelope Pattern
 
-wp-resta では、REST API レスポンスを統一的な構造でラップする**エンベロープパターン**をサポートしています。
+wp-resta では、REST API レスポンスを統一的な構造でラップする**Envelope Pattern**をサポートしています。
 
-エンベロープパターンは、すべての API レスポンスを以下の構造で統一します：
+Envelope Patternは、すべての API レスポンスを以下の構造で統一します：
 
 ```json
 {
@@ -435,24 +438,24 @@ wp-resta では、REST API レスポンスを統一的な構造でラップす�
     // 実際のレスポンスデータ
   },
   "meta": {
-    "processed_at": "2026-02-17 12:00:00",
-    "plugin_version": "0.8.4",
-    "request_route": "/example/posts"
+    // メタデータ（オプション）
   }
 }
 ```
 
-#### EnvelopeRoute の使い方
+#### エンベロープパターンの使い方
 
-エンベロープパターンを使うには、`AbstractRoute` の代わりに `EnvelopeRoute` を継承します：
+エンベロープパターンを使うには、`#[Envelope]` 属性をルートクラスに追加します：
 
 ```php
 <?php
 namespace MyREST\Routes;
 
-use Wp\Resta\REST\EnvelopeRoute;
+use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Envelope;
 
-class Posts extends EnvelopeRoute
+#[Envelope]
+class Posts extends AbstractRoute
 {
     protected const ROUTE = 'posts';
 
@@ -473,6 +476,22 @@ class Posts extends EnvelopeRoute
 }
 ```
 
+**設定ファイルで EnvelopeHook を有効化**
+
+`functions.php` または設定ファイルで `EnvelopeHook` を登録してください：
+
+```php
+<?php
+(new Wp\Resta\Resta)->init([
+    'routeDirectory' => [
+        // ...
+    ],
+    'hooks' => [
+        \Wp\Resta\REST\Hooks\EnvelopeHook::class,  // エンベロープパターンを有効化
+    ],
+]);
+```
+
 **レスポンス：**
 ```json
 {
@@ -488,7 +507,52 @@ class Posts extends EnvelopeRoute
 }
 ```
 
-`EnvelopeRoute` を使うと、`callback()` メソッドで返した値が自動的に `data` プロパティにラップされ、`meta` プロパティにメタデータが追加されます。OpenAPI スキーマもエンベロープ構造として自動生成されます。
+`#[Envelope]` 属性を追加すると、`callback()` メソッドで返した値が自動的に `data` プロパティにラップされます。OpenAPI スキーマもエンベロープ構造として自動生成されます。
+
+#### メタデータのカスタマイズ
+
+`meta` プロパティは、カスタムフックで追加できます：
+
+```php
+<?php
+namespace MyREST\Hooks;
+
+use Wp\Resta\Hooks\Attributes\AddFilter;
+use Wp\Resta\Hooks\HookProviderInterface;
+use Wp\Resta\REST\Http\RestaResponseInterface;
+use Wp\Resta\REST\Http\EnvelopeResponse;
+use Wp\Resta\REST\RouteInterface;
+use Wp\Resta\REST\Http\RestaRequestInterface;
+
+class CustomMetaHook implements HookProviderInterface
+{
+    #[AddFilter('resta_after_invoke', priority: 20, acceptedArgs: 3)]
+    public function addCustomMeta(
+        RestaResponseInterface $response,
+        RouteInterface $route,
+        RestaRequestInterface $request
+    ): RestaResponseInterface {
+        if (!$response instanceof EnvelopeResponse) {
+            return $response;
+        }
+
+        // メタデータを追加
+        return $response->withMeta([
+            'processed_at' => current_time('mysql'),
+            'plugin_version' => '0.8.4',
+        ]);
+    }
+}
+```
+
+設定ファイルに追加：
+
+```php
+'hooks' => [
+    \Wp\Resta\REST\Hooks\EnvelopeHook::class,
+    \MyREST\Hooks\CustomMetaHook::class,  // カスタムメタデータを追加
+],
+```
 
 ### OpenAPI スキーマの確認
 
