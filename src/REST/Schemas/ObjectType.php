@@ -6,26 +6,13 @@ use ReflectionNamedType;
 use ReflectionType;
 use Wp\Resta\REST\Attributes\Schema\Property;
 
-abstract class ObjectType implements SchemaInterface
+abstract class ObjectType extends BaseSchema
 {
-    public const ID = null;
-    public const DESCRIPTION = null;
-
-    /**
-     * オプション：プロパティのメタデータを定義
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    public static function metadata(): array
-    {
-        return [];
-    }
-
     public static function describe(): array
     {
         $properties = [];
         $required = [];
-        $reflection = new ReflectionClass(static::class);
+        $reflection = self::getReflection();
 
         // メタデータを取得（オプション）
         $metadata = static::metadata();
@@ -72,9 +59,7 @@ abstract class ObjectType implements SchemaInterface
             $description['required'] = $required;
         }
 
-        // ID の生成：static::ID があればそれを使い、なければクラス名から自動生成
-        $className = $reflection->getShortName();
-        $description['$id'] = static::ID ?: "#/components/schemas/{$className}";
+        $description['$id'] = self::getSchemaId();
 
         return $description;
     }
