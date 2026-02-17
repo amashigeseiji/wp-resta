@@ -6,8 +6,12 @@ namespace Wp\Resta\CodeGen;
  */
 class OpenApiParser
 {
+    /** @var array<string, mixed> */
     private array $spec;
 
+    /**
+     * @param array<string, mixed> $openApiSpec
+     */
     public function __construct(array $openApiSpec)
     {
         $this->spec = $openApiSpec;
@@ -71,7 +75,7 @@ class OpenApiParser
     /**
      * パスから型安全なEndpoint構造を抽出
      *
-     * @return array{path: string, method: string, pathParams: array, queryParams: array, responseSchema: array|null, description: string, tags: array}[]
+     * @return array<array{path: string, method: string, pathParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, queryParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, responseSchema: mixed, description: mixed, tags: mixed}>
      */
     public function extractEndpoints(): array
     {

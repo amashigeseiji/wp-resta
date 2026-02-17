@@ -38,7 +38,7 @@ class ApiEndpointsGenerator
     /**
      * 単一のエンドポイント型を生成
      *
-     * @param array{path: string, method: string, pathParams: array, queryParams: array, responseSchema: array|null, description: string, tags: array} $endpoint
+     * @param array{path: string, method: string, pathParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, queryParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, responseSchema: mixed, description: mixed, tags: mixed} $endpoint
      * @param OpenApiParser $parser
      * @return string
      */
@@ -74,8 +74,8 @@ class ApiEndpointsGenerator
     /**
      * パラメータ型を生成
      *
-     * @param array $pathParams
-     * @param array $queryParams
+     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}> $pathParams
+     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}> $queryParams
      * @param OpenApiParser $parser
      * @return string
      */
@@ -104,7 +104,7 @@ class ApiEndpointsGenerator
     /**
      * レスポンス型を生成
      *
-     * @param array|null $responseSchema
+     * @param array<string, mixed>|null $responseSchema
      * @param OpenApiParser $parser
      * @return string
      */
@@ -145,7 +145,7 @@ class ApiEndpointsGenerator
     /**
      * インラインスキーマをTypeScript型に変換
      *
-     * @param array $schema
+     * @param array<string, mixed> $schema
      * @param OpenApiParser $parser
      * @return string
      */
