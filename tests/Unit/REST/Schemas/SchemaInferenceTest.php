@@ -123,9 +123,9 @@ class SchemaInferenceTest extends TestCase
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
         $this->assertArrayHasKey('items', $schema);
-        $this->assertEquals('object', $schema['items']['type']);
-        $this->assertArrayHasKey('id', $schema['items']['properties']);
-        $this->assertArrayHasKey('name', $schema['items']['properties']);
+        // $ref を使用することを確認
+        $this->assertArrayHasKey('$ref', $schema['items']);
+        $this->assertStringContainsString('TestUser', $schema['items']['$ref']);
     }
 
     public function testInferSchemaFromPhpDocGenericAnnotation()
@@ -138,7 +138,9 @@ class SchemaInferenceTest extends TestCase
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
         $this->assertArrayHasKey('items', $schema);
-        $this->assertEquals('object', $schema['items']['type']);
+        // $ref を使用することを確認
+        $this->assertArrayHasKey('$ref', $schema['items']);
+        $this->assertStringContainsString('TestUser', $schema['items']['$ref']);
     }
 
     public function testInferSchemaFromPhpDocAssociativeAnnotation()
@@ -151,9 +153,9 @@ class SchemaInferenceTest extends TestCase
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
         $this->assertArrayHasKey('items', $schema);
-        $this->assertEquals('object', $schema['items']['type']);
-        $this->assertArrayHasKey('id', $schema['items']['properties']);
-        $this->assertArrayHasKey('name', $schema['items']['properties']);
+        // $ref を使用することを確認
+        $this->assertArrayHasKey('$ref', $schema['items']);
+        $this->assertStringContainsString('TestUser', $schema['items']['$ref']);
     }
 }
 

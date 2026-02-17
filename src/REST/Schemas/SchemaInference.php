@@ -170,9 +170,13 @@ class SchemaInference
             $className = $this->resolveClassName($elementType->name, $context);
 
             if ($className && is_subclass_of($className, ObjectType::class)) {
+                // $ref を使用（スキーマの再利用）
+                $schemaId = $this->getSchemaId($className);
                 return [
                     'type' => 'array',
-                    'items' => $className::describe(),
+                    'items' => [
+                        '$ref' => $schemaId,
+                    ],
                 ];
             }
         }
@@ -205,9 +209,13 @@ class SchemaInference
                 $className = $this->resolveClassName($elementType->name, $context);
 
                 if ($className && is_subclass_of($className, ObjectType::class)) {
+                    // $ref を使用（スキーマの再利用）
+                    $schemaId = $this->getSchemaId($className);
                     return [
                         'type' => 'array',
-                        'items' => $className::describe(),
+                        'items' => [
+                            '$ref' => $schemaId,
+                        ],
                     ];
                 }
             }
@@ -221,15 +229,37 @@ class SchemaInference
                 $className = $this->resolveClassName($valueType->name, $context);
 
                 if ($className && is_subclass_of($className, ObjectType::class)) {
+                    // $ref を使用（スキーマの再利用）
+                    $schemaId = $this->getSchemaId($className);
                     return [
                         'type' => 'array',
-                        'items' => $className::describe(),
+                        'items' => [
+                            '$ref' => $schemaId,
+                        ],
                     ];
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * ObjectType クラスからスキーマIDを取得
+     *
+     * @param class-string $className ObjectType のサブクラス
+     * @return string スキーマID（$ref用）
+     */
+    private function getSchemaId(string $className): string
+    {
+        // ObjectType::ID 定数があればそれを使用
+        if (defined("{$className}::ID") && $className::ID !== null) {
+            return $className::ID;
+        }
+
+        // なければクラス名から自動生成
+        $shortName = basename(str_replace('\\', '/', $className));
+        return "#/components/schemas/{$shortName}";
     }
 
     /**
