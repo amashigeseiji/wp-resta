@@ -18,17 +18,7 @@ class Post extends AbstractRoute
         'id' => 'integer',
     ];
 
-    public const SCHEMA = [
-        'type' => 'object',
-        'properties' => [
-            'post' => ['$ref' => SchemasPost::ID]
-        ]
-    ];
-
-    /**
-     * @return array<string, SchemasPost>|null
-     */
-    public function callback(int $id) : ?array
+    public function callback(int $id): ?SchemasPost
     {
         $post = get_post($id);
         if ($post === null) {
@@ -36,8 +26,15 @@ class Post extends AbstractRoute
             return null;
         }
 
-        return [
-            'post' => new SchemasPost($post)
-        ];
+        return new SchemasPost(
+            ID: $post->ID,
+            post_author: $post->post_author,
+            post_date: $post->post_date,
+            post_date_gmt: $post->post_date_gmt,
+            post_content: $post->post_content,
+            post_title: $post->post_title,
+            post_status: $post->post_status,
+            post_name: $post->post_name,
+        );
     }
 }

@@ -105,10 +105,10 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
+        // Envelope構造で、dataが直接Post型を含む
         $this->assertArrayHasKey('data', $data);
-        $this->assertArrayHasKey('post', $data['data']);
-        $this->assertArrayHasKey('ID', $data['data']['post']);
-        $this->assertEquals(1, $data['data']['post']['ID']);
+        $this->assertArrayHasKey('ID', $data['data']);
+        $this->assertEquals(1, $data['data']['ID']);
     }
 
     public function testPostApiWithNonExistentId(): void

@@ -136,9 +136,9 @@ class ParameterPriorityTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // URLパラメータ (1) が優先される (envelope構造)
+        // URLパラメータ (1) が優先される (envelope構造で、dataが直接Post型を含む)
         $this->assertArrayHasKey('data', $data);
-        $this->assertArrayHasKey('post', $data['data']);
-        $this->assertEquals(1, $data['data']['post']['ID']);
+        $this->assertArrayHasKey('ID', $data['data']);
+        $this->assertEquals(1, $data['data']['ID']);
     }
 }
