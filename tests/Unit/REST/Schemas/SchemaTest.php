@@ -11,6 +11,7 @@ class SchemaTest extends TestCase
     public function testArrayTypeSchema()
     {
         $newType = new class() extends ArrayType {
+            public const ID = 'anonymosArray';
             public const DESCRIPTION = 'This is anonymous array type';
             #[Property(['type' => 'string'])]
             public array $items;
@@ -21,7 +22,8 @@ class SchemaTest extends TestCase
                 'description' => 'This is anonymous array type',
                 'items' => [
                     'type' => 'string'
-                ]
+                ],
+                '$id' => 'anonymosArray'
             ],
             $newType::describe()
         );

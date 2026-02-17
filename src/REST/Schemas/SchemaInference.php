@@ -66,14 +66,10 @@ class SchemaInference
             if (!$returnType->isBuiltin()) {
                 $typeName = $returnType->getName();
 
-                // ObjectType を継承しているかチェック
-                if (is_subclass_of($typeName, ObjectType::class)) {
-                    return $this->inferFromObjectType($typeName);
-                }
-
-                // ArrayType を継承しているかチェック
-                if (is_subclass_of($typeName, ArrayType::class)) {
-                    return $this->inferFromArrayType($typeName);
+                // BaseSchema を継承するスキーマはIDつきなので $ref のみ
+                if (is_subclass_of($typeName, BaseSchema::class)) {
+                    $schemaId = $this->getSchemaId($typeName);
+                    return ['$ref' => $schemaId];
                 }
             } elseif ($returnType->getName() === 'array') {
                 // 3. 戻り値が array の場合、PHPDoc から要素型を推論
@@ -104,28 +100,6 @@ class SchemaInference
 
         // 5. フォールバック：推論できない
         return null;
-    }
-
-    /**
-     * ObjectType クラスからスキーマを推論
-     *
-     * @param class-string $className
-     * @return array<string, mixed>
-     */
-    private function inferFromObjectType(string $className): array
-    {
-        return $className::describe();
-    }
-
-    /**
-     * ArrayType クラスからスキーマを推論
-     *
-     * @param class-string $className
-     * @return array<string, mixed>
-     */
-    private function inferFromArrayType(string $className): array
-    {
-        return $className::describe();
     }
 
     /**
@@ -315,7 +289,7 @@ class SchemaInference
     /**
      * ObjectType クラスからスキーマIDを取得
      *
-     * @param class-string $className ObjectType のサブクラス
+     * @param class-string<SchemaInterface> $className ObjectType のサブクラス
      * @return string スキーマID（$ref用）
      */
     private function getSchemaId(string $className): string

@@ -54,18 +54,17 @@ class SchemaInferenceTest extends TestCase
 
     public function testInferSchemaFromObjectTypeReturnType()
     {
-        // ObjectType を返す場合
+        // ObjectType を返す場合、$ref で参照される
         $route = new TestUserRoute();
 
         $schema = $this->inference->inferSchema($route);
 
         $this->assertNotNull($schema);
-        $this->assertEquals('object', $schema['type']);
-        $this->assertArrayHasKey('properties', $schema);
-        $this->assertArrayHasKey('id', $schema['properties']);
-        $this->assertArrayHasKey('name', $schema['properties']);
-        $this->assertEquals('User ID', $schema['properties']['id']['description']);
-        $this->assertEquals('User name', $schema['properties']['name']['description']);
+        $this->assertArrayHasKey('$ref', $schema);
+        $this->assertStringContainsString('TestUserType', $schema['$ref']);
+        // type や properties は含まれない（$ref のみ）
+        $this->assertArrayNotHasKey('type', $schema);
+        $this->assertArrayNotHasKey('properties', $schema);
     }
 
     public function testInferSchemaReturnsNullWhenNoSchemaAvailable()

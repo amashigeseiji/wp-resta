@@ -34,6 +34,9 @@ class ResponseSchemaTest extends TestCase
             'routeDirectory' => [
                 [__DIR__ . '/../../Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
             ],
+            'schemaDirectory' => [
+                [__DIR__ . '/../../Fixtures/Schemas', 'Test\\Resta\\Fixtures\\Schemas\\'],
+            ],
         ]);
 
         $this->container->bind(Config::class, $config);
@@ -69,22 +72,31 @@ class ResponseSchemaTest extends TestCase
 
         $schema = $result['paths'][$testPath]['get']['responses']['200']['content']['application/json']['schema'];
 
-        // スキーマの構造を確認
-        $this->assertEquals('object', $schema['type']);
-        $this->assertArrayHasKey('properties', $schema);
-        $this->assertArrayHasKey('id', $schema['properties']);
-        $this->assertArrayHasKey('name', $schema['properties']);
-        $this->assertArrayHasKey('email', $schema['properties']);
+        // $ref で参照されているか確認
+        $this->assertArrayHasKey('$ref', $schema);
+        $this->assertStringContainsString('TestUser', $schema['$ref']);
+
+        // components/schemas に完全なスキーマが登録されているか確認
+        $this->assertArrayHasKey('components', $result);
+        $this->assertArrayHasKey('schemas', $result['components']);
+        $this->assertArrayHasKey('TestUser', $result['components']['schemas']);
+
+        $componentSchema = $result['components']['schemas']['TestUser'];
+        $this->assertEquals('object', $componentSchema['type']);
+        $this->assertArrayHasKey('properties', $componentSchema);
+        $this->assertArrayHasKey('id', $componentSchema['properties']);
+        $this->assertArrayHasKey('name', $componentSchema['properties']);
+        $this->assertArrayHasKey('email', $componentSchema['properties']);
 
         // metadata() からの情報も含まれているか確認
-        $this->assertEquals('integer', $schema['properties']['id']['type']);
-        $this->assertEquals('User ID', $schema['properties']['id']['description']);
+        $this->assertEquals('integer', $componentSchema['properties']['id']['type']);
+        $this->assertEquals('User ID', $componentSchema['properties']['id']['description']);
 
-        $this->assertEquals('string', $schema['properties']['name']['type']);
-        $this->assertEquals('User name', $schema['properties']['name']['description']);
+        $this->assertEquals('string', $componentSchema['properties']['name']['type']);
+        $this->assertEquals('User name', $componentSchema['properties']['name']['description']);
 
-        $this->assertEquals('string', $schema['properties']['email']['type']);
-        $this->assertEquals('User email', $schema['properties']['email']['description']);
+        $this->assertEquals('string', $componentSchema['properties']['email']['type']);
+        $this->assertEquals('User email', $componentSchema['properties']['email']['description']);
     }
 
     public function testRouteWithBuiltinReturnTypeInfersSchema()
