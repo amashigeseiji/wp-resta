@@ -311,17 +311,27 @@ class SchemaInference
      */
     private function parseUseStatements(ReflectionClass $class): array
     {
+        static $cache = [];
         $fileName = $class->getFileName();
         if ($fileName === false) {
             return [];
+        }
+
+        // 一度解析したファイルはメモリキャッシュから再利用
+        if (isset($cache[$fileName])) {
+            /** @var array<string, string> */
+            return $cache[$fileName];
         }
 
         $content = file_get_contents($fileName);
         if ($content === false) {
             return [];
         }
+        if (!array_key_exists($fileName, $cache)) {
+            $cache[$fileName] = [];
+        }
 
-        $useStatements = [];
+        $useStatements =& $cache[$fileName];
 
         // 基本的な use 文を抽出: use Foo\Bar\Baz;
         preg_match_all(
