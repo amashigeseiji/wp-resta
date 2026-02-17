@@ -11,13 +11,6 @@ class Posts extends AbstractRoute
 {
     protected const ROUTE = 'posts';
 
-    public const SCHEMA = [
-        'type' => 'array',
-        'items' => [
-            '$ref' => Post::ID
-        ],
-    ];
-
     /**
      * @return Post[]
      */
@@ -32,8 +25,15 @@ class Posts extends AbstractRoute
             'posts_per_page' => 10
         ]);
 
-        // スキーマクラスは OpenAPI 定義のみに使用
-        // データは Post オブジェクトの配列として返す
-        return array_map(fn($post) => new Post($post), $posts);
+        return array_map(fn($post) => new Post(
+            ID: $post->ID,
+            post_author: $post->post_author,
+            post_date: $post->post_date,
+            post_date_gmt: $post->post_date_gmt,
+            post_content: $post->post_content,
+            post_title: $post->post_title,
+            post_status: $post->post_status,
+            post_name: $post->post_name,
+        ), $posts);
     }
 }

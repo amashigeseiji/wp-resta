@@ -6,17 +6,16 @@ use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\RouteInterface;
 use Wp\Resta\REST\Schemas\Schemas;
+use Wp\Resta\REST\Schemas\SchemaInference;
 use ReflectionClass;
 
 class ResponseSchema
 {
-    private readonly Schemas $schemas;
-    private readonly RegisterRestRoutes $routes;
-
-    public function __construct(Schemas $schemas, RegisterRestRoutes $routes)
-    {
-        $this->routes = $routes;
-        $this->schemas = $schemas;
+    public function __construct(
+        private readonly Schemas $schemas,
+        private readonly RegisterRestRoutes $routes,
+        private readonly SchemaInference $inference
+    ) {
     }
 
     /**
@@ -107,8 +106,12 @@ class ResponseSchema
                     $meta = $attr->newInstance();
                 }
 
-                // スキーマを取得
-                $schema = $route->getSchema() ?? [];
+                // スキーマを取得（明示的定義がない場合は自動推論）
+                $schema = $route->getSchema();
+                if ($schema === null) {
+                    $schema = $this->inference->inferSchema($route);
+                }
+                $schema = $schema ?? [];
 
                 // #[Envelope] 属性があればエンベロープ構造でラップ
                 $hasEnvelope = count($reflection->getAttributes(Envelope::class)) > 0;
