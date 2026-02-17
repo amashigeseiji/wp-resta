@@ -139,6 +139,7 @@ class SchemaInference
                 if ($returnType instanceof GenericTypeNode) {
                     return $this->inferFromGenericTypeNode($returnType, $method);
                 }
+                // todo `array{keys: string[], posts: Post[]}` のような記述(ArrayShapeNode) 未対応
             }
         }
 
@@ -158,29 +159,7 @@ class SchemaInference
         $elementType = $typeNode->type;
 
         if ($elementType instanceof IdentifierTypeNode) {
-            // プリミティブ型の場合
-            $primitiveType = $this->mapPrimitiveType($elementType->name);
-            if ($primitiveType !== null) {
-                return [
-                    'type' => 'array',
-                    'items' => [
-                        'type' => $primitiveType,
-                    ],
-                ];
-            }
-
-            // ObjectType のサブクラスの場合
-            $className = $this->resolveClassName($elementType->name, $context);
-            if ($className && is_subclass_of($className, ObjectType::class)) {
-                // $ref を使用（スキーマの再利用）
-                $schemaId = $className::getSchemaId();
-                return [
-                    'type' => 'array',
-                    'items' => [
-                        '$ref' => $schemaId,
-                    ],
-                ];
-            }
+            return $this->resolveIdentifierTypeNode($elementType, $context);
         }
 
         return null;
@@ -203,66 +182,22 @@ class SchemaInference
         // ジェネリック引数を取得
         $genericTypes = $typeNode->genericTypes;
 
-        // array<Post> の場合
-        if (count($genericTypes) === 1) {
-            $elementType = $genericTypes[0];
-
-            if ($elementType instanceof IdentifierTypeNode) {
-                // プリミティブ型の場合
-                $primitiveType = $this->mapPrimitiveType($elementType->name);
-                if ($primitiveType !== null) {
-                    return [
-                        'type' => 'array',
-                        'items' => [
-                            'type' => $primitiveType,
-                        ],
-                    ];
-                }
-
-                // ObjectType のサブクラスの場合
-                $className = $this->resolveClassName($elementType->name, $context);
-                if ($className && is_subclass_of($className, ObjectType::class)) {
-                    // $ref を使用（スキーマの再利用）
-                    $schemaId = $className::getSchemaId();
-                    return [
-                        'type' => 'array',
-                        'items' => [
-                            '$ref' => $schemaId,
-                        ],
-                    ];
-                }
+        $isObject = false;
+        switch (count($genericTypes)) {
+        case 1: // array<Post>
+            $type = $genericTypes[0];
+            break;
+        case 2: // array<int, Post> または array<string, Post>
+            $type = $genericTypes[1];
+            if ($genericTypes[0] instanceof IdentifierTypeNode) {
+                $isObject = $genericTypes[0]->name === 'string';
             }
+            break;
+        default: // 未対応、実質的にはない
+            return null;
         }
-
-        // array<int, Post> または array<string, Post> の場合
-        if (count($genericTypes) === 2) {
-            $valueType = $genericTypes[1];
-
-            if ($valueType instanceof IdentifierTypeNode) {
-                // プリミティブ型の場合
-                $primitiveType = $this->mapPrimitiveType($valueType->name);
-                if ($primitiveType !== null) {
-                    return [
-                        'type' => 'array',
-                        'items' => [
-                            'type' => $primitiveType,
-                        ],
-                    ];
-                }
-
-                // ObjectType のサブクラスの場合
-                $className = $this->resolveClassName($valueType->name, $context);
-                if ($className && is_subclass_of($className, ObjectType::class)) {
-                    // $ref を使用（スキーマの再利用）
-                    $schemaId = $className::getSchemaId();
-                    return [
-                        'type' => 'array',
-                        'items' => [
-                            '$ref' => $schemaId,
-                        ],
-                    ];
-                }
-            }
+        if ($type instanceof IdentifierTypeNode) {
+            return $this->resolveIdentifierTypeNode($type, $context, $isObject);
         }
 
         return null;
@@ -284,6 +219,41 @@ class SchemaInference
             'null' => 'null',
             default => null,
         };
+    }
+
+    /**
+     * @todo このメソッドで解決されるのはいまのところ PHP primitive か ObjectType のサブクラスのみ
+     * 配列などの場合再帰的な処理が必要になる
+     *
+     * @return array<string, mixed>|null
+     */
+    private function resolveIdentifierTypeNode(IdentifierTypeNode $type, ReflectionMethod $context, bool $isObject = false): ?array
+    {
+        $key = $isObject ? 'additionalProperties' : 'items';
+        // プリミティブ型の場合
+        $primitiveType = $this->mapPrimitiveType($type->name);
+        if ($primitiveType !== null) {
+            return [
+                'type' => $isObject ? 'object' : 'array',
+                $key => [
+                    'type' => $primitiveType,
+                ],
+            ];
+        }
+
+        // ObjectType のサブクラスの場合
+        $className = $this->resolveClassName($type->name, $context);
+        if ($className && is_subclass_of($className, ObjectType::class)) {
+            // $ref を使用（スキーマの再利用）
+            $schemaId = $className::getSchemaId();
+            return [
+                'type' => $isObject ? 'object' : 'array',
+                $key => [
+                    '$ref' => $schemaId,
+                ],
+            ];
+        }
+        return null;
     }
 
     /**

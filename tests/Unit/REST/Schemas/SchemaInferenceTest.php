@@ -158,11 +158,11 @@ class SchemaInferenceTest extends TestCase
         $schema = $this->inference->inferSchema($route);
 
         $this->assertNotNull($schema);
-        $this->assertEquals('array', $schema['type']);
-        $this->assertArrayHasKey('items', $schema);
+        $this->assertEquals('object', $schema['type']);
+        $this->assertArrayHasKey('additionalProperties', $schema);
         // $ref を使用することを確認
-        $this->assertArrayHasKey('$ref', $schema['items']);
-        $this->assertStringContainsString('TestUser', $schema['items']['$ref']);
+        $this->assertArrayHasKey('$ref', $schema['additionalProperties']);
+        $this->assertStringContainsString('TestUser', $schema['additionalProperties']['$ref']);
     }
 
     public function testInferSchemaFromPhpDocPrimitiveArray()
