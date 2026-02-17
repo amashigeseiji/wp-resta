@@ -1,6 +1,16 @@
 <?php
 namespace Wp\Resta\REST\Schemas;
 
+use PHPStan\PhpDocParser\Ast\PhpDoc\ReturnTagValueNode;
+use PHPStan\PhpDocParser\Ast\Type\ArrayTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\PhpDocParser\Lexer\Lexer;
+use PHPStan\PhpDocParser\ParserConfig;
+use PHPStan\PhpDocParser\Parser\ConstExprParser;
+use PHPStan\PhpDocParser\Parser\PhpDocParser;
+use PHPStan\PhpDocParser\Parser\TokenIterator;
+use PHPStan\PhpDocParser\Parser\TypeParser;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -11,13 +21,27 @@ use Wp\Resta\REST\RouteInterface;
  */
 class SchemaInference
 {
+    private readonly Lexer $lexer;
+    private readonly PhpDocParser $phpDocParser;
+    private readonly TypeParser $typeParser;
+
+    public function __construct()
+    {
+        $config = new ParserConfig(usedAttributes: []);
+        $this->lexer = new Lexer($config);
+        $constExprParser = new ConstExprParser($config);
+        $this->typeParser = new TypeParser($config, $constExprParser);
+        $this->phpDocParser = new PhpDocParser($config, $this->typeParser, $constExprParser);
+    }
+
     /**
      * Route からスキーマを推論
      *
      * 優先順位：
      * 1. getSchema() メソッド（明示的定義）
      * 2. callback の戻り値の型（DTO クラス）
-     * 3. フォールバック（推論不可 → null）
+     * 3. callback の PHPDoc @return アノテーション（配列型）
+     * 4. フォールバック（推論不可 → null）
      *
      * @param RouteInterface $route
      * @return array<string, mixed>|null
@@ -39,21 +63,29 @@ class SchemaInference
 
         // 2. 戻り値の型が DTO クラスか？
         $returnType = $callback->getReturnType();
-        if ($returnType && $returnType instanceof ReflectionNamedType && !$returnType->isBuiltin()) {
-            $typeName = $returnType->getName();
+        if ($returnType && $returnType instanceof ReflectionNamedType) {
+            if (!$returnType->isBuiltin()) {
+                $typeName = $returnType->getName();
 
-            // ObjectType を継承しているかチェック
-            if (is_subclass_of($typeName, ObjectType::class)) {
-                return $this->inferFromObjectType($typeName);
-            }
+                // ObjectType を継承しているかチェック
+                if (is_subclass_of($typeName, ObjectType::class)) {
+                    return $this->inferFromObjectType($typeName);
+                }
 
-            // ArrayType を継承しているかチェック
-            if (is_subclass_of($typeName, ArrayType::class)) {
-                return $this->inferFromArrayType($typeName);
+                // ArrayType を継承しているかチェック
+                if (is_subclass_of($typeName, ArrayType::class)) {
+                    return $this->inferFromArrayType($typeName);
+                }
+            } elseif ($returnType->getName() === 'array') {
+                // 3. 戻り値が array の場合、PHPDoc から要素型を推論
+                $schema = $this->inferFromPhpDoc($callback);
+                if ($schema !== null) {
+                    return $schema;
+                }
             }
         }
 
-        // 3. フォールバック：推論できない
+        // 4. フォールバック：推論できない
         return null;
     }
 
@@ -77,5 +109,256 @@ class SchemaInference
     private function inferFromArrayType(string $className): array
     {
         return $className::describe();
+    }
+
+    /**
+     * PHPDoc の @return アノテーションから配列スキーマを推論
+     *
+     * 対応する形式：
+     * - Post[]
+     * - array<Post>
+     * - array<int, Post>
+     * - array<string, Post>
+     *
+     * @param ReflectionMethod $method
+     * @return array<string, mixed>|null
+     */
+    private function inferFromPhpDoc(ReflectionMethod $method): ?array
+    {
+        $docComment = $method->getDocComment();
+        if ($docComment === false) {
+            return null;
+        }
+
+        // PHPDoc をパース
+        $tokens = new TokenIterator($this->lexer->tokenize($docComment));
+        $phpDocNode = $this->phpDocParser->parse($tokens);
+
+        // @return タグを探す
+        foreach ($phpDocNode->getTags() as $tag) {
+            if ($tag->name === '@return' && $tag->value instanceof \PHPStan\PhpDocParser\Ast\PhpDoc\ReturnTagValueNode) {
+                $returnType = $tag->value->type;
+
+                // Post[] 形式
+                if ($returnType instanceof ArrayTypeNode) {
+                    return $this->inferFromArrayTypeNode($returnType, $method);
+                }
+
+                // array<Post> または array<string, Post> 形式
+                if ($returnType instanceof GenericTypeNode) {
+                    return $this->inferFromGenericTypeNode($returnType, $method);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * ArrayTypeNode (Post[]) からスキーマを生成
+     *
+     * @param ArrayTypeNode $typeNode
+     * @param ReflectionMethod $context
+     * @return array<string, mixed>|null
+     */
+    private function inferFromArrayTypeNode(ArrayTypeNode $typeNode, ReflectionMethod $context): ?array
+    {
+        // Post[] の Post 部分を取得
+        $elementType = $typeNode->type;
+
+        if ($elementType instanceof IdentifierTypeNode) {
+            $className = $this->resolveClassName($elementType->name, $context);
+
+            if ($className && is_subclass_of($className, ObjectType::class)) {
+                return [
+                    'type' => 'array',
+                    'items' => $className::describe(),
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * GenericTypeNode (array<Post>) からスキーマを生成
+     *
+     * @param GenericTypeNode $typeNode
+     * @param ReflectionMethod $context
+     * @return array<string, mixed>|null
+     */
+    private function inferFromGenericTypeNode(GenericTypeNode $typeNode, ReflectionMethod $context): ?array
+    {
+        // array<...> の array 部分を確認
+        if (!($typeNode->type instanceof IdentifierTypeNode) || $typeNode->type->name !== 'array') {
+            return null;
+        }
+
+        // ジェネリック引数を取得
+        $genericTypes = $typeNode->genericTypes;
+
+        // array<Post> の場合
+        if (count($genericTypes) === 1) {
+            $elementType = $genericTypes[0];
+
+            if ($elementType instanceof IdentifierTypeNode) {
+                $className = $this->resolveClassName($elementType->name, $context);
+
+                if ($className && is_subclass_of($className, ObjectType::class)) {
+                    return [
+                        'type' => 'array',
+                        'items' => $className::describe(),
+                    ];
+                }
+            }
+        }
+
+        // array<int, Post> または array<string, Post> の場合
+        if (count($genericTypes) === 2) {
+            $valueType = $genericTypes[1];
+
+            if ($valueType instanceof IdentifierTypeNode) {
+                $className = $this->resolveClassName($valueType->name, $context);
+
+                if ($className && is_subclass_of($className, ObjectType::class)) {
+                    return [
+                        'type' => 'array',
+                        'items' => $className::describe(),
+                    ];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * クラス名を解決（短縮名から完全修飾名へ）
+     *
+     * @param string $className 短縮名または完全修飾名
+     * @param ReflectionMethod|null $context use文を解析するためのコンテキスト
+     * @return class-string|null
+     */
+    private function resolveClassName(string $className, ?ReflectionMethod $context = null): ?string
+    {
+        // 先頭に \ がある場合は完全修飾名
+        if (str_starts_with($className, '\\')) {
+            $fqcn = ltrim($className, '\\');
+            return class_exists($fqcn) ? $fqcn : null;
+        }
+
+        // 既にクラスが存在する（完全修飾名として）
+        if (class_exists($className)) {
+            return $className;
+        }
+
+        // コンテキストがない場合は解決不可
+        if ($context === null) {
+            return null;
+        }
+
+        // use 文を解析して完全修飾名に変換
+        $declaringClass = $context->getDeclaringClass();
+        $useStatements = $this->parseUseStatements($declaringClass);
+
+        // use 文にエイリアスがある場合
+        if (isset($useStatements[$className])) {
+            $fqcn = $useStatements[$className];
+            return class_exists($fqcn) ? $fqcn : null;
+        }
+
+        // 同じ名前空間内のクラスを試す
+        $namespace = $declaringClass->getNamespaceName();
+        if ($namespace) {
+            $fqcn = $namespace . '\\' . $className;
+            if (class_exists($fqcn)) {
+                return $fqcn;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * クラスの use 文を解析して、エイリアス → 完全修飾名のマップを作成
+     *
+     * @param ReflectionClass<object> $class
+     * @return array<string, string> エイリアス => 完全修飾名
+     */
+    private function parseUseStatements(ReflectionClass $class): array
+    {
+        $fileName = $class->getFileName();
+        if ($fileName === false) {
+            return [];
+        }
+
+        $content = file_get_contents($fileName);
+        if ($content === false) {
+            return [];
+        }
+
+        $useStatements = [];
+
+        // 基本的な use 文を抽出: use Foo\Bar\Baz;
+        preg_match_all(
+            '/^\s*use\s+([^\s;]+)\s*;/m',
+            $content,
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        foreach ($matches as $match) {
+            $fqcn = $match[1];
+            $parts = explode('\\', $fqcn);
+            $alias = end($parts);
+            $useStatements[$alias] = ltrim($fqcn, '\\');
+        }
+
+        // エイリアス付き use 文を抽出: use Foo\Bar\Baz as Qux;
+        preg_match_all(
+            '/^\s*use\s+([^\s]+)\s+as\s+([^\s;]+)\s*;/m',
+            $content,
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        foreach ($matches as $match) {
+            $fqcn = $match[1];
+            $alias = $match[2];
+            $useStatements[$alias] = ltrim($fqcn, '\\');
+        }
+
+        // グループ use 文を抽出: use Foo\Bar\{Baz, Qux};
+        preg_match_all(
+            '/^\s*use\s+([^\s{]+)\s*\{\s*([^}]+)\s*\}\s*;/m',
+            $content,
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        foreach ($matches as $match) {
+            $baseNamespace = rtrim($match[1], '\\');
+            $classes = explode(',', $match[2]);
+
+            foreach ($classes as $classSpec) {
+                $classSpec = trim($classSpec);
+
+                // グループ内のエイリアス: Baz as B
+                if (preg_match('/^([^\s]+)\s+as\s+([^\s]+)$/', $classSpec, $aliasMatch)) {
+                    $className = $aliasMatch[1];
+                    $alias = $aliasMatch[2];
+                    $fqcn = $baseNamespace . '\\' . $className;
+                    $useStatements[$alias] = ltrim($fqcn, '\\');
+                } else {
+                    // 通常: Baz
+                    $parts = explode('\\', $classSpec);
+                    $alias = end($parts);
+                    $fqcn = $baseNamespace . '\\' . $classSpec;
+                    $useStatements[$alias] = ltrim($fqcn, '\\');
+                }
+            }
+        }
+
+        return $useStatements;
     }
 }

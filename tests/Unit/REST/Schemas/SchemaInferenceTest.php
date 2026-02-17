@@ -2,6 +2,9 @@
 namespace Test\Resta\Unit\REST\Schemas;
 
 use PHPUnit\Framework\TestCase;
+use Test\Resta\Fixtures\Routes\TestPhpDocArrayRoute;
+use Test\Resta\Fixtures\Routes\TestPhpDocAssociativeRoute;
+use Test\Resta\Fixtures\Routes\TestPhpDocGenericRoute;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Schemas\ObjectType;
 use Wp\Resta\REST\Schemas\SchemaInference;
@@ -108,6 +111,49 @@ class SchemaInferenceTest extends TestCase
         $this->assertNotNull($schema);
         $this->assertArrayHasKey('fromConstant', $schema['properties']);
         $this->assertArrayNotHasKey('id', $schema['properties'] ?? []);
+    }
+
+    public function testInferSchemaFromPhpDocArrayAnnotation()
+    {
+        // @return TestUser[] 形式のPHPDocからスキーマを推論
+        $route = new TestPhpDocArrayRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('array', $schema['type']);
+        $this->assertArrayHasKey('items', $schema);
+        $this->assertEquals('object', $schema['items']['type']);
+        $this->assertArrayHasKey('id', $schema['items']['properties']);
+        $this->assertArrayHasKey('name', $schema['items']['properties']);
+    }
+
+    public function testInferSchemaFromPhpDocGenericAnnotation()
+    {
+        // @return array<TestUser> 形式のPHPDocからスキーマを推論
+        $route = new TestPhpDocGenericRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('array', $schema['type']);
+        $this->assertArrayHasKey('items', $schema);
+        $this->assertEquals('object', $schema['items']['type']);
+    }
+
+    public function testInferSchemaFromPhpDocAssociativeAnnotation()
+    {
+        // @return array<string, TestUser> 形式のPHPDocからスキーマを推論
+        $route = new TestPhpDocAssociativeRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('array', $schema['type']);
+        $this->assertArrayHasKey('items', $schema);
+        $this->assertEquals('object', $schema['items']['type']);
+        $this->assertArrayHasKey('id', $schema['items']['properties']);
+        $this->assertArrayHasKey('name', $schema['items']['properties']);
     }
 }
 
