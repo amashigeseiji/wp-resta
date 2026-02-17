@@ -1,6 +1,7 @@
 <?php
 namespace Wp\Resta\REST\Schemas;
 
+use PHPStan\PhpDocParser\Ast\Type\ArrayShapeNode;
 use PHPStan\PhpDocParser\Ast\Type\ArrayTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
@@ -64,36 +65,38 @@ class SchemaInference
         // 2. 戻り値の型が DTO クラスか？
         $returnType = $this->target->getReturnType();
         if ($returnType && $returnType instanceof ReflectionNamedType) {
+            $schema = null;
             if (!$returnType->isBuiltin()) {
                 $typeName = $returnType->getName();
 
                 // BaseSchema を継承するスキーマはIDつきなので $ref のみ
                 if (is_subclass_of($typeName, BaseSchema::class)) {
-                    $schemaId = $typeName::getSchemaId();
-                    return ['$ref' => $schemaId];
+                    $schema = ['$ref' => $typeName::getSchemaId()];
                 }
             } elseif ($returnType->getName() === 'array') {
                 // 3. 戻り値が array の場合、PHPDoc から要素型を推論
-                return $this->inferFromPhpDoc();
+                $schema = $this->inferFromPhpDoc();
+                if ($schema === null) {
+                    $schema = ['type' => 'array'];
+                }
             } else {
                 // 4. プリミティブ型（string, int, bool, float など）
                 $primitiveType = $this->mapPrimitiveType($returnType->getName());
                 if ($primitiveType !== null) {
                     $schema = ['type' => $primitiveType];
-
-                    // nullable型の場合
-                    if ($returnType->allowsNull()) {
-                        $schema = [
-                            'anyOf' => [
-                                ['type' => $primitiveType],
-                                ['type' => 'null'],
-                            ],
-                        ];
-                    }
-
-                    return $schema;
                 }
             }
+            // nullable型の場合
+            if ($returnType->allowsNull() && $schema) {
+                return [
+                    'anyOf' => [
+                        $schema,
+                        ['type' => 'null'],
+                    ],
+                ];
+            }
+
+            return $schema;
         }
 
         // 5. フォールバック：推論できない
@@ -137,6 +140,9 @@ class SchemaInference
                     return $this->inferFromGenericTypeNode($returnType);
                 }
                 // todo `array{keys: string[], posts: Post[]}` のような記述(ArrayShapeNode) 未対応
+                if ($returnType instanceof ArrayShapeNode) {
+                    return $this->inferFromArrayShapeNode($returnType);
+                }
             }
         }
 
@@ -196,6 +202,19 @@ class SchemaInference
         }
 
         return null;
+    }
+
+    /**
+     * todo `array{keys: string[], posts: Post[]}` のような記述(ArrayShapeNode)
+     * 未対応
+     *
+     * @return array{type: "object"}
+     */
+    private function inferFromArrayShapeNode(ArrayShapeNode $typeNode): array
+    {
+        return [
+            'type' => 'object'
+        ];
     }
 
     /**

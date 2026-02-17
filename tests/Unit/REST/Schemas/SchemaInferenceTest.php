@@ -79,7 +79,7 @@ class SchemaInferenceTest extends TestCase
 
         $schema = $this->inference->inferSchema($route);
 
-        $this->assertNull($schema);
+        $this->assertEquals($schema, ['type' => 'array']);
     }
 
     public function testInferSchemaReturnsNullWhenNoCallbackMethod()
