@@ -11,13 +11,6 @@ class Posts extends AbstractRoute
 {
     protected const ROUTE = 'posts';
 
-    public const SCHEMA = [
-        'type' => 'array',
-        'items' => [
-            '$ref' => Post::ID
-        ],
-    ];
-
     /**
      * @return Post[]
      */
