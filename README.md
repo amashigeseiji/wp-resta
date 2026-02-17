@@ -426,6 +426,11 @@ composer test:e2e
 
 wp-resta は OpenAPI 3.0 によるスキーマ定義をサポートしています。ルートクラスで定義したスキーマは自動的に OpenAPI 仕様として出力され、Swagger UI でドキュメント化されます。
 
+**スキーマ定義の詳細**: wp-resta では複数の方法でスキーマを定義できます。詳しくは [docs/SCHEMA.md](docs/SCHEMA.md) を参照してください。
+- `ObjectType` クラスを使った型安全なスキーマ定義（推奨）
+- PHPDoc の `@return` アノテーションによる自動推論
+- `SCHEMA` 定数による完全な制御（複雑なスキーマ向け）
+
 ### Envelope Pattern
 
 wp-resta では、REST API レスポンスを統一的な構造でラップする**Envelope Pattern**をサポートしています。
