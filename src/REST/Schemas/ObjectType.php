@@ -31,7 +31,7 @@ abstract class ObjectType extends BaseSchema
                 $prop = $attributes[0]->newInstance();
                 $propSchema = $prop->toArray();
                 // type が定義されていない場合は型から推論する
-                if (!array_filter($propSchema, fn($key) => $key === 'type', ARRAY_FILTER_USE_KEY)) {
+                if (!array_key_exists('type', $propSchema)) {
                     $propSchema = array_merge(self::typeToSchema($type), $propSchema);
                 }
             } else {
@@ -81,14 +81,18 @@ abstract class ObjectType extends BaseSchema
 
         if ($type instanceof ReflectionNamedType) {
             $typeName = $type->getName();
-
+            // プリミティブ型はそのまま OpenAPI の基本型にマッピングする
             return match ($typeName) {
                 'int' => ['type' => 'integer'],
                 'float' => ['type' => 'number'],
                 'string' => ['type' => 'string'],
                 'bool' => ['type' => 'boolean'],
                 'array' => ['type' => 'array', 'items' => []],
-                default => ['$ref' => '#/components/schemas/' . basename(str_replace('\\', '/', $typeName))],
+                default => is_subclass_of($typeName, BaseSchema::class)
+                    // BaseSchema のサブクラスのみ $ref で参照する
+                    ? ['$ref' => $typeName::getSchemaId()]
+                    // それ以外のクラス型は汎用的なオブジェクトとして扱う
+                    : ['type' => 'object'],
             };
         }
 

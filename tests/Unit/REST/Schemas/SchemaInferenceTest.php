@@ -67,7 +67,7 @@ class SchemaInferenceTest extends TestCase
         $this->assertArrayNotHasKey('properties', $schema);
     }
 
-    public function testInferSchemaReturnsNullWhenNoSchemaAvailable()
+    public function testInferSchemaReturnsSimpleArrayTypeWhenNoSchemaAvailable()
     {
         // SCHEMA 定数もなく、戻り値の型も builtin の場合
         $route = new class extends AbstractRoute {
@@ -79,7 +79,7 @@ class SchemaInferenceTest extends TestCase
 
         $schema = $this->inference->inferSchema($route);
 
-        $this->assertEquals($schema, ['type' => 'array']);
+        $this->assertEquals(['type' => 'array'], $schema);
     }
 
     public function testInferSchemaReturnsNullWhenNoCallbackMethod()

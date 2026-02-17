@@ -40,9 +40,9 @@ class SchemaInference
      *
      * 優先順位：
      * 1. getSchema() メソッド（明示的定義）
-     * 2. callback の戻り値の型（DTO クラス）
-     * 3. callback の PHPDoc @return アノテーション（配列型）
-     * 4. フォールバック（推論不可 → null）
+     * 2. callback の戻り値の型（DTO クラス / プリミティブ型 / array など）
+     * 3. callback の PHPDoc @return アノテーション（配列型・array shape など）
+     * 4. 上記いずれからもスキーマを決定できない場合のみ null（プリミティブ型 / array の戻り値型は type 情報としてフォールバック推論される）
      *
      * @param RouteInterface $route
      * @return array<string, mixed>|null

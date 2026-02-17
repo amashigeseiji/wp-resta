@@ -791,11 +791,16 @@ public int $id;
 
 ### プリミティブ型の配列が推論されない
 
-**原因**: 自動推論はObjectTypeのみ対応
+**原因**: PHPDocなどから配列要素の型（`string` や `int` など）を解決できない
 
-**解決策**: SCHEMA定数を使用
+**解決策**: PHPDocを追加するか、SCHEMA定数で明示的に定義する
 
 ```php
+// PHPDocを付ければ自動推論される
+/** @var string[] */
+public array $tags;
+
+// もしくはSCHEMA定数で明示的に定義する
 public const SCHEMA = [
     'type' => 'array',
     'items' => ['type' => 'string'],
