@@ -5,6 +5,14 @@ use PHPUnit\Framework\TestCase;
 use Test\Resta\Fixtures\Routes\TestPhpDocArrayRoute;
 use Test\Resta\Fixtures\Routes\TestPhpDocAssociativeRoute;
 use Test\Resta\Fixtures\Routes\TestPhpDocGenericRoute;
+use Test\Resta\Fixtures\Routes\TestPrimitiveArrayRoute;
+use Test\Resta\Fixtures\Routes\TestIntegerArrayRoute;
+use Test\Resta\Fixtures\Routes\TestGenericPrimitiveRoute;
+use Test\Resta\Fixtures\Routes\TestAssociativePrimitiveRoute;
+use Test\Resta\Fixtures\Routes\TestStringReturnRoute;
+use Test\Resta\Fixtures\Routes\TestIntReturnRoute;
+use Test\Resta\Fixtures\Routes\TestBoolReturnRoute;
+use Test\Resta\Fixtures\Routes\TestNullableStringReturnRoute;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Schemas\ObjectType;
 use Wp\Resta\REST\Schemas\SchemaInference;
@@ -156,6 +164,106 @@ class SchemaInferenceTest extends TestCase
         // $ref を使用することを確認
         $this->assertArrayHasKey('$ref', $schema['items']);
         $this->assertStringContainsString('TestUser', $schema['items']['$ref']);
+    }
+
+    public function testInferSchemaFromPhpDocPrimitiveArray()
+    {
+        // @return string[] 形式のPHPDocからスキーマを推論
+        $route = new TestPrimitiveArrayRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('array', $schema['type']);
+        $this->assertArrayHasKey('items', $schema);
+        $this->assertEquals('string', $schema['items']['type']);
+        $this->assertArrayNotHasKey('$ref', $schema['items']);
+    }
+
+    public function testInferSchemaFromPhpDocIntegerArray()
+    {
+        // @return int[] 形式のPHPDocからスキーマを推論
+        $route = new TestIntegerArrayRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('array', $schema['type']);
+        $this->assertArrayHasKey('items', $schema);
+        $this->assertEquals('integer', $schema['items']['type']);
+    }
+
+    public function testInferSchemaFromPhpDocGenericPrimitive()
+    {
+        // @return array<string> 形式のPHPDocからスキーマを推論
+        $route = new TestGenericPrimitiveRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('array', $schema['type']);
+        $this->assertArrayHasKey('items', $schema);
+        $this->assertEquals('string', $schema['items']['type']);
+    }
+
+    public function testInferSchemaFromPhpDocAssociativePrimitive()
+    {
+        // @return array<int, string> 形式のPHPDocからスキーマを推論
+        $route = new TestAssociativePrimitiveRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('array', $schema['type']);
+        $this->assertArrayHasKey('items', $schema);
+        $this->assertEquals('string', $schema['items']['type']);
+    }
+
+    public function testInferSchemaFromStringReturnType()
+    {
+        // callback(): string からスキーマを推論
+        $route = new TestStringReturnRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('string', $schema['type']);
+    }
+
+    public function testInferSchemaFromIntReturnType()
+    {
+        // callback(): int からスキーマを推論
+        $route = new TestIntReturnRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('integer', $schema['type']);
+    }
+
+    public function testInferSchemaFromBoolReturnType()
+    {
+        // callback(): bool からスキーマを推論
+        $route = new TestBoolReturnRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertEquals('boolean', $schema['type']);
+    }
+
+    public function testInferSchemaFromNullableStringReturnType()
+    {
+        // callback(): ?string からスキーマを推論
+        $route = new TestNullableStringReturnRoute();
+
+        $schema = $this->inference->inferSchema($route);
+
+        $this->assertNotNull($schema);
+        $this->assertArrayHasKey('anyOf', $schema);
+        $this->assertCount(2, $schema['anyOf']);
+        $this->assertEquals('string', $schema['anyOf'][0]['type']);
+        $this->assertEquals('null', $schema['anyOf'][1]['type']);
     }
 }
 

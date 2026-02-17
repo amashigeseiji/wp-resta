@@ -87,16 +87,17 @@ class ResponseSchemaTest extends TestCase
         $this->assertEquals('User email', $schema['properties']['email']['description']);
     }
 
-    public function testRouteWithoutSchemaHasEmptySchema()
+    public function testRouteWithBuiltinReturnTypeInfersSchema()
     {
         $responseSchema = $this->container->get(ResponseSchema::class);
         $result = $responseSchema->responseSchema();
 
-        // TestRoute は SCHEMA 定数もなく、callback が string を返すだけなので、スキーマは空
+        // TestRoute は SCHEMA 定数がないが、callback(): string から自動推論される
         $testPath = '/test/test';
         $this->assertArrayHasKey($testPath, $result['paths']);
 
         $schema = $result['paths'][$testPath]['get']['responses']['200']['content']['application/json']['schema'];
-        $this->assertEmpty($schema);
+        $this->assertArrayHasKey('type', $schema);
+        $this->assertEquals('string', $schema['type']);
     }
 }

@@ -82,10 +82,28 @@ class SchemaInference
                 if ($schema !== null) {
                     return $schema;
                 }
+            } else {
+                // 4. プリミティブ型（string, int, bool, float など）
+                $primitiveType = $this->mapPrimitiveType($returnType->getName());
+                if ($primitiveType !== null) {
+                    $schema = ['type' => $primitiveType];
+
+                    // nullable型の場合
+                    if ($returnType->allowsNull()) {
+                        $schema = [
+                            'anyOf' => [
+                                ['type' => $primitiveType],
+                                ['type' => 'null'],
+                            ],
+                        ];
+                    }
+
+                    return $schema;
+                }
             }
         }
 
-        // 4. フォールバック：推論できない
+        // 5. フォールバック：推論できない
         return null;
     }
 
@@ -167,8 +185,19 @@ class SchemaInference
         $elementType = $typeNode->type;
 
         if ($elementType instanceof IdentifierTypeNode) {
-            $className = $this->resolveClassName($elementType->name, $context);
+            // プリミティブ型の場合
+            $primitiveType = $this->mapPrimitiveType($elementType->name);
+            if ($primitiveType !== null) {
+                return [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => $primitiveType,
+                    ],
+                ];
+            }
 
+            // ObjectType のサブクラスの場合
+            $className = $this->resolveClassName($elementType->name, $context);
             if ($className && is_subclass_of($className, ObjectType::class)) {
                 // $ref を使用（スキーマの再利用）
                 $schemaId = $this->getSchemaId($className);
@@ -206,8 +235,19 @@ class SchemaInference
             $elementType = $genericTypes[0];
 
             if ($elementType instanceof IdentifierTypeNode) {
-                $className = $this->resolveClassName($elementType->name, $context);
+                // プリミティブ型の場合
+                $primitiveType = $this->mapPrimitiveType($elementType->name);
+                if ($primitiveType !== null) {
+                    return [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => $primitiveType,
+                        ],
+                    ];
+                }
 
+                // ObjectType のサブクラスの場合
+                $className = $this->resolveClassName($elementType->name, $context);
                 if ($className && is_subclass_of($className, ObjectType::class)) {
                     // $ref を使用（スキーマの再利用）
                     $schemaId = $this->getSchemaId($className);
@@ -226,8 +266,19 @@ class SchemaInference
             $valueType = $genericTypes[1];
 
             if ($valueType instanceof IdentifierTypeNode) {
-                $className = $this->resolveClassName($valueType->name, $context);
+                // プリミティブ型の場合
+                $primitiveType = $this->mapPrimitiveType($valueType->name);
+                if ($primitiveType !== null) {
+                    return [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => $primitiveType,
+                        ],
+                    ];
+                }
 
+                // ObjectType のサブクラスの場合
+                $className = $this->resolveClassName($valueType->name, $context);
                 if ($className && is_subclass_of($className, ObjectType::class)) {
                     // $ref を使用（スキーマの再利用）
                     $schemaId = $this->getSchemaId($className);
@@ -242,6 +293,24 @@ class SchemaInference
         }
 
         return null;
+    }
+
+    /**
+     * PHP プリミティブ型を JSON Schema 型にマッピング
+     *
+     * @param string $phpType PHP の型名
+     * @return string|null JSON Schema の型名、または null（プリミティブ型でない場合）
+     */
+    private function mapPrimitiveType(string $phpType): ?string
+    {
+        return match ($phpType) {
+            'string' => 'string',
+            'int', 'integer' => 'integer',
+            'float', 'double' => 'number',
+            'bool', 'boolean' => 'boolean',
+            'null' => 'null',
+            default => null,
+        };
     }
 
     /**
