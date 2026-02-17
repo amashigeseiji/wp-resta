@@ -40,7 +40,7 @@ class SchemaTest extends TestCase
             #[Property(['type' => 'string', 'example' => 'amashige'])]
             public string $lastName;
 
-            #[Property(['type' => 'string', 'description' => 'first name is first name.', 'example' => 'seiji'])]
+            #[Property(['description' => 'first name is first name.', 'example' => 'seiji'])]
             public string $firstName;
         };
 
@@ -72,6 +72,7 @@ class SchemaTest extends TestCase
                     ],
                 ],
                 'description' => 'This is anonymous object type',
+                'required' => ['id', 'lastName', 'firstName'],
             ],
             $described
         );

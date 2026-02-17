@@ -23,18 +23,21 @@ abstract class ObjectType extends BaseSchema
             }
 
             $name = $reflectionProperty->name;
+            $type = $reflectionProperty->getType();
 
             // 1. #[Property] Attribute がある場合（後方互換性）
             $attributes = $reflectionProperty->getAttributes(Property::class);
             if (count($attributes) > 0) {
                 $prop = $attributes[0]->newInstance();
-                $properties[$name] = $prop->toArray();
-                continue;
+                $propSchema = $prop->toArray();
+                // type が定義されていない場合は型から推論する
+                if (!array_filter($propSchema, fn($key) => $key === 'type', ARRAY_FILTER_USE_KEY)) {
+                    $propSchema = array_merge(self::typeToSchema($type), $propSchema);
+                }
+            } else {
+                // 2. プロパティの型から自動推論
+                $propSchema = self::typeToSchema($type);
             }
-
-            // 2. プロパティの型から自動推論
-            $type = $reflectionProperty->getType();
-            $propSchema = self::typeToSchema($type);
 
             // 3. metadata() から追加情報を取得
             if (isset($metadata[$name])) {
