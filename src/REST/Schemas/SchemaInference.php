@@ -15,7 +15,7 @@ class SchemaInference
      * Route からスキーマを推論
      *
      * 優先順位：
-     * 1. SCHEMA 定数（明示的定義）
+     * 1. getSchema() メソッド（明示的定義）
      * 2. callback の戻り値の型（DTO クラス）
      * 3. フォールバック（推論不可 → null）
      *
@@ -24,9 +24,10 @@ class SchemaInference
      */
     public function inferSchema(RouteInterface $route): ?array
     {
-        // 1. SCHEMA 定数が定義されていれば、それを使う（最優先・後方互換性）
-        if ($route::SCHEMA !== null) {
-            return $route::SCHEMA;
+        // 1. getSchema() が定義されていれば、それを使う（最優先・後方互換性）
+        $schema = $route->getSchema();
+        if ($schema !== null) {
+            return $schema;
         }
 
         // callback メソッドが存在するかチェック
