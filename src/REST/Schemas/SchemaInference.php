@@ -23,6 +23,7 @@ class SchemaInference
     private readonly Lexer $lexer;
     private readonly PhpDocParser $phpDocParser;
     private readonly TypeParser $typeParser;
+    private ReflectionMethod $target;
 
     public function __construct()
     {
@@ -58,10 +59,10 @@ class SchemaInference
             return null;
         }
 
-        $callback = new ReflectionMethod($route, 'callback');
+        $this->target = new ReflectionMethod($route, 'callback');
 
         // 2. 戻り値の型が DTO クラスか？
-        $returnType = $callback->getReturnType();
+        $returnType = $this->target->getReturnType();
         if ($returnType && $returnType instanceof ReflectionNamedType) {
             if (!$returnType->isBuiltin()) {
                 $typeName = $returnType->getName();
@@ -73,7 +74,7 @@ class SchemaInference
                 }
             } elseif ($returnType->getName() === 'array') {
                 // 3. 戻り値が array の場合、PHPDoc から要素型を推論
-                $schema = $this->inferFromPhpDoc($callback);
+                $schema = $this->inferFromPhpDoc();
                 if ($schema !== null) {
                     return $schema;
                 }
@@ -111,12 +112,11 @@ class SchemaInference
      * - array<int, Post>
      * - array<string, Post>
      *
-     * @param ReflectionMethod $method
      * @return array<string, mixed>|null
      */
-    private function inferFromPhpDoc(ReflectionMethod $method): ?array
+    private function inferFromPhpDoc(): ?array
     {
-        $docComment = $method->getDocComment();
+        $docComment = $this->target->getDocComment();
         if ($docComment === false) {
             return null;
         }
@@ -132,12 +132,12 @@ class SchemaInference
 
                 // Post[] 形式
                 if ($returnType instanceof ArrayTypeNode) {
-                    return $this->inferFromArrayTypeNode($returnType, $method);
+                    return $this->inferFromArrayTypeNode($returnType);
                 }
 
                 // array<Post> または array<string, Post> 形式
                 if ($returnType instanceof GenericTypeNode) {
-                    return $this->inferFromGenericTypeNode($returnType, $method);
+                    return $this->inferFromGenericTypeNode($returnType);
                 }
                 // todo `array{keys: string[], posts: Post[]}` のような記述(ArrayShapeNode) 未対応
             }
@@ -150,16 +150,15 @@ class SchemaInference
      * ArrayTypeNode (Post[]) からスキーマを生成
      *
      * @param ArrayTypeNode $typeNode
-     * @param ReflectionMethod $context
      * @return array<string, mixed>|null
      */
-    private function inferFromArrayTypeNode(ArrayTypeNode $typeNode, ReflectionMethod $context): ?array
+    private function inferFromArrayTypeNode(ArrayTypeNode $typeNode): ?array
     {
         // Post[] の Post 部分を取得
         $elementType = $typeNode->type;
 
         if ($elementType instanceof IdentifierTypeNode) {
-            return $this->resolveIdentifierTypeNode($elementType, $context);
+            return $this->resolveIdentifierTypeNode($elementType);
         }
 
         return null;
@@ -169,10 +168,9 @@ class SchemaInference
      * GenericTypeNode (array<Post>) からスキーマを生成
      *
      * @param GenericTypeNode $typeNode
-     * @param ReflectionMethod $context
      * @return array<string, mixed>|null
      */
-    private function inferFromGenericTypeNode(GenericTypeNode $typeNode, ReflectionMethod $context): ?array
+    private function inferFromGenericTypeNode(GenericTypeNode $typeNode): ?array
     {
         // array<...> の array 部分を確認
         if (!($typeNode->type instanceof IdentifierTypeNode) || $typeNode->type->name !== 'array') {
@@ -197,7 +195,7 @@ class SchemaInference
             return null;
         }
         if ($type instanceof IdentifierTypeNode) {
-            return $this->resolveIdentifierTypeNode($type, $context, $isObject);
+            return $this->resolveIdentifierTypeNode($type, $isObject);
         }
 
         return null;
@@ -227,7 +225,7 @@ class SchemaInference
      *
      * @return array<string, mixed>|null
      */
-    private function resolveIdentifierTypeNode(IdentifierTypeNode $type, ReflectionMethod $context, bool $isObject = false): ?array
+    private function resolveIdentifierTypeNode(IdentifierTypeNode $type, bool $isObject = false): ?array
     {
         $key = $isObject ? 'additionalProperties' : 'items';
         // プリミティブ型の場合
@@ -242,7 +240,7 @@ class SchemaInference
         }
 
         // ObjectType のサブクラスの場合
-        $className = $this->resolveClassName($type->name, $context);
+        $className = $this->resolveClassName($type->name);
         if ($className && is_subclass_of($className, ObjectType::class)) {
             // $ref を使用（スキーマの再利用）
             $schemaId = $className::getSchemaId();
@@ -260,10 +258,9 @@ class SchemaInference
      * クラス名を解決（短縮名から完全修飾名へ）
      *
      * @param string $className 短縮名または完全修飾名
-     * @param ReflectionMethod|null $context use文を解析するためのコンテキスト
      * @return class-string|null
      */
-    private function resolveClassName(string $className, ?ReflectionMethod $context = null): ?string
+    private function resolveClassName(string $className): ?string
     {
         // 先頭に \ がある場合は完全修飾名
         if (str_starts_with($className, '\\')) {
@@ -276,10 +273,7 @@ class SchemaInference
             return $className;
         }
 
-        // コンテキストがない場合は解決不可
-        if ($context === null) {
-            return null;
-        }
+        $context = $this->target;
 
         // use 文を解析して完全修飾名に変換
         $declaringClass = $context->getDeclaringClass();
