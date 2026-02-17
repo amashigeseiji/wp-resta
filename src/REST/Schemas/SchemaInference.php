@@ -344,14 +344,20 @@ class SchemaInference
         $useStatements =& $cache[$fileName];
 
         // 基本的な use 文を抽出: use Foo\Bar\Baz;
+        // as や { を含む行は後続の専用パターンで処理するため除外
         preg_match_all(
-            '/^\s*use\s+([^\s;]+)\s*;/m',
+            '/^\s*use\s+([^\s;{]+)\s*;/m',
             $content,
             $matches,
             PREG_SET_ORDER
         );
 
         foreach ($matches as $match) {
+            // as を含む行をスキップ（エイリアス付き use 文は別途処理）
+            if (strpos($match[0], ' as ') !== false) {
+                continue;
+            }
+
             $fqcn = $match[1];
             $parts = explode('\\', $fqcn);
             $alias = end($parts);
