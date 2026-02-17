@@ -74,10 +74,7 @@ class SchemaInference
                 }
             } elseif ($returnType->getName() === 'array') {
                 // 3. 戻り値が array の場合、PHPDoc から要素型を推論
-                $schema = $this->inferFromPhpDoc();
-                if ($schema !== null) {
-                    return $schema;
-                }
+                return $this->inferFromPhpDoc();
             } else {
                 // 4. プリミティブ型（string, int, bool, float など）
                 $primitiveType = $this->mapPrimitiveType($returnType->getName());
