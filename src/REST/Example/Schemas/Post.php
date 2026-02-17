@@ -1,7 +1,6 @@
 <?php
 namespace Wp\Resta\REST\Example\Schemas;
 
-use Wp\Resta\REST\Attributes\Schema\Property;
 use Wp\Resta\REST\Schemas\ObjectType;
 use WP_Post;
 
@@ -9,29 +8,28 @@ class Post extends ObjectType
 {
     public const ID = '#/components/schemas/Post';
 
-    #[Property(['type' => 'integer', 'description'=>'wp post id', 'example' => 1])]
     public readonly int $ID;
-
-    #[Property(['type' => 'string', 'description'=>'wp post author', 'example' => '4'])]
     public readonly string $post_author;
-
-    #[Property(['type' => 'string', 'description'=>'wp post datetime', 'example' => '2024-05-19 21:58:47'])]
     public readonly string $post_date;
-
-    #[Property(['type' => 'string', 'description'=>'wp post datetime(gmt)', 'example' => '2024-05-19 12:58:47'])]
     public readonly string $post_date_gmt;
-
-    #[Property(['type' => 'string', 'description'=>'wp post content', 'example' => '<h1>Hello</h1><p>This is content</p>'])]
     public readonly string $post_content;
-
-    #[Property(['type' => 'string', 'description'=>'wp post title', 'example' => 'Hello'])]
     public readonly string $post_title;
-
-    #[Property(['type' => 'string', 'description'=>'wp post status', 'example' => 'publish'])]
     public readonly string $post_status;
-
-    #[Property(['type' => 'string', 'description'=>'wp post slug', 'example' => '1'])]
     public readonly string $post_name;
+
+    public static function metadata(): array
+    {
+        return [
+            'ID' => ['description' => 'wp post id', 'example' => 1],
+            'post_author' => ['description' => 'wp post author', 'example' => '4'],
+            'post_date' => ['description' => 'wp post datetime', 'example' => '2024-05-19 21:58:47'],
+            'post_date_gmt' => ['description' => 'wp post datetime(gmt)', 'example' => '2024-05-19 12:58:47'],
+            'post_content' => ['description' => 'wp post content', 'example' => '<h1>Hello</h1><p>This is content</p>'],
+            'post_title' => ['description' => 'wp post title', 'example' => 'Hello'],
+            'post_status' => ['description' => 'wp post status', 'example' => 'publish'],
+            'post_name' => ['description' => 'wp post slug', 'example' => '1'],
+        ];
+    }
 
     public function __construct(WP_Post $post)
     {
