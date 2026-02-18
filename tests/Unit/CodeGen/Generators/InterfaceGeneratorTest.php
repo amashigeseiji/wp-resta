@@ -32,8 +32,8 @@ class InterfaceGeneratorTest extends TestCase
         $output = $generator->generate($parser);
 
         $this->assertStringContainsString('export interface Post', $output);
-        $this->assertStringContainsString('id: number;', $output);
-        $this->assertStringContainsString('title: string;', $output);
+        $this->assertStringContainsString('id?: number;', $output);
+        $this->assertStringContainsString('title?: string;', $output);
         $this->assertStringContainsString('A blog post', $output);
     }
 
@@ -49,11 +49,11 @@ class InterfaceGeneratorTest extends TestCase
                         'properties' => [
                             'name' => ['type' => 'string'],
                             'email' => ['type' => 'string'],
-                        ]
+                        ],
+                        'required' => ['name']
                     ]
                 ]
-            ],
-            'required' => ['name']
+            ]
         ];
 
         $parser = new OpenApiParser($spec);
@@ -125,7 +125,7 @@ class InterfaceGeneratorTest extends TestCase
 
         $this->assertStringContainsString('export interface Author', $output);
         $this->assertStringContainsString('export interface Post', $output);
-        $this->assertStringContainsString('author: Author;', $output);
+        $this->assertStringContainsString('author?: Author;', $output);
     }
 
     public function testGenerateInterfaceWithArrayProperty(): void
@@ -153,7 +153,7 @@ class InterfaceGeneratorTest extends TestCase
         $generator = new InterfaceGenerator();
         $output = $generator->generate($parser);
 
-        $this->assertStringContainsString('tags: string[];', $output);
+        $this->assertStringContainsString('tags?: string[];', $output);
     }
 
     public function testGenerateInterfaceWithEnumProperty(): void
@@ -170,7 +170,8 @@ class InterfaceGeneratorTest extends TestCase
                                 'type' => 'string',
                                 'enum' => ['draft', 'published', 'archived']
                             ],
-                        ]
+                        ],
+                        'required' => ['status'],
                     ]
                 ]
             ]
@@ -207,6 +208,6 @@ class InterfaceGeneratorTest extends TestCase
         $generator = new InterfaceGenerator();
         $output = $generator->generate($parser);
 
-        $this->assertStringContainsString('metadata: Record<string, string>;', $output);
+        $this->assertStringContainsString('metadata?: Record<string, string>;', $output);
     }
 }
