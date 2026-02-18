@@ -151,6 +151,23 @@ class ApiEndpointsGenerator
      */
     private function convertInlineSchema(array $schema, OpenApiParser $parser): string
     {
+        // $ref参照の場合
+        if (isset($schema['$ref'])) {
+            $schemaName = $parser->extractSchemaNameFromRef($schema['$ref']);
+            return "Schema.{$schemaName}";
+        }
+
+        // anyOf の場合（nullable型など）
+        if (isset($schema['anyOf'])) {
+            $types = array_map(function (array $subSchema) use ($parser): string {
+                if (($subSchema['type'] ?? null) === 'null') {
+                    return 'null';
+                }
+                return $this->convertInlineSchema($subSchema, $parser);
+            }, $schema['anyOf']);
+            return implode(' | ', $types);
+        }
+
         $type = $schema['type'] ?? 'object';
 
         switch ($type) {

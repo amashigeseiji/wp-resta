@@ -53,6 +53,7 @@ class InterfaceGenerator
 
         $description = $schema['description'] ?? null;
         $properties = $schema['properties'] ?? [];
+        $requiredFields = $schema['required'] ?? [];
 
         $output = '';
 
@@ -66,7 +67,8 @@ class InterfaceGenerator
         $output .= "export interface {$name} {\n";
 
         foreach ($properties as $propName => $propSchema) {
-            $propOutput = $this->generateProperty($propName, $propSchema, $parser);
+            $isRequired = in_array($propName, $requiredFields, true);
+            $propOutput = $this->generateProperty($propName, $propSchema, $isRequired, $parser);
             $output .= "  {$propOutput}\n";
         }
 
@@ -80,16 +82,16 @@ class InterfaceGenerator
      *
      * @param string $name プロパティ名
      * @param array<string, mixed> $schema プロパティスキーマ
+     * @param bool $isRequired 親スキーマの required 配列に含まれるか
      * @param OpenApiParser $parser
      * @return string プロパティ定義文字列
      */
-    private function generateProperty(string $name, array $schema, OpenApiParser $parser): string
+    private function generateProperty(string $name, array $schema, bool $isRequired, OpenApiParser $parser): string
     {
         $type = $this->convertType($schema, $parser);
         $description = $schema['description'] ?? null;
-        $required = !isset($schema['required']) || $schema['required'] !== false;
 
-        $optional = $required ? '' : '?';
+        $optional = $isRequired ? '' : '?';
 
         $output = '';
 
@@ -168,12 +170,12 @@ class InterfaceGenerator
     private function generateInlineObject(array $schema, OpenApiParser $parser): string
     {
         $properties = $schema['properties'] ?? [];
+        $requiredFields = $schema['required'] ?? [];
         $props = [];
 
         foreach ($properties as $propName => $propSchema) {
             $type = $this->convertType($propSchema, $parser);
-            $required = !isset($propSchema['required']) || $propSchema['required'] !== false;
-            $optional = $required ? '' : '?';
+            $optional = in_array($propName, $requiredFields, true) ? '' : '?';
             $props[] = "{$propName}{$optional}: {$type}";
         }
 

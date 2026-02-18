@@ -1,4 +1,5 @@
 <?php
+
 namespace Test\Resta\Unit\CodeGen\Generators;
 
 use PHPUnit\Framework\TestCase;
@@ -46,12 +47,13 @@ class InterfaceGeneratorTest extends TestCase
                     'User' => [
                         'type' => 'object',
                         'properties' => [
-                            'name' => ['type' => 'string', 'required' => true],
-                            'email' => ['type' => 'string', 'required' => false],
+                            'name' => ['type' => 'string'],
+                            'email' => ['type' => 'string'],
                         ]
                     ]
                 ]
-            ]
+            ],
+            'required' => ['name']
         ];
 
         $parser = new OpenApiParser($spec);
