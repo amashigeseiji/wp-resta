@@ -1,4 +1,5 @@
 <?php
+
 namespace Wp\Resta\CodeGen\Writers;
 
 /**
@@ -18,14 +19,15 @@ class TypeScriptWriter
     {
         // ディレクトリが存在しない場合は作成
         $dir = dirname($path);
-        if (!is_dir($dir)) {
+        $existed = is_dir($dir);
+        if (!$existed) {
             if (!mkdir($dir, 0755, true)) {
                 throw new \RuntimeException("Failed to create directory: {$dir}");
             }
         }
 
-        // ディレクトリが書き込み可能かチェック
-        if (!is_writable($dir)) {
+        // 既存のディレクトリが書き込み可能かチェック
+        if ($existed && !is_writable($dir)) {
             throw new \RuntimeException("Output directory is not writable: {$dir}");
         }
 
