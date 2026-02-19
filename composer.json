@@ -41,6 +41,7 @@
         "test": "phpunit",
         "test:e2e": "./docker/e2e-test.sh",
         "test:coverage": "./docker/coverage.sh",
-        "lint": "phpstan analyse --memory-limit=-1"
+        "lint": "phpstan analyse --memory-limit=-1",
+        "generate:types": "php scripts/generate-types.php"
     }
 }

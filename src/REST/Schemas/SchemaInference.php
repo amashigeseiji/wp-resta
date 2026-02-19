@@ -14,6 +14,7 @@ use PHPStan\PhpDocParser\Parser\TypeParser;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
+use Wp\Resta\OpenApi\PhpTypeToOpenApiSchema;
 use Wp\Resta\REST\RouteInterface;
 
 /**
@@ -225,14 +226,7 @@ class SchemaInference
      */
     private function mapPrimitiveType(string $phpType): ?string
     {
-        return match ($phpType) {
-            'string' => 'string',
-            'int', 'integer' => 'integer',
-            'float', 'double' => 'number',
-            'bool', 'boolean' => 'boolean',
-            'null' => 'null',
-            default => null,
-        };
+        return PhpTypeToOpenApiSchema::primitiveToOpenApiType($phpType);
     }
 
     /**

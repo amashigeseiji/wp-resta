@@ -19,6 +19,7 @@
         </include>
         <exclude>
             <directory>src/REST/Example</directory>
+            <directory>src/OpenAPI/template</directory>
         </exclude>
     </source>
 </phpunit>

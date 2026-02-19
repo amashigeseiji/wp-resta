@@ -2,7 +2,7 @@
 window.onload = function() {
     // Begin Swagger UI call region
     const ui = SwaggerUIBundle({
-        url: "<?php echo home_url('/rest-api/schema')?>",
+        url: "/rest-api/schema",
         dom_id: '#swagger-ui',
         validatorUrl : null,
         deepLinking: true,
