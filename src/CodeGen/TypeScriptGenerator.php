@@ -65,7 +65,7 @@ class TypeScriptGenerator
         }
 
         if ($options['client']) {
-            $client = $this->clientGen->generate($parser);
+            $client = $this->clientGen->generate();
             $files[$outputDir . '/client.ts'] = $client;
         }
 
