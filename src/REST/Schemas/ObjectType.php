@@ -4,6 +4,7 @@ namespace Wp\Resta\REST\Schemas;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionType;
+use Wp\Resta\OpenApi\PhpTypeToOpenApiSchema;
 use Wp\Resta\REST\Attributes\Schema\Property;
 
 abstract class ObjectType extends BaseSchema
@@ -81,19 +82,24 @@ abstract class ObjectType extends BaseSchema
 
         if ($type instanceof ReflectionNamedType) {
             $typeName = $type->getName();
-            // プリミティブ型はそのまま OpenAPI の基本型にマッピングする
-            return match ($typeName) {
-                'int' => ['type' => 'integer'],
-                'float' => ['type' => 'number'],
-                'string' => ['type' => 'string'],
-                'bool' => ['type' => 'boolean'],
-                'array' => ['type' => 'array', 'items' => []],
-                default => is_subclass_of($typeName, BaseSchema::class)
-                    // BaseSchema のサブクラスのみ $ref で参照する
-                    ? ['$ref' => $typeName::getSchemaId()]
-                    // それ以外のクラス型は汎用的なオブジェクトとして扱う
-                    : ['type' => 'object'],
-            };
+
+            // プリミティブ型（エイリアス int/integer 等も統一処理）
+            $primitiveSchema = PhpTypeToOpenApiSchema::primitiveToSchema($typeName);
+            if ($primitiveSchema !== null) {
+                return $primitiveSchema;
+            }
+
+            if ($typeName === 'array') {
+                return ['type' => 'array', 'items' => []];
+            }
+
+            // BaseSchema のサブクラスのみ $ref で参照する
+            if (is_subclass_of($typeName, BaseSchema::class)) {
+                return ['$ref' => $typeName::getSchemaId()];
+            }
+
+            // それ以外のクラス型は汎用的なオブジェクトとして扱う
+            return ['type' => 'object'];
         }
 
         return ['type' => 'string'];
