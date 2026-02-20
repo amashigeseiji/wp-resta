@@ -4,7 +4,7 @@ namespace Wp\Resta\EventDispatcher;
 
 class EventHandler
 {
-    const int DEFAULT_PRIORITY = 10;
+    const DEFAULT_PRIORITY = 10;
 
     /** @var array<int, EventListenerInterface[]> */
     private array $listeners = [];
