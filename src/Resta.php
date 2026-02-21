@@ -4,6 +4,7 @@ namespace Wp\Resta;
 use Wp\Resta\DI\Container;
 use Wp\Resta\Config;
 use Wp\Resta\EventDispatcher\Dispatcher;
+use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\Hooks\HookProviderInterface;
 use Wp\Resta\Kernel\Kernel;
 use Wp\Resta\Kernel\KernelState;
@@ -11,6 +12,7 @@ use Wp\Resta\Kernel\WpKernelAdapter;
 use Wp\Resta\OpenApi\Doc;
 use Wp\Resta\OpenApi\ResponseSchema;
 use Wp\Resta\REST\RegisterRestRoutes;
+use Wp\Resta\REST\Hooks\EnvelopeHook;
 use Wp\Resta\StateMachine\StateMachine;
 use Wp\Resta\StateMachine\TransitionEvent;
 use Wp\Resta\StateMachine\TransitionRegistry;
@@ -50,9 +52,10 @@ class Resta
         $dispatcher = new Dispatcher();
         $sm = new StateMachine($registry, $dispatcher);
 
-        // InternalHooks から使えるよう DI コンテナに登録
+        // DI コンテナに登録
         $container->bind(Kernel::class, $kernel);
         $container->bind(StateMachine::class, $sm);
+        $container->bind(DispatcherInterface::class, $dispatcher);
 
         // registerRoutes 遷移が完了したときにルートを実際に登録する
         $dispatcher->addListener(
