@@ -33,8 +33,7 @@ require_once __DIR__ . '/vendor/autoload.php';
         [__DIR__ . '/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
     ],
     'hooks' => [
-        \Wp\Resta\Hooks\SwaggerHooks::class,          // Swagger UI を有効化
-        \Wp\Resta\REST\Hooks\EnvelopeHook::class,     // エンベロープパターンを有効化
+        \Wp\Resta\Hooks\SwaggerHook::class,  // Swagger UI を有効化
     ],
 ]);
 ```

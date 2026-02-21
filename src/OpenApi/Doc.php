@@ -5,8 +5,12 @@ class Doc
 {
     const VERSION = '1.0';
 
+    public function __construct(private readonly ResponseSchema $schema) {}
+
     public function init() : void
     {
+        $this->schema->init();
+
         if (is_admin() && is_user_logged_in()) {
             // メニュー追加
             add_action('admin_menu', function () {
