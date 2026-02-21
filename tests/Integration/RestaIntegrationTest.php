@@ -121,7 +121,7 @@ class RestaIntegrationTest extends TestCase
         Functions\when('add_filter')->justReturn();
 
         $config = array_merge($this->baseConfig(), [
-            'hooks' => [\Wp\Resta\Hooks\SwaggerHooks::class],
+            'hooks' => [\Wp\Resta\REST\Hooks\SwaggerHook::class],
         ]);
 
         // 例外が出ないことを確認（SwaggerHooks は HookProviderInterface を実装している）
