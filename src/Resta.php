@@ -8,8 +8,6 @@ use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\Kernel\Kernel;
 use Wp\Resta\Kernel\KernelState;
 use Wp\Resta\Kernel\WpKernelAdapter;
-use Wp\Resta\OpenApi\Doc;
-use Wp\Resta\OpenApi\ResponseSchema;
 use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
 use Wp\Resta\StateMachine\StateMachine;
@@ -66,15 +64,6 @@ class Resta
 
         // EnvelopeHook を常に登録（#[Envelope] がないルートは素通り）
         $dispatcher->addListener('route.invocation', [new EnvelopeHook(), 'handle']);
-
-        // Swagger のセットアップ（任意）
-        // SwaggerHooks の代替: wp.init イベントで Doc と ResponseSchema を初期化する
-        if ($config->useSwagger) {
-            $dispatcher->addListener('wp.init', function () use ($container): void {
-                $container->get(Doc::class)->init();
-                $container->get(ResponseSchema::class)->init();
-            });
-        }
 
         // DI 設定完了 → Bootstrapped に遷移
         $sm->apply($kernel, 'boot');
