@@ -2,9 +2,11 @@
 namespace Test\Resta\Unit\StateMachine;
 
 use PHPUnit\Framework\TestCase;
+use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\StateMachine\HasState;
 use Wp\Resta\StateMachine\StateMachine;
 use Wp\Resta\StateMachine\Transition;
+use Wp\Resta\StateMachine\TransitionEvent;
 use Wp\Resta\StateMachine\TransitionRegistry;
 
 enum DoorState
@@ -99,6 +101,99 @@ class StateMachineTest extends TestCase
 
         // 状態が変わっていないことを確認
         $this->assertSame(DoorState::Closed, $door->currentState());
+    }
+
+    // --- Dispatcher 統合 ---
+
+    public function testDispatcherIsOptional(): void
+    {
+        // Dispatcher なしでも apply() は通常通り動作する
+        $door = new Door(DoorState::Closed);
+        $this->sm->apply($door, 'open');
+        $this->assertSame(DoorState::Open, $door->currentState());
+    }
+
+    public function testAfterEventIsDispatchedOnSuccessfulTransition(): void
+    {
+        $dispatcher = new Dispatcher();
+        $registry   = new TransitionRegistry();
+        $registry->registerFromEnum(DoorState::class);
+        $sm = new StateMachine($registry, $dispatcher);
+
+        /** @var TransitionEvent|null $received */
+        $received = null;
+        $dispatcher->addListener(
+            TransitionEvent::afterEventName(DoorState::Closed, 'open'),
+            function (TransitionEvent $e) use (&$received) { $received = $e; }
+        );
+
+        $door = new Door(DoorState::Closed);
+        $sm->apply($door, 'open');
+
+        $this->assertNotNull($received);
+        $this->assertSame(DoorState::Closed, $received->from);
+        $this->assertSame(DoorState::Open, $received->to);
+        $this->assertSame('open', $received->action);
+        $this->assertSame($door, $received->subject);
+    }
+
+    public function testGuardEventIsDispatchedBeforeTransition(): void
+    {
+        $dispatcher = new Dispatcher();
+        $registry   = new TransitionRegistry();
+        $registry->registerFromEnum(DoorState::class);
+        $sm = new StateMachine($registry, $dispatcher);
+
+        $guardFired = false;
+        $dispatcher->addListener(
+            TransitionEvent::guardEventName(DoorState::Closed, 'open'),
+            function (TransitionEvent $e) use (&$guardFired) {
+                $guardFired = true;
+                // ガード段階ではまだ状態は変わっていない
+                $this->assertSame(DoorState::Closed, $e->subject->currentState());
+            }
+        );
+
+        $door = new Door(DoorState::Closed);
+        $sm->apply($door, 'open');
+
+        $this->assertTrue($guardFired);
+        $this->assertSame(DoorState::Open, $door->currentState());
+    }
+
+    public function testStopPropagationInGuardCancelsTransition(): void
+    {
+        $dispatcher = new Dispatcher();
+        $registry   = new TransitionRegistry();
+        $registry->registerFromEnum(DoorState::class);
+        $sm = new StateMachine($registry, $dispatcher);
+
+        $dispatcher->addListener(
+            TransitionEvent::guardEventName(DoorState::Closed, 'open'),
+            function (TransitionEvent $e) { $e->stopPropagation(); }
+        );
+
+        $afterFired = false;
+        $dispatcher->addListener(
+            TransitionEvent::afterEventName(DoorState::Closed, 'open'),
+            function () use (&$afterFired) { $afterFired = true; }
+        );
+
+        $door = new Door(DoorState::Closed);
+        $sm->apply($door, 'open');
+
+        // ガードで止めたので状態は変わらず、after イベントも発火しない
+        $this->assertSame(DoorState::Closed, $door->currentState());
+        $this->assertFalse($afterFired);
+    }
+
+    public function testEventNamesFollowClassDoubleColonActionConvention(): void
+    {
+        $expectedGuard = DoorState::class . '::open.guard';
+        $expectedAfter = DoorState::class . '::open';
+
+        $this->assertSame($expectedGuard, TransitionEvent::guardEventName(DoorState::Closed, 'open'));
+        $this->assertSame($expectedAfter, TransitionEvent::afterEventName(DoorState::Closed, 'open'));
     }
 
     public function testKernelStateEnumRegistersCorrectly(): void
