@@ -35,6 +35,11 @@ return [
         \Wp\Resta\REST\Example\Hooks\SampleHook::class,
     ],
 
+    /**
+     * イベントリスナーを登録する
+     */
+    'listeners' => [],
+
     // DI コンテナのバインド設定（オプション）
     // インターフェースに対する実装クラスのバインドを定義
     // 例: [LoggerInterface::class => MonologLogger::class]
