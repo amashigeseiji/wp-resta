@@ -64,6 +64,9 @@ class Resta
             }
         );
 
+        // EnvelopeHook を常に登録（#[Envelope] がないルートは素通り）
+        $dispatcher->addListener('route.invocation', [new EnvelopeHook(), 'handle']);
+
         // Swagger のセットアップ（任意）
         // SwaggerHooks の代替: wp.init イベントで Doc と ResponseSchema を初期化する
         if ($config->useSwagger) {
