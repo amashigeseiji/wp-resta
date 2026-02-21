@@ -23,7 +23,7 @@ class Dispatcher implements DispatcherInterface
     public function dispatch(Event $event): void
     {
         if (!isset($this->listeners[$event->eventName])) {
-            throw new \InvalidArgumentException("No listeners registered for event: {$event->eventName}");
+            return;
         }
         $this->listeners[$event->eventName]->handle($event);
     }

@@ -144,10 +144,10 @@ class DispatcherTest extends TestCase
 
     // --- 未登録イベントの dispatch ---
 
-    public function testDispatchUnregisteredEventThrowsInvalidArgumentException(): void
+    public function testDispatchUnregisteredEventDoesNothing(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-
+        // リスナーが登録されていないイベントを dispatch しても何も起きない（例外なし）
         $this->dispatcher->dispatch(new Event('not.registered'));
+        $this->addToAssertionCount(1);
     }
 }
