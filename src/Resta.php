@@ -3,9 +3,17 @@ namespace Wp\Resta;
 
 use Wp\Resta\DI\Container;
 use Wp\Resta\Config;
+use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\Hooks\HookProviderInterface;
-use Wp\Resta\Hooks\InternalHooks;
-use Wp\Resta\Hooks\SwaggerHooks;
+use Wp\Resta\Kernel\Kernel;
+use Wp\Resta\Kernel\KernelState;
+use Wp\Resta\Kernel\WpKernelAdapter;
+use Wp\Resta\OpenApi\Doc;
+use Wp\Resta\OpenApi\ResponseSchema;
+use Wp\Resta\REST\RegisterRestRoutes;
+use Wp\Resta\StateMachine\StateMachine;
+use Wp\Resta\StateMachine\TransitionEvent;
+use Wp\Resta\StateMachine\TransitionRegistry;
 
 class Resta
 {
@@ -35,21 +43,42 @@ class Resta
             }
         }
 
-        // InternalHooks の重複を防ぐ
-        $userHooks = array_filter(
-            $config->hooks,
-            static fn(string $hook): bool => $hook !== InternalHooks::class
+        // SM インフラストラクチャを構築
+        $kernel = new Kernel();
+        $registry = new TransitionRegistry();
+        $registry->registerFromEnum(KernelState::class);
+        $dispatcher = new Dispatcher();
+        $sm = new StateMachine($registry, $dispatcher);
+
+        // InternalHooks から使えるよう DI コンテナに登録
+        $container->bind(Kernel::class, $kernel);
+        $container->bind(StateMachine::class, $sm);
+
+        // registerRoutes 遷移が完了したときにルートを実際に登録する
+        $dispatcher->addListener(
+            TransitionEvent::afterEventName(KernelState::Bootstrapped, 'registerRoutes'),
+            function () use ($container): void {
+                $container->get(RegisterRestRoutes::class)->register();
+            }
         );
 
-        /** @var array<class-string<\Wp\Resta\Hooks\HookProviderInterface>> */
-        $allHooks = [InternalHooks::class, ...$userHooks];
-
-        // use-swagger の後方互換性
-        if ($config->useSwagger && !in_array(SwaggerHooks::class, $allHooks, true)) {
-            $allHooks[] = SwaggerHooks::class;
+        // Swagger のセットアップ（任意）
+        // SwaggerHooks の代替: wp.init イベントで Doc と ResponseSchema を初期化する
+        if ($config->useSwagger) {
+            $dispatcher->addListener('wp.init', function () use ($container): void {
+                $container->get(Doc::class)->init();
+                $container->get(ResponseSchema::class)->init();
+            });
         }
 
-        foreach ($allHooks as $providerClass) {
+        // DI 設定完了 → Bootstrapped に遷移
+        $sm->apply($kernel, 'boot');
+
+        // WP ライフサイクルをフレームワークに橋渡し
+        (new WpKernelAdapter($kernel, $sm, $dispatcher))->install();
+
+        // ユーザー定義の HookProvider を登録
+        foreach ($config->hooks as $providerClass) {
             $provider = $container->get($providerClass);
 
             if (!($provider instanceof HookProviderInterface)) {
