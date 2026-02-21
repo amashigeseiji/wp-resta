@@ -24,6 +24,7 @@ class Resta
      *    schemaDirectory?: array<string[]>,
      *    dependencies?: array<class-string<T>, T|class-string<T>>,
      *    hooks?: array<class-string<\Wp\Resta\Hooks\HookProviderInterface>>,
+     *    listeners?: array<class-string>,
      * } $restaConfig
      */
     public function init(array $restaConfig) : void
@@ -61,8 +62,13 @@ class Resta
             }
         );
 
-        // EnvelopeHook を常に登録（#[Envelope] がないルートは素通り）
-        $dispatcher->addListener('route.invocation', [new EnvelopeHook(), 'handle']);
+        // フレームワーク内部リスナーを登録
+        $dispatcher->addSubscriber(new EnvelopeHook());
+
+        // ユーザー定義リスナーを登録（DI コンテナ経由でインスタンス化）
+        foreach ($config->listeners as $listenerClass) {
+            $dispatcher->addSubscriber($container->get($listenerClass));
+        }
 
         // DI 設定完了 → Bootstrapped に遷移
         $sm->apply($kernel, 'boot');

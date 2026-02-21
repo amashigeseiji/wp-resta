@@ -11,6 +11,8 @@ class Config
     public readonly array $dependencies;
     /** @var array<class-string<\Wp\Resta\Hooks\HookProviderInterface>> */
     public readonly array $hooks;
+    /** @var array<class-string> */
+    public readonly array $listeners;
     /**
      * @var array<string, mixed>
      */
@@ -24,6 +26,7 @@ class Config
      *    schemaDirectory?: array<string[]>,
      *    dependencies?: array<class-string<T>, T|class-string<T>>,
      *    hooks?: array<class-string<\Wp\Resta\Hooks\HookProviderInterface>>,
+     *    listeners?: array<class-string>,
      * } $config
      */
     public function __construct(array $config)
@@ -41,6 +44,13 @@ class Config
         $hooks = array_filter($hooks, 'is_string');
         $hooks = array_unique($hooks, SORT_STRING);
         $this->hooks = array_values($hooks);
+
+        // listeners のバリデーション: 文字列のみフィルタ、重複排除
+        $listeners = $config['listeners'] ?? [];
+        assert(is_array($listeners));
+        $listeners = array_filter($listeners, 'is_string');
+        $listeners = array_unique($listeners, SORT_STRING);
+        $this->listeners = array_values($listeners);
     }
 
     public function get(string $key) : mixed
