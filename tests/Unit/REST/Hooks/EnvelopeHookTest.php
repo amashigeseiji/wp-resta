@@ -16,7 +16,7 @@ class EnvelopeHookTest extends TestCase
     private function makeEvent(AbstractRoute $route, RestaResponseInterface $response): RouteInvocationEvent
     {
         $request = new TestRestaRequest('/test', $route);
-        $event = new RouteInvocationEvent($request, $route);
+        $event = new RouteInvocationEvent($request, $route, $response);
         $event->response = $response;
         return $event;
     }

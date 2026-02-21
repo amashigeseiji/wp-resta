@@ -13,11 +13,10 @@ use Wp\Resta\REST\Http\RestaResponseInterface;
  */
 class RouteInvocationEvent extends Event
 {
-    public ?RestaResponseInterface $response = null;
-
     public function __construct(
         public readonly RestaRequestInterface $request,
         public readonly RouteInterface $route,
+        public RestaResponseInterface $response,
     ) {
         parent::__construct('route.invocation');
     }

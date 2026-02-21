@@ -86,17 +86,11 @@ class RegisterRestRoutes
                                 $this->container->bind(RestaRequestInterface::class, $restaRequest);
 
                                 // ルートを実行し、イベント経由でレスポンスを変換
-                                $event = new RouteInvocationEvent($restaRequest, $route);
-                                $event->response = $route->invoke($restaRequest);
+                                $response = $route->invoke($restaRequest);
+                                $event = new RouteInvocationEvent($restaRequest, $route, $response);
                                 $this->dispatcher->dispatch($event);
 
                                 $response = $event->response;
-
-                                if (!$response instanceof RestaResponseInterface) {
-                                    throw new LogicException(
-                                        'RouteInvocationEvent::$response must be RestaResponseInterface, got ' . get_debug_type($response)
-                                    );
-                                }
 
                                 // RestaResponse → WordPress REST Response
                                 $wpResponse = new WP_REST_Response(
