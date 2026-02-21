@@ -13,7 +13,7 @@ use Wp\Resta\OpenApi\Doc;
  *
  * <code>
  * (new Resta)->init([
- *     'hooks' => [SwaggerHooks::class],
+ *     'hooks' => [SwaggerHook::class],
  * ]);
  * </code>
  */

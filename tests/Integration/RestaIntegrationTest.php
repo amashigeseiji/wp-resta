@@ -114,9 +114,9 @@ class RestaIntegrationTest extends TestCase
         $resta->init($config);
     }
 
-    public function testRestaInitRegistersSwaggerHooksViaHooksConfig()
+    public function testRestaInitRegistersSwaggerHookViaHooksConfig()
     {
-        // SwaggerHooks を hooks 配列で明示的に登録した場合、init アクションが登録される
+        // SwaggerHook を hooks 配列で明示的に登録した場合、init アクションが登録される
         Functions\when('add_action')->justReturn();
         Functions\when('add_filter')->justReturn();
 
@@ -124,7 +124,7 @@ class RestaIntegrationTest extends TestCase
             'hooks' => [\Wp\Resta\REST\Hooks\SwaggerHook::class],
         ]);
 
-        // 例外が出ないことを確認（SwaggerHooks は HookProviderInterface を実装している）
+        // 例外が出ないことを確認（SwaggerHook は HookProviderInterface を実装している）
         $resta = new Resta();
         $resta->init($config);
 
