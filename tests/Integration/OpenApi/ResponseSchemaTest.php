@@ -4,6 +4,8 @@ namespace Test\Resta\Integration\OpenApi;
 use PHPUnit\Framework\TestCase;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
+use Wp\Resta\EventDispatcher\Dispatcher;
+use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\OpenApi\ResponseSchema;
 use ReflectionClass;
 use Brain\Monkey;
@@ -40,6 +42,7 @@ class ResponseSchemaTest extends TestCase
         ]);
 
         $this->container->bind(Config::class, $config);
+        $this->container->bind(DispatcherInterface::class, new Dispatcher());
     }
 
     protected function tearDown(): void
