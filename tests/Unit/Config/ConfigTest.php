@@ -102,14 +102,12 @@ class ConfigTest extends TestCase
             'schemaDirectory' => [['/schema', 'Schema\\']],
             'dependencies' => ['Interface' => 'Implementation'],
             'hooks' => ['HookClass'],
-            'use-swagger' => true,
         ]);
 
         $this->assertEquals([['/path', 'Namespace\\']], $config->routeDirectory);
         $this->assertEquals([['/schema', 'Schema\\']], $config->schemaDirectory);
         $this->assertEquals(['Interface' => 'Implementation'], $config->dependencies);
         $this->assertEquals(['HookClass'], $config->hooks);
-        $this->assertTrue($config->useSwagger);
     }
 
     public function testHooksArrayFiltersNonStringValues()
@@ -142,10 +140,4 @@ class ConfigTest extends TestCase
         $this->assertEquals(['HookClass', 'AnotherHook'], $config->hooks);
     }
 
-    public function testUseSwaggerDefaultsToFalse()
-    {
-        $config = new Config([]);
-
-        $this->assertFalse($config->useSwagger);
-    }
 }

@@ -82,7 +82,7 @@ wp-resta/
 │   │   ├── HookProviderInterface.php
 │   │   ├── HookProvider.php
 │   │   ├── InternalHooks.php  # 内部フック
-│   │   ├── SwaggerHooks.php   # Swagger UI 統合
+│   │   ├── SwaggerHook.php   # Swagger UI 統合
 │   │   ├── Enum/RestApiHook.php  # REST API フック定義
 │   │   └── Attributes/        # フック用 Attribute
 │   └── OpenApi/               # Swagger ドキュメント生成

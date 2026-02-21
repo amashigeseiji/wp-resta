@@ -4,6 +4,7 @@ namespace Wp\Resta\REST;
 use LogicException;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
+use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\WpRestaRequest;
@@ -13,11 +14,12 @@ use WP_REST_Response;
 /**
  * ルート情報を一括して登録する
  *
- * {@see Wp\Resta\Hooks\InternalHooks} の {@see rest_api_init} フックを通じて
- * WordPress にルート情報を登録する。
- * {@see register_rest_route} に渡される callback は {@see WP_REST_Request}を受けとり
- * {@see WP_REST_Response} を返す。ここで wp-resta の内部処理と WordPress の表現の変換が
+ * rest_api_init フックを通じて WordPress にルート情報を登録する。
+ * register_rest_route に渡される callback は WP_REST_Request を受け取り
+ * WP_REST_Response を返す。ここで wp-resta の内部処理と WordPress の表現の変換が
  * 行われている。
+ *
+ * リクエスト処理の拡張は RouteInvocationEvent を購読することで行う。
  */
 class RegisterRestRoutes
 {
@@ -26,10 +28,12 @@ class RegisterRestRoutes
     /**
      * @var array<string, RouteInterface[]>
      */
-    public readonly Array $routes;
+    public readonly array $routes;
 
-    public function __construct(Config $config)
-    {
+    public function __construct(
+        Config $config,
+        private DispatcherInterface $dispatcher,
+    ) {
         $container = Container::getInstance();
 
         $routes = [];
@@ -73,7 +77,7 @@ class RegisterRestRoutes
                     [
                         [
                             'methods' => $route->getMethods(),
-                            'callback' => function (WP_REST_Request $request) use($route): WP_REST_Response {
+                            'callback' => function (WP_REST_Request $request) use ($route): WP_REST_Response {
                                 // WordPress Request → RestaRequest
                                 $restaRequest = WpRestaRequest::fromWpRequest($request);
 
@@ -81,30 +85,19 @@ class RegisterRestRoutes
                                 $this->container->bind(WP_REST_Request::class, $request);
                                 $this->container->bind(RestaRequestInterface::class, $restaRequest);
 
-                                // Before invoke hook
-                                do_action('resta_before_invoke', $route, $restaRequest);
+                                // ルートを実行し、イベント経由でレスポンスを変換
+                                $response = $route->invoke($restaRequest);
+                                $event = new RouteInvocationEvent($restaRequest, $route, $response);
+                                $this->dispatcher->dispatch($event);
 
-                                // AbstractRoute を実行（WordPress 非依存レイヤー）
-                                $responseBefore = $route->invoke($restaRequest);
-
-                                // After invoke hook - レスポンスを変換可能
-                                $response = apply_filters('resta_after_invoke', $responseBefore, $route, $restaRequest);
-
-                                // 型チェック
-                                if (!$response instanceof RestaResponseInterface) {
-                                    throw new LogicException(
-                                        'resta_after_invoke hook must return RestaResponseInterface, got ' . get_debug_type($response)
-                                    );
-                                }
+                                $response = $event->response;
 
                                 // RestaResponse → WordPress REST Response
-                                // データを直接渡す - JSON encode/decode 不要！
                                 $wpResponse = new WP_REST_Response(
                                     $response->getData(),
                                     $response->getStatusCode()
                                 );
 
-                                // ヘッダーをコピー
                                 foreach ($response->getHeaders() as $name => $value) {
                                     $wpResponse->header($name, $value);
                                 }
