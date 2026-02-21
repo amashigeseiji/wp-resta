@@ -11,9 +11,6 @@ class Config
     public readonly array $dependencies;
     /** @var array<class-string<\Wp\Resta\Hooks\HookProviderInterface>> */
     public readonly array $hooks;
-    /** @var bool */
-    public readonly bool $useSwagger;
-
     /**
      * @var array<string, mixed>
      */
@@ -27,7 +24,6 @@ class Config
      *    schemaDirectory?: array<string[]>,
      *    dependencies?: array<class-string<T>, T|class-string<T>>,
      *    hooks?: array<class-string<\Wp\Resta\Hooks\HookProviderInterface>>,
-     *    'use-swagger'?: bool
      * } $config
      */
     public function __construct(array $config)
@@ -45,9 +41,6 @@ class Config
         $hooks = array_filter($hooks, 'is_string');
         $hooks = array_unique($hooks, SORT_STRING);
         $this->hooks = array_values($hooks);
-
-        // use-swagger の後方互換性
-        $this->useSwagger = $config['use-swagger'] ?? false;
     }
 
     public function get(string $key) : mixed

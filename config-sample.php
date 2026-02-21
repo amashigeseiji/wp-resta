@@ -31,8 +31,7 @@ return [
     // SwaggerHooks: Swagger UI を有効化（開発環境推奨、本番では削除）
     // EnvelopeHook: エンベロープパターン（#[Envelope] Attribute）を有効化
     'hooks' => [
-        \Wp\Resta\Hooks\SwaggerHooks::class,
-        \Wp\Resta\REST\Hooks\EnvelopeHook::class,
+        \Wp\Resta\REST\Hooks\SwaggerHook::class,
         \Wp\Resta\REST\Example\Hooks\SampleHook::class,
     ],
 
@@ -40,8 +39,4 @@ return [
     // インターフェースに対する実装クラスのバインドを定義
     // 例: [LoggerInterface::class => MonologLogger::class]
     'dependencies' => [],
-
-    // 非推奨: 代わりに hooks 配列で SwaggerHooks を指定してください
-    // 後方互換性のため残されています
-    'use-swagger' => false,
 ];

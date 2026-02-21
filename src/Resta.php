@@ -23,8 +23,7 @@ class Resta
      *    routeDirectory?: array<string[]>,
      *    schemaDirectory?: array<string[]>,
      *    dependencies?: array<class-string<T>, T|class-string<T>>,
-     *    hooks?: array<class-string<HookProviderInterface>>,
-     *    'use-swagger'?: bool
+     *    hooks?: array<class-string<\Wp\Resta\Hooks\HookProviderInterface>>,
      * } $restaConfig
      */
     public function init(array $restaConfig) : void
