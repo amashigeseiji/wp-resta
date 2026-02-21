@@ -1,8 +1,11 @@
 <?php
 namespace Wp\Resta\Kernel;
 
-use Wp\Resta\EventDispatcher\Dispatcher;
+use Wp\Resta\Config;
+use Wp\Resta\DI\Container;
+use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\EventDispatcher\Event;
+use Wp\Resta\Hooks\HookProviderInterface;
 use Wp\Resta\StateMachine\StateMachine;
 
 /**
@@ -11,13 +14,17 @@ use Wp\Resta\StateMachine\StateMachine;
  * WordPress のフック（add_action / add_filter）の呼び出しはここに集約する。
  * WP ライフサイクルイベントを Kernel の StateMachine 遷移または
  * Dispatcher イベントに変換することで、フレームワークコアを WP 非依存に保つ。
+ *
+ * ユーザーが config に登録した HookProvider もここで register() を呼ぶ。
+ * HookProvider は移行レイヤーであり、新規実装では Dispatcher を推奨する。
  */
 class WpKernelAdapter
 {
     public function __construct(
         private Kernel $kernel,
         private StateMachine $sm,
-        private Dispatcher $dispatcher,
+        private DispatcherInterface $dispatcher,
+        private Config $config,
     ) {}
 
     /**
@@ -32,13 +39,24 @@ class WpKernelAdapter
         );
 
         // WP の init → フレームワーク内の wp.init イベントに変換
-        // Swagger 等、init タイミングで処理したいリスナーはこのイベントを購読する
         \add_action('init', fn() =>
             $this->dispatcher->dispatch(new Event('wp.init'))
         );
 
         // URL パラメータをクエリパラメータより優先する
         \add_filter('rest_request_parameter_order', [$this, 'prioritizeUrlParameters'], 10, 1);
+
+        // ユーザー定義の HookProvider を登録（移行レイヤー）
+        $container = Container::getInstance();
+        foreach ($this->config->hooks as $providerClass) {
+            $provider = $container->get($providerClass);
+            if (!($provider instanceof HookProviderInterface)) {
+                throw new \InvalidArgumentException(
+                    sprintf('%s must implement HookProviderInterface', $providerClass)
+                );
+            }
+            $provider->register();
+        }
     }
 
     /**

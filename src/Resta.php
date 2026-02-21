@@ -5,7 +5,6 @@ use Wp\Resta\DI\Container;
 use Wp\Resta\Config;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
-use Wp\Resta\Hooks\HookProviderInterface;
 use Wp\Resta\Kernel\Kernel;
 use Wp\Resta\Kernel\KernelState;
 use Wp\Resta\Kernel\WpKernelAdapter;
@@ -78,19 +77,7 @@ class Resta
         $sm->apply($kernel, 'boot');
 
         // WP ライフサイクルをフレームワークに橋渡し
-        (new WpKernelAdapter($kernel, $sm, $dispatcher))->install();
-
-        // ユーザー定義の HookProvider を登録
-        foreach ($config->hooks as $providerClass) {
-            $provider = $container->get($providerClass);
-
-            if (!($provider instanceof HookProviderInterface)) {
-                throw new \InvalidArgumentException(
-                    sprintf('%s must implement HookProviderInterface', $providerClass)
-                );
-            }
-
-            $provider->register();
-        }
+        // WpKernelAdapter はオートワイヤリングで解決される
+        $container->get(WpKernelAdapter::class)->install();
     }
 }
