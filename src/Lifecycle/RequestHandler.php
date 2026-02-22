@@ -7,42 +7,28 @@ use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\WpRestaRequest;
 use Wp\Resta\REST\RouteInterface;
 use Wp\Resta\REST\RouteInvocationEvent;
-use Wp\Resta\StateMachine\StateMachine;
+use Wp\Resta\StateMachine\TransitionApplier;
 use Wp\Resta\StateMachine\TransitionEvent;
 use WP_REST_Request;
 use WP_REST_Response;
 
 class RequestHandler
 {
-    private const TRANSTION_EVENTS = [
-        RequestState::Received => 'convert',
-        RequestState::Prepared => 'invoke',
-        RequestState::Invoked => 'respond',
-    ];
     public function __construct(
-        public StateMachine $stateMachine,
+        public TransitionApplier $sm,
         public DispatcherInterface $dispatcher,
     ) {
         $dispatcher->addListener(
-            $this->transitionEventName(RequestState::Received),
+            $this->transitionEventName(RequestState::Received, true),
             [$this, 'onConvert']
         );
-
-        /*
         $dispatcher->addListener(
-            TransitionEvent::guardEventName(RequestState::Prepared, 'invoke'),
-            function (TransitionEvent $event) {
-                $subject = $event->subject;
-                assert($subject instanceof Request);
-                if (!$this->auth->check($event->subject->ctx->request)) {
-                    $event->stopPropagation(); // invoke をキャンセル → 401 を返す
-                }
-            }
+            $this->transitionEventName(RequestState::Prepared, true),
+            [$this, 'onInvoke']
         );
-         */
         $dispatcher->addListener(
             $this->transitionEventName(RequestState::Prepared),
-            [$this, 'onInvoke']
+            [$this, 'onInvoked']
         );
         $dispatcher->addListener(
             $this->transitionEventName(RequestState::Invoked),
@@ -54,9 +40,19 @@ class RequestHandler
     {
         $req = new Request();
         $req->ctx = new RequestContext($request, $route);
-        $this->stateMachine->apply($req, 'convert');
-        $this->stateMachine->apply($req, 'invoke');
-        $this->stateMachine->apply($req, 'respond');
+        // アフォーダンスがある限りステートマシンを進める
+        while($affordances = $req->affordances()) {
+            if (count($affordances) > 1) {
+                throw new \InvalidArgumentException('Currently, multiple actions are not supported in request context.');
+            }
+            $before = $req->currentState();
+            $req->doAction($this->sm, $affordances[0]->action);
+            $after = $req->currentState();
+            // 状態が遷移しなかった場合は合法的な遷移ではない
+            if ($before === $after) {
+                throw new \RuntimeException('Failed to trantision.');
+            }
+        }
         return $req->ctx->wpResponse;
     }
 
@@ -86,6 +82,18 @@ class RequestHandler
         $ctx->response = $response;
     }
 
+    public function onInvoked(TransitionEvent $event): void
+    {
+        /** @var Request */
+        $subject = $event->subject;
+        assert($subject instanceof Request);
+        $ctx = $subject->ctx;
+
+        $invocationEvent = new RouteInvocationEvent($ctx->request, $ctx->route, $ctx->response);
+        $this->dispatcher->dispatch($invocationEvent);
+        $ctx->response = $invocationEvent->response;
+    }
+
     public function onRespond(TransitionEvent $event): void
     {
         /** @var Request */
@@ -93,15 +101,13 @@ class RequestHandler
         assert($subject instanceof Request);
         $ctx = $subject->ctx;
 
-        $event = new RouteInvocationEvent($ctx->request, $ctx->route, $ctx->response);
-        $this->dispatcher->dispatch($event);
         // RestaResponse → WordPress REST Response
         $wpResponse = new WP_REST_Response(
-            $event->response->getData(),
-            $event->response->getStatusCode()
+            $ctx->response->getData(),
+            $ctx->response->getStatusCode()
         );
 
-        foreach ($event->response->getHeaders() as $name => $value) {
+        foreach ($ctx->response->getHeaders() as $name => $value) {
             $wpResponse->header($name, $value);
         }
 
@@ -110,8 +116,14 @@ class RequestHandler
 
     private function transitionEventName(RequestState $state, bool $guard = false): string
     {
+        $actions = [
+            RequestState::Received->name => 'convert',
+            RequestState::Prepared->name => 'invoke',
+            RequestState::Invoked->name => 'respond',
+        ];
+
         return $guard
-            ? TransitionEvent::guardEventName($state, self::TRANSTION_EVENTS[$state])
-            : TransitionEvent::afterEventName($state, self::TRANSTION_EVENTS[$state]);
+            ? TransitionEvent::guardEventName($state, $actions[$state->name])
+            : TransitionEvent::afterEventName($state, $actions[$state->name]);
     }
 }

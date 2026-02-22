@@ -12,6 +12,7 @@ use Wp\Resta\Lifecycle\RequestState;
 use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
 use Wp\Resta\StateMachine\StateMachine;
+use Wp\Resta\StateMachine\TransitionApplier;
 use Wp\Resta\StateMachine\TransitionEvent;
 use Wp\Resta\StateMachine\TransitionRegistry;
 
@@ -48,11 +49,13 @@ class Resta
         $registry = new TransitionRegistry();
         $registry->registerFromEnum(KernelState::class);
         $registry->registerFromEnum(RequestState::class);
+        $container->bind(TransitionRegistry::class, $registry);
         $dispatcher = new Dispatcher();
         $sm = new StateMachine($registry, $dispatcher);
 
         // DI コンテナに登録
         $container->bind(Kernel::class, $kernel);
+        $container->bind(TransitionApplier::class, $sm);
         $container->bind(StateMachine::class, $sm);
         $container->bind(DispatcherInterface::class, $dispatcher);
 
