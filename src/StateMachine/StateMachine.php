@@ -3,7 +3,7 @@ namespace Wp\Resta\StateMachine;
 
 use Wp\Resta\EventDispatcher\DispatcherInterface;
 
-class StateMachine
+class StateMachine implements TransitionApplier
 {
     public function __construct(
         private TransitionRegistry $registry,

@@ -33,6 +33,15 @@ class TransitionRegistry
         return array_values($this->transitions[$this->key($from)] ?? []);
     }
 
+    /** @return Affordance[] */
+    public function affordancesFrom(\UnitEnum $from): array
+    {
+        return array_map(
+            fn(Transition $t) => new Affordance($t->on, $t->to),
+            $this->allowedTransitions($from),
+        );
+    }
+
     private function key(\UnitEnum $state): string
     {
         return $state::class . '::' . $state->name;
