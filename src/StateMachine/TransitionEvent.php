@@ -5,6 +5,14 @@ use Wp\Resta\EventDispatcher\Event;
 
 class TransitionEvent extends Event
 {
+    /**
+     * リスナーが遷移先パスを変更するためのキー。
+     * デフォルト 'to' は Transition::resolve() のデフォルトに対応する。
+     * 変更する場合は Transition 属性で定義されたキーのみ有効。
+     * 例: $event->path = 'stop'
+     */
+    public string $path = 'to';
+
     public function __construct(
         string $eventName,
         public readonly \UnitEnum $from,
@@ -17,7 +25,7 @@ class TransitionEvent extends Event
 
     /**
      * 遷移前のガードイベント名を返す。
-     * stopPropagation() を呼ぶと遷移をキャンセルできる。
+     * $event->path を変更すると遷移先を切り替えられる。
      * 例: Wp\Resta\Kernel\KernelState::boot.guard
      */
     public static function guardEventName(\UnitEnum $from, string $action): string

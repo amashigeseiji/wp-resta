@@ -21,27 +21,28 @@ class StateMachine implements TransitionApplier
             );
         }
 
+        $path = 'to';
+
         if ($this->dispatcher !== null) {
             $guardEvent = new TransitionEvent(
                 eventName: TransitionEvent::guardEventName($from, $action),
                 from: $from,
-                to: $transition->to,
+                to: $transition->resolve('to'),
                 action: $action,
                 subject: $subject,
             );
             $this->dispatcher->dispatch($guardEvent);
-            if ($guardEvent->isPropagationStopped()) {
-                return;
-            }
+            $path = $guardEvent->path;
         }
 
-        $subject->applyState($transition->to);
+        $actual = $transition->resolve($path);
+        $subject->applyState($actual);
 
         if ($this->dispatcher !== null) {
             $this->dispatcher->dispatch(new TransitionEvent(
                 eventName: TransitionEvent::afterEventName($from, $action),
                 from: $from,
-                to: $transition->to,
+                to: $actual,
                 action: $action,
                 subject: $subject,
             ));

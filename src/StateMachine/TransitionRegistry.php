@@ -37,7 +37,7 @@ class TransitionRegistry
     public function affordancesFrom(\UnitEnum $from): array
     {
         return array_map(
-            fn(Transition $t) => new Affordance($t->on, $t->to),
+            fn(Transition $t) => new Affordance($t->on, $t->resolve('to')),
             $this->allowedTransitions($from),
         );
     }
