@@ -8,6 +8,7 @@ use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\Kernel\Kernel;
 use Wp\Resta\Kernel\KernelState;
 use Wp\Resta\Kernel\WpKernelAdapter;
+use Wp\Resta\Lifecycle\RequestState;
 use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
 use Wp\Resta\StateMachine\StateMachine;
@@ -46,6 +47,7 @@ class Resta
         $kernel = new Kernel();
         $registry = new TransitionRegistry();
         $registry->registerFromEnum(KernelState::class);
+        $registry->registerFromEnum(RequestState::class);
         $dispatcher = new Dispatcher();
         $sm = new StateMachine($registry, $dispatcher);
 

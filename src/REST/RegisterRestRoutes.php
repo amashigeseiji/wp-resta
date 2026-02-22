@@ -4,10 +4,7 @@ namespace Wp\Resta\REST;
 use LogicException;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
-use Wp\Resta\EventDispatcher\DispatcherInterface;
-use Wp\Resta\REST\Http\RestaRequestInterface;
-use Wp\Resta\REST\Http\RestaResponseInterface;
-use Wp\Resta\REST\Http\WpRestaRequest;
+use Wp\Resta\Lifecycle\RequestHandler;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -32,7 +29,6 @@ class RegisterRestRoutes
 
     public function __construct(
         Config $config,
-        private DispatcherInterface $dispatcher,
     ) {
         $container = Container::getInstance();
 
@@ -68,6 +64,7 @@ class RegisterRestRoutes
 
     public function register() : void
     {
+        $handler = $this->container->get(RequestHandler::class);
         foreach ($this->routes as $apiNamespace => $routes) {
             foreach ($routes as $route) {
                 assert($route instanceof RouteInterface);
@@ -77,32 +74,8 @@ class RegisterRestRoutes
                     [
                         [
                             'methods' => $route->getMethods(),
-                            'callback' => function (WP_REST_Request $request) use ($route): WP_REST_Response {
-                                // WordPress Request → RestaRequest
-                                $restaRequest = WpRestaRequest::fromWpRequest($request);
-
-                                // DI container に登録
-                                $this->container->bind(WP_REST_Request::class, $request);
-                                $this->container->bind(RestaRequestInterface::class, $restaRequest);
-
-                                // ルートを実行し、イベント経由でレスポンスを変換
-                                $response = $route->invoke($restaRequest);
-                                $event = new RouteInvocationEvent($restaRequest, $route, $response);
-                                $this->dispatcher->dispatch($event);
-
-                                $response = $event->response;
-
-                                // RestaResponse → WordPress REST Response
-                                $wpResponse = new WP_REST_Response(
-                                    $response->getData(),
-                                    $response->getStatusCode()
-                                );
-
-                                foreach ($response->getHeaders() as $name => $value) {
-                                    $wpResponse->header($name, $value);
-                                }
-
-                                return $wpResponse;
+                            'callback' => function (WP_REST_Request $request) use ($route, $handler): WP_REST_Response {
+                                return $handler->handle($request, $route);
                             },
                             'permission_callback' => [$route, 'permissionCallback'],
                             'args' => $route->getArgs(),
