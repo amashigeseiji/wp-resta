@@ -8,7 +8,6 @@ use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\Lifecycle\RequestHandler;
 use Wp\Resta\Lifecycle\RequestState;
 use Wp\Resta\REST\AbstractRoute;
-use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
 use Wp\Resta\REST\RouteInvocationEvent;
 use Wp\Resta\StateMachine\StateMachine;
@@ -20,7 +19,7 @@ use Wp\Resta\StateMachine\TransitionRegistry;
  *
  * RequestHandler はリクエストライフサイクル全体（Received → Prepared → Invoked → Responded）
  * を StateMachine + Dispatcher で駆動する。
- * WP クラスのスタブは tests/Fixtures/WpClasses.php で定義されている。
+ * WP クラスのスタブは tests/bootstrap.php で定義されている。
  */
 class RequestHandlerTest extends TestCase
 {

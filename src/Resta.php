@@ -27,7 +27,7 @@ class Resta
      *    dependencies?: array<class-string<T>, T|class-string<T>>,
      *    hooks?: array<class-string<\Wp\Resta\Hooks\HookProviderInterface>>,
      *    listeners?: array<class-string>,
-     *    adapters? : array<class-string>,
+     *    adapters?: array<class-string>,
      * } $restaConfig
      */
     public function init(array $restaConfig) : void
