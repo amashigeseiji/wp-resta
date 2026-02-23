@@ -49,13 +49,8 @@ class Config
         $this->hooks = array_values($hooks);
 
         // listeners/adapters のバリデーション: 文字列のみフィルタ、重複排除
-        foreach (['listeners', 'adapters'] as $key) {
-            $prop = $config[$key] ?? [];
-            assert(is_array($prop));
-            $prop = array_filter($prop, 'is_string');
-            $prop = array_unique($prop, SORT_STRING);
-            $this->$key = array_values($prop);
-        }
+        $this->listeners = $this->normalizeStringArray($config['listeners'] ?? []);
+        $this->adapters = $this->normalizeStringArray($config['adapters'] ?? []);
     }
 
     public function get(string $key) : mixed
@@ -66,5 +61,14 @@ class Config
     public function hasKey(string $key): bool
     {
         return array_key_exists($key, $this->config);
+    }
+
+    /**
+     * @param string[] $array
+     * @return string[]
+     */
+    private function normalizeStringArray(array $array): array
+    {
+        return array_values(array_unique(array_filter($array, 'is_string'), SORT_STRING));
     }
 }
