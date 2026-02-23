@@ -19,19 +19,19 @@ class RequestHandler
         public DispatcherInterface $dispatcher,
     ) {
         $dispatcher->addListener(
-            $this->transitionEventName(RequestState::Received, true),
+            $this->transitionEventName('convert', true),
             [$this, 'onConvert']
         );
         $dispatcher->addListener(
-            $this->transitionEventName(RequestState::Prepared, true),
+            $this->transitionEventName('invoke', true),
             [$this, 'onInvoke']
         );
         $dispatcher->addListener(
-            $this->transitionEventName(RequestState::Prepared),
+            $this->transitionEventName('invoke'),
             [$this, 'onInvoked']
         );
         $dispatcher->addListener(
-            $this->transitionEventName(RequestState::Invoked),
+            $this->transitionEventName('respond'),
             [$this, 'onRespond']
         );
     }
@@ -114,16 +114,16 @@ class RequestHandler
         $ctx->wpResponse = $wpResponse;
     }
 
-    private function transitionEventName(RequestState $state, bool $guard = false): string
+    private function transitionEventName(string $action, bool $guard = false): string
     {
         $actions = [
-            RequestState::Received->name => 'convert',
-            RequestState::Prepared->name => 'invoke',
-            RequestState::Invoked->name => 'respond',
+            'convert' => RequestState::Received,
+            'invoke' => RequestState::Prepared,
+            'respond' => RequestState::Invoked,
         ];
 
         return $guard
-            ? TransitionEvent::guardEventName($state, $actions[$state->name])
-            : TransitionEvent::afterEventName($state, $actions[$state->name]);
+            ? TransitionEvent::guardEventName($actions[$action], $action)
+            : TransitionEvent::afterEventName($actions[$action], $action);
     }
 }
