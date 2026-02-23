@@ -48,13 +48,14 @@ class Config
         $hooks = array_unique($hooks, SORT_STRING);
         $this->hooks = array_values($hooks);
 
-        // listeners のバリデーション: 文字列のみフィルタ、重複排除
-        $listeners = $config['listeners'] ?? [];
-        assert(is_array($listeners));
-        $listeners = array_filter($listeners, 'is_string');
-        $listeners = array_unique($listeners, SORT_STRING);
-        $this->listeners = array_values($listeners);
-        $this->adapters = $config['adapters'] ?? [];
+        // listeners/adapters のバリデーション: 文字列のみフィルタ、重複排除
+        foreach (['listeners', 'adapters'] as $key) {
+            $prop = $config[$key] ?? [];
+            assert(is_array($prop));
+            $prop = array_filter($prop, 'is_string');
+            $prop = array_unique($prop, SORT_STRING);
+            $this->$key = array_values($prop);
+        }
     }
 
     public function get(string $key) : mixed
