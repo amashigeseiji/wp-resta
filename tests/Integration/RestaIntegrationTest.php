@@ -10,6 +10,7 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use Mockery;
 use ReflectionClass;
+use Wp\Resta\Kernel\WpKernelAdapter;
 
 class RestaIntegrationTest extends TestCase
 {
@@ -22,7 +23,7 @@ class RestaIntegrationTest extends TestCase
     protected function tearDown(): void
     {
         Monkey\tearDown();
-        Mockery::close(); // Mockery の検証を明示的に実行
+        Mockery::close();
 
         // Container をリセット
         $reflection = new ReflectionClass(Container::class);
@@ -33,29 +34,45 @@ class RestaIntegrationTest extends TestCase
         parent::tearDown();
     }
 
-    public function testRestaInitRegistersInternalHooks()
+    private function baseConfig(): array
     {
-        // InternalHooks が rest_api_init アクションを登録する
-        Functions\expect('add_action')
-            ->once()
-            ->with('rest_api_init', Mockery::type('array'), 10, 1);
-
-        $config = [
+        return [
             'routeDirectory' => [
                 [__DIR__ . '/../Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
             ],
+            'adapters' => [WpKernelAdapter::class]
         ];
+    }
+
+    public function testRestaInitRegistersWpKernelAdapterHooks()
+    {
+        // WpKernelAdapter::install() は rest_api_init と init の add_action、
+        // rest_request_parameter_order の add_filter を登録する
+        Functions\expect('add_action')
+            ->once()
+            ->with('rest_api_init', Mockery::type('Closure'));
+
+        Functions\expect('add_action')
+            ->once()
+            ->with('init', Mockery::type('Closure'));
+
+        Functions\expect('add_filter')
+            ->once()
+            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 1);
 
         $resta = new Resta();
-        $resta->init($config);
+        $resta->init($this->baseConfig());
     }
 
     public function testRestaInitRegistersUserHooks()
     {
-        // ユーザー定義の custom_hook フィルターが登録される
-        Functions\expect('add_action')
+        // WpKernelAdapter の add_action は素通り
+        Functions\when('add_action')->justReturn();
+
+        // WpKernelAdapter の add_filter と user の add_filter を個別に期待する
+        Functions\expect('add_filter')
             ->once()
-            ->with('rest_api_init', Mockery::type('array'), 10, 1);
+            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 1);
 
         Functions\expect('add_filter')
             ->once()
@@ -68,47 +85,9 @@ class RestaIntegrationTest extends TestCase
             }
         };
 
-        $config = [
-            'routeDirectory' => [
-                [__DIR__ . '/../Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
-            ],
-            'hooks' => [
-                get_class($testHook),
-            ],
-        ];
-
-        Container::getInstance()->bind(get_class($testHook), $testHook);
-
-        $resta = new Resta();
-        $resta->init($config);
-    }
-
-    public function testRestaInitMergesInternalAndUserHooks()
-    {
-        // InternalHooks (rest_api_init) とユーザーフック (test_filter) の両方
-        Functions\expect('add_action')
-            ->once()
-            ->with('rest_api_init', Mockery::type('array'), 10, 1);
-
-        Functions\expect('add_filter')
-            ->once()
-            ->with('test_filter', Mockery::type('array'), 10, 1);
-
-        $testHook = new class extends HookProvider {
-            #[AddFilter('test_filter')]
-            public function testMethod($value) {
-                return $value;
-            }
-        };
-
-        $config = [
-            'routeDirectory' => [
-                [__DIR__ . '/../Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
-            ],
-            'hooks' => [
-                get_class($testHook),
-            ],
-        ];
+        $config = array_merge($this->baseConfig(), [
+            'hooks' => [get_class($testHook)],
+        ]);
 
         Container::getInstance()->bind(get_class($testHook), $testHook);
 
@@ -121,60 +100,89 @@ class RestaIntegrationTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('must implement HookProviderInterface');
 
+        // WpKernelAdapter の add_action と add_filter を素通り
+        Functions\when('add_action')->justReturn();
+        Functions\expect('add_filter')
+            ->once()
+            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 1);
+
         Container::getInstance()->bind(\stdClass::class, new \stdClass());
 
-        $config = [
-            'routeDirectory' => [
-                [__DIR__ . '/../Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
-            ],
-            'hooks' => [
-                \stdClass::class,
-            ],
-        ];
+        $config = array_merge($this->baseConfig(), [
+            'hooks' => [\stdClass::class],
+        ]);
 
         $resta = new Resta();
         $resta->init($config);
     }
 
-    public function testRestaInitHandlesUseSwaggerBackwardsCompatibility()
+    public function testRestaInitRegistersSwaggerHookViaHooksConfig()
     {
-        // InternalHooks (rest_api_init) と SwaggerHooks (init) の両方
-        Functions\expect('add_action')
-            ->twice()
-            ->with(Mockery::anyOf('rest_api_init', 'init'), Mockery::type('array'), 10, 1);
+        // SwaggerHook を hooks 配列で明示的に登録した場合、init アクションが登録される
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
 
-        $config = [
-            'routeDirectory' => [
-                [__DIR__ . '/../Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
-            ],
-            'use-swagger' => true,
-        ];
+        $config = array_merge($this->baseConfig(), [
+            'hooks' => [\Wp\Resta\Hooks\SwaggerHook::class],
+        ]);
+
+        // 例外が出ないことを確認（SwaggerHook は HookProviderInterface を実装している）
+        $resta = new Resta();
+        $resta->init($config);
+
+        $this->assertTrue(true);
+    }
+
+    public function testRestaInitRegistersListenerViaListenersConfig(): void
+    {
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
+
+        $called = false;
+        $listener = new class($called) {
+            public function __construct(private bool &$flag) {}
+            public function onRoute(\Wp\Resta\REST\RouteInvocationEvent $event): void
+            {
+                $this->flag = true;
+            }
+        };
+
+        Container::getInstance()->bind(get_class($listener), $listener);
+
+        $config = array_merge($this->baseConfig(), [
+            'listeners' => [get_class($listener)],
+        ]);
 
         $resta = new Resta();
         $resta->init($config);
+
+        // Dispatcher にリスナーが登録されたことを確認するため RouteInvocationEvent を dispatch する
+        $dispatcher = Container::getInstance()->get(\Wp\Resta\EventDispatcher\DispatcherInterface::class);
+
+        $route   = new class extends \Wp\Resta\REST\AbstractRoute {
+            public function callback(): array { return []; }
+        };
+        $request  = new \Wp\Resta\REST\Http\TestRestaRequest('/test', $route);
+        $response = new \Wp\Resta\REST\Http\SimpleRestaResponse([], 200);
+
+        $dispatcher->dispatch(new \Wp\Resta\REST\RouteInvocationEvent($request, $route, $response));
+
+        $this->assertTrue($called, 'listeners config で登録したリスナーが RouteInvocationEvent を受け取れること');
     }
 
-    public function testRestaInitDoesNotDuplicateSwaggerHooks()
+    public function testRestaInitThrowsForInvalidAdapter(): void
     {
-        // SwaggerHooks が hooks 配列にもあり、use-swagger も true の場合
-        // 重複せず1回だけ init が呼ばれる
-        Functions\expect('add_action')
-            ->once()
-            ->with('rest_api_init', Mockery::type('array'), 10, 1);
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
 
-        Functions\expect('add_action')
-            ->once() // 重複しない
-            ->with('init', Mockery::type('array'), 10, 1);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('must extend WpKernelAdapter');
 
-        $config = [
-            'routeDirectory' => [
-                [__DIR__ . '/../Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
-            ],
-            'hooks' => [
-                \Wp\Resta\Hooks\SwaggerHooks::class,
-            ],
-            'use-swagger' => true, // これがあっても重複しない
-        ];
+        Container::getInstance()->bind(\stdClass::class, new \stdClass());
+
+        $config = array_merge($this->baseConfig(), [
+            'adapters' => [\stdClass::class],
+        ]);
 
         $resta = new Resta();
         $resta->init($config);

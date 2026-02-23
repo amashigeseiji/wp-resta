@@ -15,6 +15,7 @@ require __DIR__ . '/../vendor/autoload.php';
 use Wp\Resta\CodeGen\TypeScriptGenerator;
 use Wp\Resta\DI\Container;
 use Wp\Resta\Config;
+use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\Resta;
 
 // WordPress定数を定義（WordPress環境外で実行する場合）
@@ -51,6 +52,7 @@ try {
 
     // 必要なクラスを手動でバインド（Restaを経由せず）
     // RegisterRestRoutesとSchemasを初期化
+    $container->bind(\Wp\Resta\EventDispatcher\DispatcherInterface::class, Dispatcher::class);
     $container->bind(\Wp\Resta\REST\RegisterRestRoutes::class);
     $container->bind(\Wp\Resta\REST\Schemas\Schemas::class);
     $container->bind(\Wp\Resta\OpenApi\ResponseSchema::class);

@@ -33,8 +33,10 @@ require_once __DIR__ . '/vendor/autoload.php';
         [__DIR__ . '/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
     ],
     'hooks' => [
-        \Wp\Resta\Hooks\SwaggerHooks::class,          // Swagger UI を有効化
-        \Wp\Resta\REST\Hooks\EnvelopeHook::class,     // エンベロープパターンを有効化
+        \Wp\Resta\Hooks\SwaggerHook::class,  // Swagger UI を有効化
+    ],
+    'adapters' => [
+        \Wp\Resta\Kernel\WpKernelAdapter::class,  // WordPress フック統合（必須）
     ],
 ]);
 ```
@@ -481,21 +483,9 @@ class Posts extends AbstractRoute
 }
 ```
 
-**設定ファイルで EnvelopeHook を有効化**
+**EnvelopeHook は自動的に有効です**
 
-`functions.php` または設定ファイルで `EnvelopeHook` を登録してください：
-
-```php
-<?php
-(new Wp\Resta\Resta)->init([
-    'routeDirectory' => [
-        // ...
-    ],
-    'hooks' => [
-        \Wp\Resta\REST\Hooks\EnvelopeHook::class,  // エンベロープパターンを有効化
-    ],
-]);
-```
+`EnvelopeHook` はフレームワークに組み込まれており、設定不要で常に有効です。`#[Envelope]` 属性のないルートには適用されません（素通り）。
 
 **レスポンス：**
 ```json
@@ -516,34 +506,27 @@ class Posts extends AbstractRoute
 
 #### メタデータのカスタマイズ
 
-`meta` プロパティは、カスタムフックで追加できます：
+`meta` プロパティは `RouteInvocationEvent` のリスナーで追加できます：
 
 ```php
 <?php
-namespace MyREST\Hooks;
+namespace MyREST\Listeners;
 
-use Wp\Resta\Hooks\Attributes\AddFilter;
-use Wp\Resta\Hooks\HookProvider;
-use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\EnvelopeResponse;
-use Wp\Resta\REST\RouteInterface;
-use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\RouteInvocationEvent;
 
-class CustomMetaHook extends HookProvider
+class CustomMetaListener
 {
-    #[AddFilter('resta_after_invoke', priority: 20, acceptedArgs: 3)]
-    public function addCustomMeta(
-        RestaResponseInterface $response,
-        RouteInterface $route,
-        RestaRequestInterface $request
-    ): RestaResponseInterface {
-        if (!$response instanceof EnvelopeResponse) {
-            return $response;
+    // RouteInvocationEvent は NamedEvent のサブクラスなので #[Listen] 不要
+    public function addCustomMeta(RouteInvocationEvent $event): void
+    {
+        if (!$event->response instanceof EnvelopeResponse) {
+            return;
         }
 
-        // メタデータを追加
-        return $response->addMeta('processed_at', current_time('mysql'))
-                        ->addMeta('plugin_version', '0.8.4');
+        $event->response = $event->response
+            ->addMeta('processed_at', current_time('mysql'))
+            ->addMeta('plugin_version', '0.8.4');
     }
 }
 ```
@@ -551,55 +534,15 @@ class CustomMetaHook extends HookProvider
 設定ファイルに追加：
 
 ```php
-'hooks' => [
-    \Wp\Resta\REST\Hooks\EnvelopeHook::class,
-    \MyREST\Hooks\CustomMetaHook::class,  // カスタムメタデータを追加
-],
+(new Wp\Resta\Resta)->init([
+    'routeDirectory' => [ /* ... */ ],
+    'listeners' => [
+        \MyREST\Listeners\CustomMetaListener::class,
+    ],
+]);
 ```
 
-#### グローバル設定でエンベロープを制御
-
-`#[Envelope]` 属性を使わずに、フックでエンベロープパターンの適用を制御できます。
-
-**フック**: `resta_use_envelope_for_route`
-
-**パラメータ**:
-- `bool $should_use` - デフォルト値（`false`）
-- `RouteInterface $route` - 対象のルートオブジェクト
-
-**優先順位**:
-1. `#[Envelope]` 属性が最優先（属性があれば必ずエンベロープを使う）
-2. 属性がない場合のみ、このフックで判定
-
-**使用例**:
-
-```php
-// 例1: すべてのルートでエンベロープを使う
-add_filter('resta_use_envelope_for_route', '__return_true');
-
-// 例2: 特定の名前空間のルートだけエンベロープを使う
-add_filter('resta_use_envelope_for_route', function($should_use, $route) {
-    $class = get_class($route);
-    // API v2 のルートだけエンベロープを適用
-    return str_starts_with($class, 'MyApp\\API\\V2\\');
-}, 10, 2);
-
-// 例3: 本番環境でのみエンベロープを使う
-add_filter('resta_use_envelope_for_route', function($should_use, $route) {
-    return wp_get_environment_type() === 'production';
-}, 10, 2);
-
-// 例4: 特定のルートだけ除外
-add_filter('resta_use_envelope_for_route', function($should_use, $route) {
-    // SimpleAPI だけはエンベロープを使わない
-    if ($route instanceof \MyREST\Routes\SimpleAPI) {
-        return false;
-    }
-    return $should_use;
-}, 10, 2);
-```
-
-このフックを使えば、個別のルートに `#[Envelope]` 属性を付けなくても、プロジェクト全体の方針として一括でエンベロープパターンを適用できます。
+EventDispatcher と listeners config の詳細は [docs/extending.md](docs/extending.md) を参照してください。
 
 ### OpenAPI スキーマの確認
 

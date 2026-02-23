@@ -22,6 +22,4 @@ return [
 
     // DI コンテナのバインド設定
     'dependencies' => [],
-
-    'use-swagger' => false,
 ];

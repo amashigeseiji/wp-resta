@@ -6,48 +6,59 @@ use Wp\Resta\Hooks\Attributes\AddFilter;
 use Wp\Resta\Hooks\Attributes\AddAction;
 
 /**
- * Base class for hook providers that use PHP attributes to register
- * WordPress actions and filters.
+ * WordPress フックを宣言的に登録する基底クラス。
  *
- * Subclasses declare public methods and annotate them with
- * {@see AddAction} and/or {@see AddFilter}. When {@see HookProvider::register()}
- * is called, this class uses reflection to scan all methods on the subclass,
- * instantiate any attached hook attributes, and call the corresponding
- * WordPress functions (`add_action()` / `add_filter()`) with the settings
- * provided by each attribute.
+ * ## 位置づけ
  *
- * Typical usage:
+ * このクラスはレガシー WP コードを wp-resta に移行するための**足場（移行レイヤー）**
+ * として提供される。`functions.php` に散在した `add_action`/`add_filter` の呼び出しを
+ * オートロード・DI 対応のクラスに引き上げる第一歩として利用できる。
+ *
+ * **新規実装では {@see \Wp\Resta\EventDispatcher\DispatcherInterface} への
+ * リスナー登録を推奨する。** HookProvider の利用はユーザーの自己責任とする。
+ *
+ * ## 移行パス
+ *
+ * ```
+ * Stage 1（レガシー）
+ *   functions.php に require_once × N、グローバル関数
+ *
+ * Stage 2（HookProvider — このクラス）
+ *   オートロード・DI 対応、#[AddAction] / #[AddFilter] で宣言的に登録
+ *
+ * Stage 3（推奨）
+ *   Dispatcher::addListener() でリスナーを登録
+ *   WP 非依存、観測可能、テスト容易
+ * ```
+ *
+ * ## 使い方
  *
  * <code>
- * use Wp\Resta\Hooks\HookProvider;
- * use Wp\Resta\Hooks\Attributes\AddAction;
- * use Wp\Resta\Hooks\Attributes\AddFilter;
- *
  * final class MyHookProvider extends HookProvider
  * {
+ *     public function __construct(private MyService $service) {}
+ *
  *     #[AddAction('init', priority: 10)]
  *     public function onInit(): void
  *     {
- *         // Initialization logic.
+ *         $this->service->doSomething();
  *     }
  *
  *     #[AddFilter('the_content', priority: 20, acceptedArgs: 1)]
  *     public function filterContent(string $content): string
  *     {
- *         return $content . ' Extra content.';
+ *         return $this->service->transform($content);
  *     }
  * }
- *
- * // During bootstrap:
- * $provider = new MyHookProvider();
- * $provider->register();
  * </code>
  *
- * In most cases, subclasses should not override {@see HookProvider::register()}.
- * If overriding is necessary (for example, to register only a subset of
- * methods or to perform additional setup), the implementation should normally
- * call <code>parent::register()</code> to preserve the attribute-based
- * registration behavior.
+ * config の `hooks` キーに登録すると DI コンテナ経由でインスタンス化される:
+ *
+ * <code>
+ * (new Resta)->init([
+ *     'hooks' => [MyHookProvider::class],
+ * ]);
+ * </code>
  */
 abstract class HookProvider implements HookProviderInterface
 {

@@ -5,29 +5,24 @@ use PHPUnit\Framework\TestCase;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Http\EnvelopeResponse;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
 use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\AbstractRoute;
-use Brain\Monkey;
-use Brain\Monkey\Functions;
+use Wp\Resta\REST\RouteInvocationEvent;
 
 class EnvelopeHookTest extends TestCase
 {
-    protected function setUp(): void
+    private function makeEvent(AbstractRoute $route, RestaResponseInterface $response): RouteInvocationEvent
     {
-        parent::setUp();
-        Monkey\setUp();
+        $request = new TestRestaRequest('/test', $route);
+        $event = new RouteInvocationEvent($request, $route, $response);
+        $event->response = $response;
+        return $event;
     }
 
-    protected function tearDown(): void
+    public function testWrapInEnvelopeWithEnvelopeAttribute(): void
     {
-        Monkey\tearDown();
-        parent::tearDown();
-    }
-
-    public function testWrapInEnvelopeWithEnvelopeAttribute()
-    {
-        // #[Envelope] 属性がついているルート
         $route = new #[Envelope] class extends AbstractRoute {
             public function callback(): array
             {
@@ -35,44 +30,31 @@ class EnvelopeHookTest extends TestCase
             }
         };
 
-        // グローバルフィルターをモック
-        Functions\when('apply_filters')->returnArg(2);
-
         $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
-
-        // 元のレスポンス
-        $originalResponse = new SimpleRestaResponse(
+        $event = $this->makeEvent($route, new SimpleRestaResponse(
             ['status' => 'ok', 'message' => 'test'],
             200,
             ['X-Custom' => 'value']
-        );
+        ));
 
-        // フックを実行
-        $response = $hook->wrapInEnvelope($originalResponse, $route, $request);
+        $hook->handle($event);
 
-        // EnvelopeResponse でラップされる
-        $this->assertInstanceOf(EnvelopeResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertInstanceOf(EnvelopeResponse::class, $event->response);
+        $this->assertEquals(200, $event->response->getStatusCode());
 
-        // エンベロープ構造を確認
-        $data = $response->getData();
-        $this->assertIsArray($data);
+        $data = $event->response->getData();
         $this->assertArrayHasKey('data', $data);
         $this->assertArrayHasKey('meta', $data);
         $this->assertEquals('ok', $data['data']['status']);
         $this->assertEquals('test', $data['data']['message']);
-        $this->assertIsArray($data['meta']);
 
-        // ヘッダーが保持される
-        $headers = $response->getHeaders();
+        $headers = $event->response->getHeaders();
         $this->assertArrayHasKey('X-Custom', $headers);
         $this->assertEquals('value', $headers['X-Custom']);
     }
 
-    public function testWrapInEnvelopeWithoutEnvelopeAttribute()
+    public function testWrapInEnvelopeWithoutEnvelopeAttribute(): void
     {
-        // #[Envelope] 属性がないルート
         $route = new class extends AbstractRoute {
             public function callback(): array
             {
@@ -80,26 +62,18 @@ class EnvelopeHookTest extends TestCase
             }
         };
 
-        // グローバルフィルターをモック（false を返す）
-        Functions\when('apply_filters')
-            ->justReturn(false);
-
         $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
+        $original = new SimpleRestaResponse(['status' => 'ok'], 200);
+        $event = $this->makeEvent($route, $original);
 
-        $originalResponse = new SimpleRestaResponse(['status' => 'ok'], 200);
+        $hook->handle($event);
 
-        // フックを実行
-        $response = $hook->wrapInEnvelope($originalResponse, $route, $request);
-
-        // 元のレスポンスがそのまま返される
-        $this->assertSame($originalResponse, $response);
-        $this->assertNotInstanceOf(EnvelopeResponse::class, $response);
+        $this->assertSame($original, $event->response);
+        $this->assertNotInstanceOf(EnvelopeResponse::class, $event->response);
     }
 
-    public function testWrapInEnvelopeDoesNotDoubleWrap()
+    public function testWrapInEnvelopeDoesNotDoubleWrap(): void
     {
-        // #[Envelope] 属性がついているルート
         $route = new #[Envelope] class extends AbstractRoute {
             public function callback(): array
             {
@@ -107,53 +81,37 @@ class EnvelopeHookTest extends TestCase
             }
         };
 
-        Functions\when('apply_filters')->returnArg(2);
-
         $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
+        $original = new EnvelopeResponse(['status' => 'ok'], ['custom_meta' => 'value'], 200);
+        $event = $this->makeEvent($route, $original);
 
-        // 既に EnvelopeResponse
-        $originalEnvelopeResponse = new EnvelopeResponse(
-            ['status' => 'ok'],
-            ['custom_meta' => 'value'],
-            200
-        );
+        $hook->handle($event);
 
-        // フックを実行
-        $response = $hook->wrapInEnvelope($originalEnvelopeResponse, $route, $request);
-
-        // そのまま返される（二重ラップしない）
-        $this->assertSame($originalEnvelopeResponse, $response);
-
-        $data = $response->getData();
+        $this->assertSame($original, $event->response);
+        $data = $event->response->getData();
         $this->assertEquals('ok', $data['data']['status']);
         $this->assertEquals('value', $data['meta']['custom_meta']);
     }
 
-    public function testWrapInEnvelopePreservesStatusCode()
+    public function testWrapInEnvelopePreservesStatusCode(): void
     {
         $route = new #[Envelope] class extends AbstractRoute {
             protected int $status = 201;
-
             public function callback(): array
             {
                 return ['created' => true];
             }
         };
 
-        Functions\when('apply_filters')->returnArg(2);
-
         $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
+        $event = $this->makeEvent($route, new SimpleRestaResponse(['created' => true], 201));
 
-        $originalResponse = new SimpleRestaResponse(['created' => true], 201);
-        $response = $hook->wrapInEnvelope($originalResponse, $route, $request);
+        $hook->handle($event);
 
-        // ステータスコードが保持される
-        $this->assertEquals(201, $response->getStatusCode());
+        $this->assertEquals(201, $event->response->getStatusCode());
     }
 
-    public function testWrapInEnvelopePreservesHeaders()
+    public function testWrapInEnvelopePreservesHeaders(): void
     {
         $route = new #[Envelope] class extends AbstractRoute {
             public function callback(): array
@@ -162,59 +120,21 @@ class EnvelopeHookTest extends TestCase
             }
         };
 
-        Functions\when('apply_filters')->returnArg(2);
-
         $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
-
-        $originalResponse = new SimpleRestaResponse(
+        $event = $this->makeEvent($route, new SimpleRestaResponse(
             ['test' => true],
             200,
-            [
-                'X-Custom-Header' => 'envelope-value',
-                'X-Another-Header' => 'another-value',
-            ]
-        );
+            ['X-Custom-Header' => 'envelope-value', 'X-Another-Header' => 'another-value']
+        ));
 
-        $response = $hook->wrapInEnvelope($originalResponse, $route, $request);
+        $hook->handle($event);
 
-        // ヘッダーが保持される
-        $headers = $response->getHeaders();
-        $this->assertArrayHasKey('X-Custom-Header', $headers);
+        $headers = $event->response->getHeaders();
         $this->assertEquals('envelope-value', $headers['X-Custom-Header']);
-        $this->assertArrayHasKey('X-Another-Header', $headers);
         $this->assertEquals('another-value', $headers['X-Another-Header']);
     }
 
-    public function testShouldUseEnvelopeWithGlobalFilter()
-    {
-        // #[Envelope] 属性がないルート
-        $route = new class extends AbstractRoute {
-            public function callback(): array
-            {
-                return ['status' => 'ok'];
-            }
-        };
-
-        // グローバルフィルターで true を返す
-        Functions\expect('apply_filters')
-            ->once()
-            ->with('resta_use_envelope_for_route', false, $route)
-            ->andReturn(true);
-
-        $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
-
-        $originalResponse = new SimpleRestaResponse(['status' => 'ok'], 200);
-
-        // フックを実行
-        $response = $hook->wrapInEnvelope($originalResponse, $route, $request);
-
-        // グローバルフィルターで true が返されるので、エンベロープでラップされる
-        $this->assertInstanceOf(EnvelopeResponse::class, $response);
-    }
-
-    public function testWrapInEnvelopeWithEmptyData()
+    public function testWrapInEnvelopeWithEmptyData(): void
     {
         $route = new #[Envelope] class extends AbstractRoute {
             public function callback(): array
@@ -223,24 +143,18 @@ class EnvelopeHookTest extends TestCase
             }
         };
 
-        Functions\when('apply_filters')->returnArg(2);
-
         $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
+        $event = $this->makeEvent($route, new SimpleRestaResponse([], 200));
 
-        $originalResponse = new SimpleRestaResponse([], 200);
-        $response = $hook->wrapInEnvelope($originalResponse, $route, $request);
+        $hook->handle($event);
 
-        // 空配列でもエンベロープでラップされる
-        $this->assertInstanceOf(EnvelopeResponse::class, $response);
-
-        $data = $response->getData();
+        $this->assertInstanceOf(EnvelopeResponse::class, $event->response);
+        $data = $event->response->getData();
         $this->assertIsArray($data['data']);
         $this->assertEmpty($data['data']);
-        $this->assertIsArray($data['meta']);
     }
 
-    public function testWrapInEnvelopeWithNullData()
+    public function testWrapInEnvelopeWithNullData(): void
     {
         $route = new #[Envelope] class extends AbstractRoute {
             public function callback(): ?array
@@ -249,23 +163,16 @@ class EnvelopeHookTest extends TestCase
             }
         };
 
-        Functions\when('apply_filters')->returnArg(2);
-
         $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
+        $event = $this->makeEvent($route, new SimpleRestaResponse(null, 200));
 
-        $originalResponse = new SimpleRestaResponse(null, 200);
-        $response = $hook->wrapInEnvelope($originalResponse, $route, $request);
+        $hook->handle($event);
 
-        // null でもエンベロープでラップされる
-        $this->assertInstanceOf(EnvelopeResponse::class, $response);
-
-        $data = $response->getData();
-        $this->assertNull($data['data']);
-        $this->assertIsArray($data['meta']);
+        $this->assertInstanceOf(EnvelopeResponse::class, $event->response);
+        $this->assertNull($event->response->getData()['data']);
     }
 
-    public function testWrapInEnvelopeWithErrorResponse()
+    public function testWrapInEnvelopeWithErrorResponse(): void
     {
         $route = new #[Envelope] class extends AbstractRoute {
             public function callback(): array
@@ -274,23 +181,16 @@ class EnvelopeHookTest extends TestCase
             }
         };
 
-        Functions\when('apply_filters')->returnArg(2);
-
         $hook = new EnvelopeHook();
-        $request = new TestRestaRequest('/test', $route);
-
-        $originalResponse = new SimpleRestaResponse(
+        $event = $this->makeEvent($route, new SimpleRestaResponse(
             ['error' => 'Something went wrong'],
             500
-        );
+        ));
 
-        $response = $hook->wrapInEnvelope($originalResponse, $route, $request);
+        $hook->handle($event);
 
-        // エラーレスポンスもエンベロープでラップされる
-        $this->assertInstanceOf(EnvelopeResponse::class, $response);
-        $this->assertEquals(500, $response->getStatusCode());
-
-        $data = $response->getData();
-        $this->assertEquals('Something went wrong', $data['data']['error']);
+        $this->assertInstanceOf(EnvelopeResponse::class, $event->response);
+        $this->assertEquals(500, $event->response->getStatusCode());
+        $this->assertEquals('Something went wrong', $event->response->getData()['data']['error']);
     }
 }

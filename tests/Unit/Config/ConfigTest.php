@@ -102,14 +102,12 @@ class ConfigTest extends TestCase
             'schemaDirectory' => [['/schema', 'Schema\\']],
             'dependencies' => ['Interface' => 'Implementation'],
             'hooks' => ['HookClass'],
-            'use-swagger' => true,
         ]);
 
         $this->assertEquals([['/path', 'Namespace\\']], $config->routeDirectory);
         $this->assertEquals([['/schema', 'Schema\\']], $config->schemaDirectory);
         $this->assertEquals(['Interface' => 'Implementation'], $config->dependencies);
         $this->assertEquals(['HookClass'], $config->hooks);
-        $this->assertTrue($config->useSwagger);
     }
 
     public function testHooksArrayFiltersNonStringValues()
@@ -142,10 +140,60 @@ class ConfigTest extends TestCase
         $this->assertEquals(['HookClass', 'AnotherHook'], $config->hooks);
     }
 
-    public function testUseSwaggerDefaultsToFalse()
+    // --- listeners ---
+
+    public function testListenersDefaultsToEmptyArray(): void
     {
         $config = new Config([]);
 
-        $this->assertFalse($config->useSwagger);
+        $this->assertIsArray($config->listeners);
+        $this->assertEmpty($config->listeners);
     }
+
+    public function testListenersStoresClassNames(): void
+    {
+        $config = new Config([
+            'listeners' => ['MyListener', 'AnotherListener'],
+        ]);
+
+        $this->assertEquals(['MyListener', 'AnotherListener'], $config->listeners);
+    }
+
+    public function testListenersFiltersNonStringValues(): void
+    {
+        $config = new Config([
+            'listeners' => ['ValidListener', 123, null, ['nested'], 'AnotherListener'],
+        ]);
+
+        $this->assertEquals(['ValidListener', 'AnotherListener'], $config->listeners);
+    }
+
+    public function testListenersRemovesDuplicates(): void
+    {
+        $config = new Config([
+            'listeners' => ['ListenerA', 'ListenerA', 'ListenerB'],
+        ]);
+
+        $this->assertEquals(['ListenerA', 'ListenerB'], $config->listeners);
+    }
+
+    // --- adapters ---
+
+    public function testAdaptersDefaultsToEmptyArray(): void
+    {
+        $config = new Config([]);
+
+        $this->assertIsArray($config->adapters);
+        $this->assertEmpty($config->adapters);
+    }
+
+    public function testAdaptersStoresClassNames(): void
+    {
+        $config = new Config([
+            'adapters' => ['AdapterA', 'AdapterB'],
+        ]);
+
+        $this->assertEquals(['AdapterA', 'AdapterB'], $config->adapters);
+    }
+
 }
