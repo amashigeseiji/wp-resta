@@ -80,63 +80,60 @@ class ResponseSchema
     {
         $paths = [];
 
-        foreach ($this->routes->routes as $namespace => $routesInNamespace) {
-            foreach ($routesInNamespace as $route) {
-                assert($route instanceof RouteInterface);
-                $path = $route->getReadableRoute();
+        foreach ($this->routes->routes as $route) {
+            $path = $route->getReadableRoute();
 
-                // パラメータを集めておく
-                $parameters = [];
-                foreach ($route->getArgs() as $name => $def) {
-                    $parameters[] = [
-                        'name' => $name,
-                        'required' => $def['required'],
-                        'description' => $def['description'],
-                        'in' => str_contains($path, "{{$name}}") ? 'path' : 'query', // 他にもヘッダー埋め込みなどの種類があるが、あまり使わなそうなので決め打ちにしておきます
-                        'schema' => [
-                            'type' => $def['type'],
-                        ]
-                    ];
-                }
+            // パラメータを集めておく
+            $parameters = [];
+            foreach ($route->getArgs() as $name => $def) {
+                $parameters[] = [
+                    'name' => $name,
+                    'required' => $def['required'],
+                    'description' => $def['description'],
+                    'in' => str_contains($path, "{{$name}}") ? 'path' : 'query', // 他にもヘッダー埋め込みなどの種類があるが、あまり使わなそうなので決め打ちにしておきます
+                    'schema' => [
+                        'type' => $def['type'],
+                    ]
+                ];
+            }
 
-                // attribute から meta 情報を取得
-                $reflection = new ReflectionClass($route::class);
-                $meta = new RouteMeta(); // デフォルト
-                foreach ($reflection->getAttributes(RouteMeta::class) as $attr) {
-                    $meta = $attr->newInstance();
-                }
+            // attribute から meta 情報を取得
+            $reflection = new ReflectionClass($route::class);
+            $meta = new RouteMeta(); // デフォルト
+            foreach ($reflection->getAttributes(RouteMeta::class) as $attr) {
+                $meta = $attr->newInstance();
+            }
 
-                // スキーマを取得（明示的定義がない場合は自動推論）
-                $schema = $route->getSchema();
-                if ($schema === null) {
-                    $schema = $this->inference->inferSchema($route);
-                }
-                $schema = $schema ?? [];
+            // スキーマを取得（明示的定義がない場合は自動推論）
+            $schema = $route->getSchema();
+            if ($schema === null) {
+                $schema = $this->inference->inferSchema($route);
+            }
+            $schema = $schema ?? [];
 
-                // #[Envelope] 属性があればエンベロープ構造でラップ
-                $hasEnvelope = count($reflection->getAttributes(Envelope::class)) > 0;
-                if ($hasEnvelope && !empty($schema)) {
-                    $schema = $this->wrapSchemaInEnvelope($schema);
-                }
+            // #[Envelope] 属性があればエンベロープ構造でラップ
+            $hasEnvelope = count($reflection->getAttributes(Envelope::class)) > 0;
+            if ($hasEnvelope && !empty($schema)) {
+                $schema = $this->wrapSchemaInEnvelope($schema);
+            }
 
-                $paths[$path] = [
-                    strtolower($route->getMethods()) => [
-                        'description' => $meta->description,
-                        'tags' => $meta->tags,
-                        'parameters' => $parameters,
-                        'responses' => [
-                            '200' => [
-                                'description' => 'OK',
-                                'content' => [
-                                    'application/json' => [
-                                        'schema' => $schema
-                                    ]
+            $paths[$path] = [
+                strtolower($route->getMethods()) => [
+                    'description' => $meta->description,
+                    'tags' => $meta->tags,
+                    'parameters' => $parameters,
+                    'responses' => [
+                        '200' => [
+                            'description' => 'OK',
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => $schema
                                 ]
                             ]
                         ]
                     ]
-                ];
-            }
+                ]
+            ];
         }
 
         return $paths;

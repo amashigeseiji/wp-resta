@@ -22,9 +22,7 @@ class RegisterRestRoutes
 {
     private Container $container;
 
-    /**
-     * @var array<string, RouteInterface[]>
-     */
+    /** @var RouteInterface[] */
     public readonly array $routes;
 
     public function __construct(
@@ -52,10 +50,7 @@ class RegisterRestRoutes
                 $routeObject = $container->get($class);
                 $routeObject->setNamespace($apiNamespace);
                 $container->bind($class, $routeObject);
-                if (!isset($routes[$apiNamespace])) {
-                    $routes[$apiNamespace] = [];
-                }
-                $routes[$apiNamespace][] = $routeObject;
+                $routes[] = $routeObject;
             }
         }
         $this->routes = $routes;
@@ -65,25 +60,20 @@ class RegisterRestRoutes
     public function register() : void
     {
         $handler = $this->container->get(RequestHandler::class);
-        foreach ($this->routes as $apiNamespace => $routes) {
-            foreach ($routes as $route) {
-                assert($route instanceof RouteInterface);
-                register_rest_route(
-                    $route->getNamespace(),
-                    $route->getRouteRegex(),
-                    [
-                        [
-                            'methods' => $route->getMethods(),
-                            'callback' => function (WP_REST_Request $request) use ($route, $handler): WP_REST_Response {
-                                return $handler->handle($request, $route);
-                            },
-                            'permission_callback' => [$route, 'permissionCallback'],
-                            'args' => $route->getArgs(),
-                        ],
-                        'schema' => [$route, 'getSchema'],
-                    ],
-                );
-            }
+        foreach ($this->routes as $route) {
+            register_rest_route(
+                $route->getNamespace(),
+                $route->getRouteRegex(),
+                [
+                    'methods' => $route->getMethods(),
+                    'callback' => function (WP_REST_Request $request) use ($route, $handler): WP_REST_Response {
+                        return $handler->handle($request, $route);
+                    },
+                    'permission_callback' => [$route, 'permissionCallback'],
+                    'args' => $route->getArgs(),
+                    'schema' => [$route, 'getSchema'],
+                ],
+            );
         }
     }
 }
