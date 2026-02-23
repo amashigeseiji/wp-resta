@@ -154,13 +154,13 @@ class LifecycleListener
         // ルート登録完了後に実行
     }
 
-    // 遷移前ガードイベント: stopPropagation() で遷移をキャンセルできる
+    // 遷移前ガードイベント: $event->path を変えると遷移先を切り替えられる
+    // ※ stopPropagation() は後続リスナーを止めるだけで遷移自体はキャンセルされない
     #[Listen('Wp\Resta\Kernel\KernelState::boot.guard')]
     public function guardBoot(TransitionEvent $event): void
     {
-        if (!$this->canBoot()) {
-            $event->stopPropagation(); // 遷移をキャンセル
-        }
+        // 複数遷移先を持つ Transition なら $event->path = 'stop' のように切り替え可能
+        // 単一遷移先の場合は path を変えても例外になるため注意
     }
 }
 ```

@@ -35,6 +35,9 @@ require_once __DIR__ . '/vendor/autoload.php';
     'hooks' => [
         \Wp\Resta\Hooks\SwaggerHook::class,  // Swagger UI を有効化
     ],
+    'adapters' => [
+        \Wp\Resta\Kernel\WpKernelAdapter::class,  // WordPress フック統合（必須）
+    ],
 ]);
 ```
 

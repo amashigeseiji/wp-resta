@@ -78,13 +78,39 @@ wp-resta/
 │   │       │   ├── Post.php
 │   │       │   └── Posts.php
 │   │       └── Schemas/       # スキーマクラスのサンプル
-│   ├── Hooks/                 # WordPress フック管理
+│   ├── Hooks/                 # WordPress フック管理（移行レイヤー）
 │   │   ├── HookProviderInterface.php
 │   │   ├── HookProvider.php
-│   │   ├── InternalHooks.php  # 内部フック
-│   │   ├── SwaggerHook.php   # Swagger UI 統合
+│   │   ├── SwaggerHook.php    # Swagger UI 統合
 │   │   ├── Enum/RestApiHook.php  # REST API フック定義
 │   │   └── Attributes/        # フック用 Attribute
+│   ├── EventDispatcher/       # フレームワーク内部イベントシステム
+│   │   ├── Dispatcher.php
+│   │   ├── DispatcherInterface.php
+│   │   ├── Event.php
+│   │   ├── NamedEvent.php
+│   │   ├── EventHandler.php
+│   │   ├── EventListener.php
+│   │   ├── EventListenerInterface.php
+│   │   └── Attributes/Listen.php
+│   ├── StateMachine/          # ステートマシン基盤
+│   │   ├── StateMachine.php
+│   │   ├── TransitionRegistry.php
+│   │   ├── Transition.php     # Attribute
+│   │   ├── TransitionEvent.php
+│   │   ├── TransitionApplier.php
+│   │   ├── HasState.php
+│   │   ├── AffordanceAware.php
+│   │   └── Affordance.php
+│   ├── Kernel/                # カーネルライフサイクル
+│   │   ├── Kernel.php
+│   │   ├── KernelState.php    # Booting → Bootstrapped → RoutesRegistered → ...
+│   │   └── WpKernelAdapter.php  # WP フックとの橋渡し
+│   ├── Lifecycle/             # リクエストライフサイクル
+│   │   ├── Request.php
+│   │   ├── RequestContext.php
+│   │   ├── RequestHandler.php
+│   │   └── RequestState.php   # Received → Prepared → Invoked → Responded
 │   └── OpenApi/               # Swagger ドキュメント生成
 ├── tests/
 │   ├── Unit/                  # ユニットテスト
