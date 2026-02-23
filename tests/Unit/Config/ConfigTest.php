@@ -140,4 +140,60 @@ class ConfigTest extends TestCase
         $this->assertEquals(['HookClass', 'AnotherHook'], $config->hooks);
     }
 
+    // --- listeners ---
+
+    public function testListenersDefaultsToEmptyArray(): void
+    {
+        $config = new Config([]);
+
+        $this->assertIsArray($config->listeners);
+        $this->assertEmpty($config->listeners);
+    }
+
+    public function testListenersStoresClassNames(): void
+    {
+        $config = new Config([
+            'listeners' => ['MyListener', 'AnotherListener'],
+        ]);
+
+        $this->assertEquals(['MyListener', 'AnotherListener'], $config->listeners);
+    }
+
+    public function testListenersFiltersNonStringValues(): void
+    {
+        $config = new Config([
+            'listeners' => ['ValidListener', 123, null, ['nested'], 'AnotherListener'],
+        ]);
+
+        $this->assertEquals(['ValidListener', 'AnotherListener'], $config->listeners);
+    }
+
+    public function testListenersRemovesDuplicates(): void
+    {
+        $config = new Config([
+            'listeners' => ['ListenerA', 'ListenerA', 'ListenerB'],
+        ]);
+
+        $this->assertEquals(['ListenerA', 'ListenerB'], $config->listeners);
+    }
+
+    // --- adapters ---
+
+    public function testAdaptersDefaultsToEmptyArray(): void
+    {
+        $config = new Config([]);
+
+        $this->assertIsArray($config->adapters);
+        $this->assertEmpty($config->adapters);
+    }
+
+    public function testAdaptersStoresClassNames(): void
+    {
+        $config = new Config([
+            'adapters' => ['AdapterA', 'AdapterB'],
+        ]);
+
+        $this->assertEquals(['AdapterA', 'AdapterB'], $config->adapters);
+    }
+
 }

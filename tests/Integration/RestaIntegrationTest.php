@@ -132,4 +132,59 @@ class RestaIntegrationTest extends TestCase
 
         $this->assertTrue(true);
     }
+
+    public function testRestaInitRegistersListenerViaListenersConfig(): void
+    {
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
+
+        $called = false;
+        $listener = new class($called) {
+            public function __construct(private bool &$flag) {}
+            public function onRoute(\Wp\Resta\REST\RouteInvocationEvent $event): void
+            {
+                $this->flag = true;
+            }
+        };
+
+        Container::getInstance()->bind(get_class($listener), $listener);
+
+        $config = array_merge($this->baseConfig(), [
+            'listeners' => [get_class($listener)],
+        ]);
+
+        $resta = new Resta();
+        $resta->init($config);
+
+        // Dispatcher にリスナーが登録されたことを確認するため RouteInvocationEvent を dispatch する
+        $dispatcher = Container::getInstance()->get(\Wp\Resta\EventDispatcher\DispatcherInterface::class);
+
+        $route   = new class extends \Wp\Resta\REST\AbstractRoute {
+            public function callback(): array { return []; }
+        };
+        $request  = new \Wp\Resta\REST\Http\TestRestaRequest('/test', $route);
+        $response = new \Wp\Resta\REST\Http\SimpleRestaResponse([], 200);
+
+        $dispatcher->dispatch(new \Wp\Resta\REST\RouteInvocationEvent($request, $route, $response));
+
+        $this->assertTrue($called, 'listeners config で登録したリスナーが RouteInvocationEvent を受け取れること');
+    }
+
+    public function testRestaInitThrowsForInvalidAdapter(): void
+    {
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('must extend WpKernelAdapter');
+
+        Container::getInstance()->bind(\stdClass::class, new \stdClass());
+
+        $config = array_merge($this->baseConfig(), [
+            'adapters' => [\stdClass::class],
+        ]);
+
+        $resta = new Resta();
+        $resta->init($config);
+    }
 }
