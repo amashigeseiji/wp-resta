@@ -50,7 +50,7 @@ class RequestHandler
             $after = $req->currentState();
             // 状態が遷移しなかった場合は合法的な遷移ではない
             if ($before === $after) {
-                throw new \RuntimeException('Failed to trantision.');
+                throw new \RuntimeException('Failed to transition.');
             }
         }
         return $req->ctx->wpResponse;
