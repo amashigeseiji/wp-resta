@@ -10,6 +10,7 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use Mockery;
 use ReflectionClass;
+use Wp\Resta\Kernel\WpKernelAdapter;
 
 class RestaIntegrationTest extends TestCase
 {
@@ -39,6 +40,7 @@ class RestaIntegrationTest extends TestCase
             'routeDirectory' => [
                 [__DIR__ . '/../Fixtures/Routes', 'Test\\Resta\\Fixtures\\Routes\\', 'test'],
             ],
+            'adapters' => [WpKernelAdapter::class]
         ];
     }
 

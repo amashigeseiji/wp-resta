@@ -161,7 +161,7 @@ class StateMachineTest extends TestCase
         $this->assertSame(DoorState::Open, $door->currentState());
     }
 
-    public function testStopPropagationInGuardCancelsTransition(): void
+    public function testStopPropagationInGuardDoNotCancelsTransition(): void
     {
         $dispatcher = new Dispatcher();
         $registry   = new TransitionRegistry();
@@ -182,9 +182,9 @@ class StateMachineTest extends TestCase
         $door = new Door(DoorState::Closed);
         $sm->apply($door, 'open');
 
-        // ガードで止めたので状態は変わらず、after イベントも発火しない
-        $this->assertSame(DoorState::Closed, $door->currentState());
-        $this->assertFalse($afterFired);
+        // ガードで stopPropagation しても状態は変化する
+        $this->assertSame(DoorState::Open, $door->currentState());
+        $this->assertTrue($afterFired);
     }
 
     public function testEventNamesFollowClassDoubleColonActionConvention(): void
