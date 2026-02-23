@@ -83,7 +83,11 @@ class Resta
         // WpKernelAdapter はオートワイヤリングで解決される
         foreach ($config->adapters as $adapter) {
             $adapterInstance = $container->get($adapter);
-            assert($adapterInstance instanceof WpKernelAdapter);
+            if (!($adapterInstance instanceof WpKernelAdapter)) {
+                throw new \InvalidArgumentException(
+                    sprintf('%s must extend WpKernelAdapter', $adapter)
+                );
+            }
             $adapterInstance->install();
         }
     }
