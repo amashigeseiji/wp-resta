@@ -121,7 +121,7 @@ class Container
                 throw new Exception('$' . $param->getName() . ' is invalid');
             }
             $typeName = $type->getName();
-            if (!class_exists($typeName)) {
+            if (!class_exists($typeName) && !interface_exists($typeName)) {
                 throw new RuntimeException("\"\${$typeName}\" cannot resolve.");
             }
             $args[$param->name] = $this->get($typeName);
