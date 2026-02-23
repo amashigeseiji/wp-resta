@@ -26,7 +26,7 @@ class Event
         return $this->properties[$key] ?? null;
     }
 
-    public function __set(string $key, mixed $value)
+    public function __set(string $key, mixed $value): void
     {
         $this->properties[$key] = $value;
     }
