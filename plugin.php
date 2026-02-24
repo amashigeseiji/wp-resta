@@ -29,3 +29,10 @@ if (isset($restaConfig['autoloader'])) {
 }
 
 (new Wp\Resta\Resta)->init($restaConfig);
+
+register_activation_hook(__FILE__, function() {
+    add_rewrite_tag('%rest_api_doc%', '([^&]+)');
+    add_rewrite_rule('^rest-api/schema/?', 'index.php?rest_api_doc=schema', 'top');
+    flush_rewrite_rules();
+});
+register_deactivation_hook(__FILE__, fn() => flush_rewrite_rules());

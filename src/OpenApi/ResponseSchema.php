@@ -4,7 +4,6 @@ namespace Wp\Resta\OpenApi;
 use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Attributes\Envelope;
-use Wp\Resta\REST\RouteInterface;
 use Wp\Resta\REST\Schemas\Schemas;
 use Wp\Resta\REST\Schemas\SchemaInference;
 use ReflectionClass;
@@ -137,19 +136,6 @@ class ResponseSchema
         }
 
         return $paths;
-    }
-
-    public function init() : void
-    {
-        add_rewrite_tag('%rest_api_doc%', '([^&]+)');
-        add_rewrite_rule('^rest-api/schema/?', 'index.php?rest_api_doc=schema', 'top');
-        flush_rewrite_rules();
-        add_action('wp', function () {
-            if ( get_query_var('rest_api_doc') !== 'schema') {
-                return;
-            }
-            wp_send_json($this->responseSchema());
-        });
     }
 
     /**
