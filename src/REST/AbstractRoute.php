@@ -130,7 +130,7 @@ abstract class AbstractRoute implements RouteInterface
                 throw new LogicException($this::class . "::callback() has invalid argument `{$type->getName()} \${$param->name}`. Please check URL_PARAMS has `{$param->name}` parameter.");
             }
             $class = $type->getName();
-            if (!class_exists($class)) {
+            if (!class_exists($class) && !interface_exists($class)) {
                 throw new RuntimeException('cannot resolve type: ' . $class);
             }
             // クラス/インターフェースなど一意に確定できるものだけインジェクトする

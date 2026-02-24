@@ -63,6 +63,28 @@ if (!class_exists('WP_REST_Request')) {
         /** @var array<string, mixed> */
         private array $params = [];
 
+        public function __construct(
+            private string $method = '',
+            private string $route = ''
+        ) {
+        }
+
+        public function getRoute(): string
+        {
+            return $this->route;
+        }
+
+        public function set_param(string $param, mixed $value): void
+        {
+            $this->params[$param] = $value;
+        }
+
+        /** @return array<string, mixed> */
+        public function get_query_params(): array
+        {
+            return $this->params;
+        }
+
         public function offsetExists(mixed $offset): bool
         {
             return isset($this->params[$offset]);

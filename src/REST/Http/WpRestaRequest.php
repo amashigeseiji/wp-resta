@@ -33,4 +33,9 @@ class WpRestaRequest implements RestaRequestInterface
         // 配列アクセスで URL パラメータを取得できる
         return $this->inner[$name] ?? null;
     }
+
+    public function getQueryParams(): array
+    {
+        return $this->inner->get_query_params();
+    }
 }
