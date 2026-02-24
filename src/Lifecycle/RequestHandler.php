@@ -116,11 +116,7 @@ class RequestHandler
 
     private function transitionEventName(string $action, bool $guard = false): string
     {
-        $actions = [
-            'convert' => RequestState::Received,
-            'invoke' => RequestState::Prepared,
-            'respond' => RequestState::Invoked,
-        ];
+        $actions = RequestState::actions();
 
         return $guard
             ? TransitionEvent::guardEventName($actions[$action], $action)
