@@ -5,7 +5,7 @@
  * Description: REST ルート定義
  * Version: 0.10.0
  * Author: amashigeseiji
- * License: GPL2
+ * License: AGPL
  *
  * @package Wp\Resta
  */
