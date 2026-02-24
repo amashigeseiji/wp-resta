@@ -2,9 +2,12 @@
 namespace Wp\Resta\Lifecycle;
 
 use Wp\Resta\StateMachine\Transition;
+use Wp\Resta\StateMachine\TransitionMetadata;
 
 enum RequestState
 {
+    use TransitionMetadata;
+
     #[Transition(to: RequestState::Prepared,  on: 'convert')]
     case Received;
 
