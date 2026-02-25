@@ -70,7 +70,7 @@ class WpRestaServer extends WP_REST_Server
      * プロキシチェックをスキップして parent:: に委譲する。
      *
      * @param \WP_REST_Request $request
-     * @return array|\WP_Error
+     * @return array<mixed>|\WP_Error
      */
     protected function match_request_to_handler($request)
     {
