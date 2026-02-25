@@ -4,6 +4,7 @@ namespace Wp\Resta\REST;
 use LogicException;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
+use Wp\Resta\Kernel\WpRestaServer;
 use Wp\Resta\Lifecycle\RequestHandler;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -60,7 +61,12 @@ class RegisterRestRoutes
     public function register() : void
     {
         $handler = $this->container->get(RequestHandler::class);
+        WpRestaServer::setRequestHandler($handler);
         foreach ($this->routes as $route) {
+            if ($route instanceof AbstractProxyRoute) {
+                WpRestaServer::addProxyRoute($route);
+                continue;
+            }
             register_rest_route(
                 $route->getNamespace(),
                 $route->getRouteRegex(),
@@ -72,7 +78,7 @@ class RegisterRestRoutes
                     'permission_callback' => [$route, 'permissionCallback'],
                     'args' => $route->getArgs(),
                     'schema' => [$route, 'getSchema'],
-                ],
+                ]
             );
         }
     }

@@ -17,10 +17,12 @@ class TestRestaRequest implements RestaRequestInterface
     /**
      * @param string $path リクエストパス（例: '/example/post/123'）
      * @param AbstractRoute $route ルートオブジェクト（パターンと namespace を取得するため）
+     * @param array<string, mixed> $queryParams クエリパラメータ（テスト用）
      */
     public function __construct(
         private string $path,
-        AbstractRoute $route
+        AbstractRoute $route,
+        private array $queryParams = []
     ) {
         $this->parseUrlParams($route->getRouteRegex(), $route->getNamespace());
     }
@@ -28,6 +30,11 @@ class TestRestaRequest implements RestaRequestInterface
     public function getUrlParam(string $name): mixed
     {
         return $this->urlParams[$name] ?? null;
+    }
+
+    public function getQueryParams(): array
+    {
+        return $this->queryParams;
     }
 
     /**

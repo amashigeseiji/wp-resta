@@ -57,11 +57,65 @@ if (!class_exists('WP_REST_Response')) {
     class WP_REST_Response extends WP_HTTP_Response {}
 }
 
+if (!class_exists('WP_REST_Server')) {
+    class WP_REST_Server
+    {
+        protected function match_request_to_handler($request)
+        {
+            return new \WP_Error('rest_no_route', 'No route found.');
+        }
+    }
+}
+
+if (!class_exists('WP_Error')) {
+    class WP_Error
+    {
+        public function __construct(
+            private string $code = '',
+            private string $message = ''
+        ) {}
+
+        public function get_error_code(): string
+        {
+            return $this->code;
+        }
+    }
+}
+
+if (!function_exists('is_wp_error')) {
+    function is_wp_error(mixed $thing): bool
+    {
+        return $thing instanceof \WP_Error;
+    }
+}
+
 if (!class_exists('WP_REST_Request')) {
     class WP_REST_Request implements ArrayAccess
     {
         /** @var array<string, mixed> */
         private array $params = [];
+
+        public function __construct(
+            private string $method = '',
+            private string $route = ''
+        ) {
+        }
+
+        public function getRoute(): string
+        {
+            return $this->route;
+        }
+
+        public function set_param(string $param, mixed $value): void
+        {
+            $this->params[$param] = $value;
+        }
+
+        /** @return array<string, mixed> */
+        public function get_query_params(): array
+        {
+            return $this->params;
+        }
 
         public function offsetExists(mixed $offset): bool
         {
