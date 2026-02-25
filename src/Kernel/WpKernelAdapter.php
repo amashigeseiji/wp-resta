@@ -7,6 +7,7 @@ use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\EventDispatcher\Event;
 use Wp\Resta\Hooks\HookProviderInterface;
 use Wp\Resta\StateMachine\StateMachine;
+use Wp\Resta\Kernel\WpRestaServer;
 
 /**
  * WordPress ライフサイクルをフレームワークに橋渡しする唯一のクラス。
@@ -33,6 +34,10 @@ class WpKernelAdapter
      */
     public function install(): void
     {
+        // WP_REST_Server をフレームワーク拡張版に差し替える
+        // rest_get_server() の初回呼び出し（rest_api_init の直前）より前に登録する必要がある
+        \add_filter('wp_rest_server_class', fn() => WpRestaServer::class, 5);
+
         // WP の REST API 初期化 → ルート登録の SM 遷移
         \add_action('rest_api_init', fn() =>
             $this->sm->apply($this->kernel, 'registerRoutes')

@@ -52,11 +52,20 @@ abstract class AbstractProxyRoute extends AbstractRoute
     protected const PROXY_PATH = '';
 
     /**
+     * プロキシ先パスを返す
+     */
+    public function getProxyPath(): string
+    {
+        return static::PROXY_PATH;
+    }
+
+    /**
      * レスポンスデータを変換する
      *
      * デフォルトはそのまま透過。フィールドの絞り込みや変換はここに書く。
+     * callback() の内部から呼ばれる。
      */
-    protected function transform(mixed $data): mixed
+    public function transform(mixed $data): mixed
     {
         return $data;
     }

@@ -46,6 +46,34 @@ class AbstractProxyRouteTest extends TestCase
         return new \WP_REST_Response($data, $status, $headers);
     }
 
+    // --- getProxyPath() / transform() ---
+
+    public function testGetProxyPathReturnsConstant(): void
+    {
+        $route = new class extends AbstractProxyRoute {
+            protected const PROXY_PATH = '/wp/v2/posts';
+        };
+
+        $this->assertEquals('/wp/v2/posts', $route->getProxyPath());
+    }
+
+    public function testGetProxyPathEmptyByDefault(): void
+    {
+        $route = new class extends AbstractProxyRoute {};
+
+        $this->assertEquals('', $route->getProxyPath());
+    }
+
+    public function testTransformDefaultReturnsDataUnchanged(): void
+    {
+        $route = new class extends AbstractProxyRoute {
+            protected const PROXY_PATH = '/wp/v2/posts';
+        };
+
+        $data = ['id' => 1, 'title' => 'Test'];
+        $this->assertEquals($data, $route->transform($data));
+    }
+
     // --- 基本動作 ---
 
     public function testDataIsPassedThrough(): void
@@ -111,7 +139,7 @@ class AbstractProxyRouteTest extends TestCase
         $route = new class extends AbstractProxyRoute {
             protected const PROXY_PATH = '/wp/v2/posts';
 
-            protected function transform(mixed $data): mixed
+            public function transform(mixed $data): mixed
             {
                 return array_map(fn($post) => ['id' => $post['id']], $data);
             }
