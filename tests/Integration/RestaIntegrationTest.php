@@ -187,4 +187,30 @@ class RestaIntegrationTest extends TestCase
         $resta = new Resta();
         $resta->init($config);
     }
+
+    public function testRestaInitBindsInterfaceDependency(): void
+    {
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
+
+        $config = array_merge($this->baseConfig(), [
+            'dependencies' => [
+                TestGreeterInterface::class => TestGreeter::class,
+            ],
+        ]);
+
+        $resta = new Resta();
+        $resta->init($config);
+
+        $resolved = Container::getInstance()->get(TestGreeterInterface::class);
+        $this->assertInstanceOf(TestGreeter::class, $resolved, 'dependencies config で interface に実装クラスをバインドできること');
+    }
+}
+
+interface TestGreeterInterface
+{
+}
+
+class TestGreeter implements TestGreeterInterface
+{
 }
