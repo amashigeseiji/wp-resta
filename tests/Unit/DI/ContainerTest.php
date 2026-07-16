@@ -166,6 +166,16 @@ class ContainerTest extends TestCase
 
         $this->assertInstanceOf(AnotherImplementation::class, $instance);
     }
+
+    public function testResolveInterfaceTypedConstructorParameter()
+    {
+        $container = Container::getInstance();
+        $container->bind(TestInterface::class, TestImplementation::class);
+
+        $instance = $container->get(ClassWithInterfaceDependency::class);
+
+        $this->assertInstanceOf(TestImplementation::class, $instance->getDependency());
+    }
 }
 
 // テスト用クラス
@@ -184,6 +194,21 @@ class ClassWithDependency
     private $dependency;
 
     public function __construct(SimpleClass $dependency)
+    {
+        $this->dependency = $dependency;
+    }
+
+    public function getDependency()
+    {
+        return $this->dependency;
+    }
+}
+
+class ClassWithInterfaceDependency
+{
+    private $dependency;
+
+    public function __construct(TestInterface $dependency)
     {
         $this->dependency = $dependency;
     }

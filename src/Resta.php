@@ -28,7 +28,7 @@ class Resta
 
         foreach ($config->dependencies as $interface => $dependency) {
             if (is_string($interface)) {
-                assert(class_exists($interface));
+                assert(class_exists($interface) || interface_exists($interface));
                 $container->bind($interface, $dependency);
             } else {
                 $container->bind($dependency);
