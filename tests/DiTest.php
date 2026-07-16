@@ -13,6 +13,9 @@ class Sample {}
 class Sample2 {}
 interface SampleInterface {}
 class Sample3 implements SampleInterface {}
+class SampleConsumer {
+    public function __construct(public readonly SampleInterface $sample) {}
+}
 
 class DiTest extends TestCase
 {
@@ -80,5 +83,15 @@ class DiTest extends TestCase
         $container->unbind(SampleInterface::class);
         $container->bind(SampleInterface::class, Sample3::class);
         $this->assertEquals(new Sample3, $container->get(SampleInterface::class));
+    }
+
+    public function testResolveInterfaceTypedConstructorParameter()
+    {
+        $container = Container::getInstance();
+        $container->unbind(SampleInterface::class);
+        $container->unbind(SampleConsumer::class);
+        $container->bind(SampleInterface::class, Sample3::class);
+        $consumer = $container->get(SampleConsumer::class);
+        $this->assertInstanceOf(Sample3::class, $consumer->sample);
     }
 }
