@@ -110,9 +110,10 @@ abstract class AbstractRoute implements RouteInterface
                 }
                 if (isset($request[$param->name])) {
                     $regex = '/' . $define[$param->name]['regex'] . '/';
-                    if (preg_match($regex, $request[$param->name])) {
-                        $args[$param->name] = $request[$param->name];
+                    if (!preg_match($regex, $request[$param->name])) {
+                        throw new RuntimeException($param->name . ' is invalid.');
                     }
+                    $args[$param->name] = $request[$param->name];
                 } elseif ($param->isOptional()) {
                     $args[$param->name] = $param->getDefaultValue();
                 }
