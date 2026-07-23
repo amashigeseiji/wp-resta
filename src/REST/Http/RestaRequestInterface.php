@@ -21,4 +21,13 @@ interface RestaRequestInterface
      * @return mixed パラメータ値（存在しない場合は null）
      */
     public function getUrlParam(string $name): mixed;
+
+    /**
+     * クエリパラメータを取得
+     *
+     * URL クエリ文字列（?key=value）のパラメータを連想配列で返す。
+     *
+     * @return array<string, mixed>
+     */
+    public function getQueryParams(): array;
 }
