@@ -35,7 +35,7 @@ class RegisterRestRoutes
             $dir = $routeDir[0];
             $namespace = $routeDir[1];
             $apiNamespace = $routeDir[2] ?? 'default';
-            $files = glob("{$dir}/*.php");
+            $files = glob("{$dir}/*.php") ?: [];
             foreach ($files as $file) {
                 $basename = basename($file, '.php');
                 /** @var class-string<RouteInterface> $class */
