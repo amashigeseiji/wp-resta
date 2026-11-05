@@ -21,7 +21,6 @@ class ContainerTest extends TestCase
         // Container をリセット
         $reflection = new ReflectionClass(Container::class);
         $instance = $reflection->getProperty('instance');
-        $instance->setAccessible(true);
         $instance->setValue(null, null);
 
         parent::tearDown();

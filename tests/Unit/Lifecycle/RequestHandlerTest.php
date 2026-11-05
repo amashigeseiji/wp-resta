@@ -49,7 +49,6 @@ class RequestHandlerTest extends TestCase
         // Container をリセット
         $reflection = new ReflectionClass(Container::class);
         $prop = $reflection->getProperty('instance');
-        $prop->setAccessible(true);
         $prop->setValue(null, null);
 
         parent::tearDown();
