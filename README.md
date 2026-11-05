@@ -41,13 +41,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 ]);
 ```
 
-`SwaggerHook` は `init` で `add_rewrite_rule()` を呼んで `/rest-api/schema` のルールを追加するだけで、リライトルールの flush は行いません（ライブラリ側で毎回 flush すると負荷が大きいため、利用側に委ねています）。`hooks` に `SwaggerHook` を追加したあとは、一度 `flush_rewrite_rules()` を実行してください。テーマの場合はテーマ切り替え時に実行するのが簡単です。
-
-```php
-add_action('after_switch_theme', 'flush_rewrite_rules');
-```
-
-管理画面の「設定 > パーマリンク」で「変更を保存」を押しても flush されます。
+`SwaggerHook` は `/rest-api/schema` のリライトルールを追加するだけで flush は行いません。追加後は管理画面の「設定 > パーマリンク」で保存するか、`flush_rewrite_rules()` を一度実行してください。
 
 ### プラグインで利用する場合
 
