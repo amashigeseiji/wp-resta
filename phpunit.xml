@@ -4,7 +4,8 @@
          bootstrap="tests/bootstrap.php"
          colors="true"
          cacheDirectory=".phpunit.cache"
-         beStrictAboutTestsThatDoNotTestAnything="false">
+         beStrictAboutTestsThatDoNotTestAnything="false"
+         displayDetailsOnTestsThatTriggerDeprecations="true">
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>

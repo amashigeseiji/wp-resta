@@ -27,7 +27,6 @@ class ResponseSchemaTest extends TestCase
         $this->container = Container::getInstance();
         $reflection = new ReflectionClass(Container::class);
         $instance = $reflection->getProperty('instance');
-        $instance->setAccessible(true);
         $instance->setValue(null, null);
         $this->container = Container::getInstance();
 
@@ -52,7 +51,6 @@ class ResponseSchemaTest extends TestCase
         // Containerをリセット
         $reflection = new ReflectionClass(Container::class);
         $instance = $reflection->getProperty('instance');
-        $instance->setAccessible(true);
         $instance->setValue(null, null);
 
         parent::tearDown();
