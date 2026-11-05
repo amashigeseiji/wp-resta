@@ -113,4 +113,54 @@ class ResponseSchemaTest extends TestCase
         $this->assertArrayHasKey('type', $schema);
         $this->assertEquals('string', $schema['type']);
     }
+
+    public function testSamePathWithDifferentMethodsAreMerged()
+    {
+        $responseSchema = $this->container->get(ResponseSchema::class);
+        $result = $responseSchema->responseSchema();
+
+        $path = '/test/same-path';
+        $this->assertArrayHasKey($path, $result['paths']);
+        $this->assertArrayHasKey('get', $result['paths'][$path]);
+        $this->assertArrayHasKey('post', $result['paths'][$path]);
+    }
+
+    public function testCommaSeparatedMethodsAreExpandedToEachMethod()
+    {
+        $responseSchema = $this->container->get(ResponseSchema::class);
+        $result = $responseSchema->responseSchema();
+
+        $path = '/test/multi-method';
+        $this->assertArrayHasKey($path, $result['paths']);
+        $this->assertSame(['get', 'post'], array_keys($result['paths'][$path]));
+        $this->assertArrayNotHasKey('get,post', $result['paths'][$path]);
+        $this->assertEquals($result['paths'][$path]['get'], $result['paths'][$path]['post']);
+    }
+
+    public function testArrayUrlParamsWithoutDescriptionDoesNotWarn()
+    {
+        $responseSchema = $this->container->get(ResponseSchema::class);
+
+        set_error_handler(function (int $errno, string $errstr): bool {
+            $this->fail("Unexpected warning: {$errstr}");
+        }, E_WARNING | E_NOTICE);
+        try {
+            $result = $responseSchema->responseSchema();
+        } finally {
+            restore_error_handler();
+        }
+
+        $path = '/test/array-param/{id}';
+        $this->assertArrayHasKey($path, $result['paths']);
+        $parameters = $result['paths'][$path]['get']['parameters'];
+        $byName = array_column($parameters, null, 'name');
+
+        $this->assertSame('id', $byName['id']['description']);
+        $this->assertTrue($byName['id']['required']);
+        $this->assertSame('path', $byName['id']['in']);
+
+        $this->assertSame('first_name', $byName['first_name']['description']);
+        $this->assertFalse($byName['first_name']['required']);
+        $this->assertSame('query', $byName['first_name']['in']);
+    }
 }
