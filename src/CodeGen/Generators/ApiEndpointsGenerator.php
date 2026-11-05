@@ -188,10 +188,14 @@ class ApiEndpointsGenerator
                 return "{$itemType}[]";
             case 'object':
                 if (isset($schema['properties'])) {
+                    // InterfaceGenerator と同じ規則で required を見る。
+                    // required に含まれないプロパティは optional（?）にする
+                    $requiredFields = $schema['required'] ?? [];
                     $props = [];
                     foreach ($schema['properties'] as $propName => $propSchema) {
                         $propType = $this->convertInlineSchema($propSchema, $parser);
-                        $props[] = "{$propName}: {$propType}";
+                        $optional = in_array($propName, $requiredFields, true) ? '' : '?';
+                        $props[] = "{$propName}{$optional}: {$propType}";
                     }
                     return '{ ' . implode('; ', $props) . ' }';
                 }
