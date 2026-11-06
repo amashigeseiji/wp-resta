@@ -6,7 +6,11 @@ use LogicException;
 use ReflectionMethod;
 use ReflectionNamedType;
 use RuntimeException;
+use Throwable;
 use Wp\Resta\DI\Container;
+use Wp\Resta\REST\Exception\HttpException;
+use Wp\Resta\REST\Exception\InvalidParameterException;
+use Wp\Resta\REST\Exception\MissingParameterException;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
@@ -85,14 +89,54 @@ abstract class AbstractRoute implements RouteInterface
                 }
 
                 $this->body = $result;
-            } catch (\Exception $e) {
-                if ($this->status === 200) {
-                    $this->status = 500;
+            } catch (HttpException $e) {
+                // 入力不正などクライアント起因のエラー。WP_Error と同じ形で返す
+                return new SimpleRestaResponse(
+                    $this->errorBody($e->getErrorCode(), $e->getMessage(), $e->getStatusCode(), $e->getData()),
+                    $e->getStatusCode(),
+                    $this->headers,
+                );
+            } catch (Throwable $e) {
+                // callback のバグや DI 解決失敗など。握り潰さずログに出して 500 を返す
+                // 匿名クラスの名前は NUL 文字を含み error_log がそこで切れるので取り除く
+                error_log(sprintf(
+                    '[wp-resta] Uncaught %s in %s: %s in %s:%d',
+                    $e::class,
+                    strtok(static::class, "\0"),
+                    $e->getMessage(),
+                    $e->getFile(),
+                    $e->getLine(),
+                ));
+                $data = [];
+                $message = 'Internal Server Error';
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    $message = $e->getMessage();
+                    $data['exception'] = $e::class;
                 }
+                return new SimpleRestaResponse(
+                    $this->errorBody('rest_internal_error', $message, 500, $data),
+                    500,
+                    $this->headers,
+                );
             }
         }
 
         return new SimpleRestaResponse($this->body, $this->status, $this->headers);
+    }
+
+    /**
+     * WP_Error::get_error_data() を含む WP_REST_Server のエラーレスポンスと同じ形のボディを組み立てる
+     *
+     * @param array<string, mixed> $data
+     * @return array{code: string, message: string, data: array<string, mixed>}
+     */
+    private function errorBody(string $code, string $message, int $status, array $data): array
+    {
+        return [
+            'code' => $code,
+            'message' => $message,
+            'data' => ['status' => $status] + $data,
+        ];
     }
 
     private function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
@@ -106,13 +150,13 @@ abstract class AbstractRoute implements RouteInterface
                 $value = $request->getUrlParam($param->name);
 
                 if ($define[$param->name]['required'] && $value === null) {
-                    throw new RuntimeException($param->name . ' is missing.');
+                    throw new MissingParameterException($param->name);
                 }
 
                 if ($value !== null) {
                     $regex = '/' . $define[$param->name]['regex'] . '/';
                     if (!preg_match($regex, (string)$value)) {
-                        throw new RuntimeException($param->name . ' is invalid.');
+                        throw new InvalidParameterException($param->name);
                     }
                     $args[$param->name] = $value;
                 } elseif ($param->isOptional()) {

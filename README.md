@@ -200,6 +200,22 @@ ROUTE定数のなかに `[var]` と `[]` で囲えばパスパラメータとし
 
 また、簡易な DI があるため、解決可能なクラスを引数に定義すると受け取ることができます。ランタイムに値が決まるもの(例えば `WP_REST_Request` )などはコンストラクタインジェクションでは値が決まっていませんが、コールバックが呼び出される時点では確定しているので、利用できます。
 
+### エラーレスポンス
+
+URL変数の値が regex に一致しない、または required な値が無い場合は 400 を返します。ボディは WordPress コアの `WP_Error` と同じ形（`code` / `message` / `data.status`）です。
+
+```json
+{"code": "rest_invalid_param", "message": "Invalid parameter(s): id", "data": {"status": 400, "params": {"id": "id is invalid."}}}
+```
+
+callback が例外を投げた場合は `error_log()` に記録したうえで 500 の `rest_internal_error` を返します。`WP_DEBUG` が有効なときは例外のメッセージとクラス名もボディに含まれます。
+
+任意のステータスで返したい場合は、callback から `Wp\Resta\REST\Exception\HttpException` を投げるとそのステータスとコードでレスポンスになります。
+
+```php
+throw new HttpException('Post not found', 404, 'rest_post_invalid_id');
+```
+
 ## DI
 
 簡易なDIを用意しています。
