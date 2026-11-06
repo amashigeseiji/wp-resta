@@ -66,8 +66,13 @@ class RegisterRestRoutes
                 $route->getRouteRegex(),
                 [
                     'methods' => $route->getMethods(),
+                    // ルートはプロセス内でシングルトンなので、callback 内で $this->status などに
+                    // 代入した値が次のリクエスト（/batch/v1、rest_preload_api_request、
+                    // rest_do_request() の内部呼び出し）に持ち越されないよう、リクエストごとに clone する。
+                    // 浅いコピーなのでコンストラクタ注入されたサービスは共有され、クラス宣言の初期値や
+                    // setNamespace() の名前空間はそのまま引き継がれる。
                     'callback' => function (WP_REST_Request $request) use ($route, $handler): WP_REST_Response {
-                        return $handler->handle($request, $route);
+                        return $handler->handle($request, clone $route);
                     },
                     'permission_callback' => [$route, 'permissionCallback'],
                     'args' => $route->getArgs(),
