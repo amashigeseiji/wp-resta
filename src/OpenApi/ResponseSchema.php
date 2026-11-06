@@ -87,8 +87,8 @@ class ResponseSchema
             foreach ($route->getArgs() as $name => $def) {
                 $parameters[] = [
                     'name' => $name,
-                    'required' => $def['required'],
-                    'description' => $def['description'],
+                    'required' => $def['required'] ?? false,
+                    'description' => $def['description'] ?? $name,
                     'in' => str_contains($path, "{{$name}}") ? 'path' : 'query', // 他にもヘッダー埋め込みなどの種類があるが、あまり使わなそうなので決め打ちにしておきます
                     'schema' => [
                         'type' => $def['type'],
@@ -116,23 +116,33 @@ class ResponseSchema
                 $schema = $this->wrapSchemaInEnvelope($schema);
             }
 
-            $paths[$path] = [
-                strtolower($route->getMethods()) => [
-                    'description' => $meta->description,
-                    'tags' => $meta->tags,
-                    'parameters' => $parameters,
-                    'responses' => [
-                        '200' => [
-                            'description' => 'OK',
-                            'content' => [
-                                'application/json' => [
-                                    'schema' => $schema
-                                ]
+            $operation = [
+                'description' => $meta->description,
+                'tags' => $meta->tags,
+                'parameters' => $parameters,
+                'responses' => [
+                    '200' => [
+                        'description' => 'OK',
+                        'content' => [
+                            'application/json' => [
+                                'schema' => $schema
                             ]
                         ]
                     ]
                 ]
             ];
+
+            // 同一パスに複数ルート（GET と POST を別クラスで定義など）がある場合に
+            // 上書きせずメソッド単位でマージする。
+            // getMethods() が 'GET,POST' のように複数返す場合は、OpenAPI の Path Item Object の
+            // キーは単一メソッドなので、メソッドごとに展開する。
+            foreach (explode(',', $route->getMethods()) as $method) {
+                $method = strtolower(trim($method));
+                if ($method === '') {
+                    continue;
+                }
+                $paths[$path][$method] = $operation;
+            }
         }
 
         return $paths;
