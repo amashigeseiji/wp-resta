@@ -41,6 +41,8 @@ require_once __DIR__ . '/vendor/autoload.php';
 ]);
 ```
 
+`SwaggerHook` は `/rest-api/schema` のリライトルールを追加するだけで flush は行いません。追加後は管理画面の「設定 > パーマリンク」で保存するか、`flush_rewrite_rules()` を一度実行してください。
+
 ### プラグインで利用する場合
 
 WordPress のプラグインとしても利用できます。
@@ -53,6 +55,8 @@ $ composer require composer/installers tenjuu99/wp-resta
 ```
 
 無事 wp-content/plugins 以下に展開できたら、管理画面からプラグインを有効化してください。
+
+プラグインとして有効化した場合は、`plugin.php` のアクティベーションフックで `flush_rewrite_rules()` が実行されるので、上記の flush は不要です。
 
 
 ## Example
@@ -139,7 +143,7 @@ class HelloWorld extends AbstractRoute
 
     public function callback(string $name) : string
     {
-        return "Hello, ${name}!";
+        return "Hello, {$name}!";
     }
 }
 ```
@@ -159,9 +163,9 @@ ROUTE定数のなかに `[var]` と `[]` で囲えばパスパラメータとし
 ```php
     protected const URL_PARAMS = [
         'id' => 'integer',
-        'id_not_required' => '!integer',
+        'id_not_required' => '?integer',
         'name' => 'string',
-        'name_not_required' => '!string',
+        'name_not_required' => '?string',
         'ok_or_ng' => '(ok|ng)',
         'first_name' => [
             'type' => 'string',
