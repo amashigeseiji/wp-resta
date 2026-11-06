@@ -44,7 +44,7 @@ class WpKernelAdapter
         );
 
         // URL パラメータをクエリパラメータより優先する
-        \add_filter('rest_request_parameter_order', [$this, 'prioritizeUrlParameters'], 10, 1);
+        \add_filter('rest_request_parameter_order', [$this, 'prioritizeUrlParameters'], 10, 2);
 
         // ユーザー定義の HookProvider を登録（移行レイヤー）
         $container = Container::getInstance();
@@ -65,15 +65,34 @@ class WpKernelAdapter
      * /path/to/123?id=456 のようなリクエストで、埋め込みパラメータ(123)を
      * クエリパラメータ(id=456)より優先させる。
      *
+     * このフィルタは WP のすべての WP_REST_Request に掛かるため、適用範囲を絞る。
+     * URL スロットが空のリクエスト（dispatch 前の内部リクエスト、[id] のような
+     * 名前付きキャプチャを持たないルート）では順序を変えない。
+     * WP_REST_Request::set_param() は $order[0] のスロットに書き込み、dispatch 時の
+     * set_url_params() は URL スロットを丸ごと代入するので、ここで URL を先頭に
+     * 動かすと set_param() した値が消えてしまうため。
+     *
+     * また、POST / PUT / DELETE や JSON ボディ付きのリクエストでは順序の先頭が
+     * 'GET' ではないので、位置に依らず 'URL' を先頭に移動する。
+     *
      * @param array<int, string> $order
+     * @param \WP_REST_Request|null $request
      * @return array<int, string>
      */
-    public function prioritizeUrlParameters(array $order): array
+    public function prioritizeUrlParameters(array $order, ?\WP_REST_Request $request = null): array
     {
-        if ($order[0] === 'GET' && $order[1] === 'URL') {
-            $order[0] = 'URL';
-            $order[1] = 'GET';
+        if ($request === null || $request->get_url_params() === []) {
+            return $order;
         }
+
+        $pos = array_search('URL', $order, true);
+        if ($pos === false || $pos === 0) {
+            return $order;
+        }
+
+        array_splice($order, $pos, 1);
+        array_unshift($order, 'URL');
+
         return $order;
     }
 }
