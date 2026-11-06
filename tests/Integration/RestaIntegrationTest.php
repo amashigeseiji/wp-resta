@@ -57,7 +57,7 @@ class RestaIntegrationTest extends TestCase
 
         Functions\expect('add_filter')
             ->once()
-            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 1);
+            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 2);
 
         $resta = new Resta();
         $resta->init($this->baseConfig());
@@ -71,7 +71,7 @@ class RestaIntegrationTest extends TestCase
         // WpKernelAdapter の add_filter と user の add_filter を個別に期待する
         Functions\expect('add_filter')
             ->once()
-            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 1);
+            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 2);
 
         Functions\expect('add_filter')
             ->once()
@@ -103,7 +103,7 @@ class RestaIntegrationTest extends TestCase
         Functions\when('add_action')->justReturn();
         Functions\expect('add_filter')
             ->once()
-            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 1);
+            ->with('rest_request_parameter_order', Mockery::type('array'), 10, 2);
 
         Container::getInstance()->bind(\stdClass::class, new \stdClass());
 
