@@ -303,6 +303,7 @@ class ApiEndpointsGeneratorTest extends TestCase
                                     'status' => ['type' => 'string'],
                                     'count' => ['type' => 'integer'],
                                 ],
+                                'required' => ['status', 'count'],
                             ],
                         ],
                     ],
@@ -312,6 +313,87 @@ class ApiEndpointsGeneratorTest extends TestCase
         $output = $this->generator->generate($parser);
 
         $this->assertStringContainsString('response: { status: string; count: number };', $output);
+    }
+
+    public function testGenerateResponseInlineObjectPropertyNotInRequiredIsOptional(): void
+    {
+        $parser = $this->makeParser($this->makeEndpoint('/status', 'get', [
+            'responses' => [
+                '200' => [
+                    'content' => [
+                        'application/json' => [
+                            'schema' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'id' => ['type' => 'integer'],
+                                    'name' => ['type' => 'string'],
+                                ],
+                                'required' => ['id'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString('response: { id: number; name?: string };', $output);
+    }
+
+    public function testGenerateResponseInlineObjectWithoutRequiredKeyIsAllOptional(): void
+    {
+        // InterfaceGenerator と同じ挙動: required が無ければすべて optional
+        $parser = $this->makeParser($this->makeEndpoint('/status', 'get', [
+            'responses' => [
+                '200' => [
+                    'content' => [
+                        'application/json' => [
+                            'schema' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'status' => ['type' => 'string'],
+                                    'count' => ['type' => 'integer'],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString('response: { status?: string; count?: number };', $output);
+    }
+
+    public function testGenerateResponseNestedInlineObjectRespectsRequired(): void
+    {
+        $parser = $this->makeParser($this->makeEndpoint('/status', 'get', [
+            'responses' => [
+                '200' => [
+                    'content' => [
+                        'application/json' => [
+                            'schema' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'data' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'id' => ['type' => 'integer'],
+                                            'label' => ['type' => 'string'],
+                                        ],
+                                        'required' => ['id'],
+                                    ],
+                                ],
+                                'required' => ['data'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString('response: { data: { id: number; label?: string } };', $output);
     }
 
     public function testGenerateResponseWithAnyOfNullable(): void
@@ -333,6 +415,7 @@ class ApiEndpointsGeneratorTest extends TestCase
                                         ],
                                         'meta' => ['type' => 'object'],
                                     ],
+                                    'required' => ['data', 'meta'],
                                 ],
                             ],
                         ],
@@ -385,6 +468,7 @@ class ApiEndpointsGeneratorTest extends TestCase
                                         'data' => ['$ref' => '#/components/schemas/Post'],
                                         'meta' => ['type' => 'object'],
                                     ],
+                                    'required' => ['data', 'meta'],
                                 ],
                             ],
                         ],
