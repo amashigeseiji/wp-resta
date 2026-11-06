@@ -229,6 +229,57 @@ class AbstractRouteTest extends TestCase
         $this->assertSame('', $this->loggedErrors());
     }
 
+    public function testInvokeLogsFullMessageWhenExceptionMessageContainsAnonymousClassName()
+    {
+        // URL_PARAMS の定義忘れで投げる LogicException はメッセージにルートクラス名を含む。
+        // 匿名クラス名の NUL 文字でログが切れないこと
+        $route = new class extends AbstractRoute {
+            public function callback(int $id): array
+            {
+                return ['id' => $id];
+            }
+        };
+
+        $response = $route->invoke(new TestRestaRequest('/test', $route));
+
+        $this->assertEquals(500, $response->getStatusCode());
+        $log = $this->loggedErrors();
+        $this->assertStringNotContainsString("\0", $log);
+        $this->assertStringContainsString('Please check URL_PARAMS has `id` parameter.', $log);
+        $this->assertMatchesRegularExpression('/ in \S+AbstractRoute\.php:\d+/', $log);
+    }
+
+    public function testInvokeReturns500WhenRegexItselfIsInvalid()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'id' => [
+                    'type' => 'string',
+                    'required' => true,
+                    'regex' => '[',
+                ],
+            ];
+
+            public function callback(string $id): array
+            {
+                return ['id' => $id];
+            }
+        };
+
+        // preg_match() の Warning はテスト出力に出さない（invoke() 側は握り潰さずログと 500 にする）
+        set_error_handler(fn() => true, E_WARNING);
+        try {
+            $response = $route->invoke($this->requestWith(['id' => 'abc']));
+        } finally {
+            restore_error_handler();
+        }
+
+        // サーバー側の定義ミスなので、クライアント起因の 400 ではなく 500
+        $this->assertEquals(500, $response->getStatusCode());
+        $this->assertSame('rest_internal_error', $response->getData()['code']);
+        $this->assertStringContainsString('URL_PARAMS[id] has invalid regex "["', $this->loggedErrors());
+    }
+
     public function testInvokeReturns400WhenRequiredParamIsMissing()
     {
         $route = new class extends AbstractRoute {

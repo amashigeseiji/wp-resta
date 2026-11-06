@@ -98,15 +98,16 @@ abstract class AbstractRoute implements RouteInterface
                 );
             } catch (Throwable $e) {
                 // callback のバグや DI 解決失敗など。握り潰さずログに出して 500 を返す
-                // 匿名クラスの名前は NUL 文字を含み error_log がそこで切れるので取り除く
-                error_log(sprintf(
+                // 匿名クラスの名前は NUL 文字を含み error_log がそこで切れる。
+                // クラス名はメッセージにも含まれうるので、整形後の文字列全体から取り除く
+                error_log(str_replace("\0", '', sprintf(
                     '[wp-resta] Uncaught %s in %s: %s in %s:%d',
                     $e::class,
-                    strtok(static::class, "\0"),
+                    static::class,
                     $e->getMessage(),
                     $e->getFile(),
                     $e->getLine(),
-                ));
+                )));
                 $data = [];
                 $message = 'Internal Server Error';
                 if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -155,7 +156,18 @@ abstract class AbstractRoute implements RouteInterface
 
                 if ($value !== null) {
                     $regex = '/' . $define[$param->name]['regex'] . '/';
-                    if (!preg_match($regex, (string)$value)) {
+                    $matched = preg_match($regex, (string)$value);
+                    if ($matched === false) {
+                        // regex 自体が不正。クライアントの入力不正ではなくルート定義の誤りなので 500 にする
+                        throw new LogicException(sprintf(
+                            '%s::URL_PARAMS[%s] has invalid regex "%s": %s',
+                            static::class,
+                            $param->name,
+                            $define[$param->name]['regex'],
+                            preg_last_error_msg(),
+                        ));
+                    }
+                    if ($matched === 0) {
                         throw new InvalidParameterException($param->name);
                     }
                     $args[$param->name] = $value;
