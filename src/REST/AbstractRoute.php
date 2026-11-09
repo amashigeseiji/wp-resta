@@ -191,6 +191,9 @@ abstract class AbstractRoute implements RouteInterface
      *
      * - 区切り文字は regex に含まれていない文字を選ぶ。エスケープで対処すると、regex 中の '\#' や
      *   '\Q...\E' の引用範囲まで書き換えてしまい、元々有効だった regex が壊れる
+     * - u 修飾子で UTF-8 モードにする。WP コアの rest_validate_json_schema_pattern() も u 付きなので判定が
+     *   揃う。PHP の u は Unicode プロパティも有効にするため、\w が日本語などの文字にも一致し、.{n} が
+     *   バイト数ではなく文字数になる
      * - D 修飾子で $ が末尾の改行の手前にマッチしないようにする
      */
     private function compileRegex(string $regex): string
@@ -198,7 +201,7 @@ abstract class AbstractRoute implements RouteInterface
         $anchored = $this->anchorRegex($regex);
         foreach (self::REGEX_DELIMITERS as $delimiter) {
             if (!str_contains($anchored, $delimiter)) {
-                return $delimiter . $anchored . $delimiter . 'D';
+                return $delimiter . $anchored . $delimiter . 'uD';
             }
         }
         throw new LogicException(sprintf(
@@ -225,6 +228,10 @@ abstract class AbstractRoute implements RouteInterface
 
                 if ($value !== null) {
                     $matched = preg_match($this->compileRegex($define[$param->name]['regex']), (string)$value);
+                    if ($matched === false && in_array(preg_last_error(), [PREG_BAD_UTF8_ERROR, PREG_BAD_UTF8_OFFSET_ERROR], true)) {
+                        // 値が UTF-8 として不正。regex の誤りではなくクライアントの入力不正なので 400 にする
+                        throw new InvalidParameterException($param->name);
+                    }
                     if ($matched === false) {
                         // regex 自体が不正。クライアントの入力不正ではなくルート定義の誤りなので 500 にする
                         throw new LogicException(sprintf(

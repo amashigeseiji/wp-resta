@@ -544,6 +544,48 @@ class AbstractRouteTest extends TestCase
         $this->assertEquals(400, $response->getStatusCode());
     }
 
+    public function testInvokeMatchesRegexInUtf8Mode()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'name' => '?string',
+                'two' => ['type' => 'string', 'required' => false, 'regex' => '.{2}', 'description' => 'two chars'],
+            ];
+
+            public function callback(?string $name = null, ?string $two = null): array
+            {
+                return ['name' => $name, 'two' => $two];
+            }
+        };
+
+        // u 修飾子により \w が日本語の文字にも一致する。WP コアの pattern 検証（u 付き）と同じ判定になる
+        $response = $route->invoke($this->requestWith(['name' => '日本語']));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame('日本語', $response->getData()['name']);
+
+        // .{2} はバイト数ではなく文字数。é は 1 文字（2 バイト）なので不一致、éé は一致
+        $this->assertEquals(400, $route->invoke($this->requestWith(['two' => 'é']))->getStatusCode());
+        $this->assertEquals(200, $route->invoke($this->requestWith(['two' => 'éé']))->getStatusCode());
+    }
+
+    public function testInvokeReturns400WhenValueIsNotValidUtf8()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['name' => 'string'];
+
+            public function callback(string $name): array
+            {
+                return ['name' => $name];
+            }
+        };
+
+        // 不正な UTF-8 は preg_match() が false を返すが、regex の誤りではなく入力不正なので 400。ログにも出さない
+        $response = $route->invoke($this->requestWith(['name' => "\xff\xfe"]));
+        $this->assertEquals(400, $response->getStatusCode());
+        $this->assertSame('rest_invalid_param', $response->getData()['code']);
+        $this->assertSame('', $this->loggedErrors());
+    }
+
     public function testInvokeReturns400WhenOptionalStringParamIsEmpty()
     {
         $route = new class extends AbstractRoute {

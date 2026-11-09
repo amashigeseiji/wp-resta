@@ -59,6 +59,27 @@ class CoreArgsValidationTest extends AbstractE2ETestCase
         $this->assertSame('rest_invalid_param', $this->getJsonResponse($response)['code']);
     }
 
+    public function testMultibyteStringIsAcceptedBothByCoreAndByWpResta(): void
+    {
+        // コアの pattern 検証（u 付き）と wp-resta の検証（u 付き）が揃っているので、
+        // callback の引数で受けるかどうかに関係なく 'string' は日本語を受け付ける
+        $response = $this->get('/wp-json/example/search', ['keyword' => '日本語']);
+        $this->assertResponseCode(200, $response);
+        $this->assertSame('日本語', $this->getJsonResponse($response)['keyword']);
+
+        $response = $this->get('/wp-json/example/sample/1', ['name' => '日本語']);
+        $this->assertResponseCode(200, $response);
+        $this->assertSame('日本語', $this->getJsonResponse($response)['data']['name']);
+    }
+
+    public function testInvalidUtf8IsRejectedBothByCoreAndByWpResta(): void
+    {
+        foreach (['/wp-json/example/search' => 'keyword', '/wp-json/example/sample/1' => 'name'] as $uri => $param) {
+            $response = $this->get($uri, [$param => "\xff\xfe"]);
+            $this->assertResponseCode(400, $response, $uri);
+        }
+    }
+
     public function testSlashInRegexWorksAsCorePattern(): void
     {
         $response = $this->get('/wp-json/example/search', ['path' => 'Foo/Bar']);
