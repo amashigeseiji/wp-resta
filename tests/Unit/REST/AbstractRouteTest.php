@@ -544,6 +544,48 @@ class AbstractRouteTest extends TestCase
         $this->assertEquals(400, $response->getStatusCode());
     }
 
+    public function testInvokeMatchesRegexInUtf8Mode()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'name' => '?string',
+                'two' => ['type' => 'string', 'required' => false, 'regex' => '.{2}', 'description' => 'two chars'],
+            ];
+
+            public function callback(?string $name = null, ?string $two = null): array
+            {
+                return ['name' => $name, 'two' => $two];
+            }
+        };
+
+        // u 修飾子により \w が日本語の文字にも一致する。WP コアの pattern 検証（u 付き）と同じ判定になる
+        $response = $route->invoke($this->requestWith(['name' => '日本語']));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame('日本語', $response->getData()['name']);
+
+        // .{2} はバイト数ではなく文字数。é は 1 文字（2 バイト）なので不一致、éé は一致
+        $this->assertEquals(400, $route->invoke($this->requestWith(['two' => 'é']))->getStatusCode());
+        $this->assertEquals(200, $route->invoke($this->requestWith(['two' => 'éé']))->getStatusCode());
+    }
+
+    public function testInvokeReturns400WhenValueIsNotValidUtf8()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['name' => 'string'];
+
+            public function callback(string $name): array
+            {
+                return ['name' => $name];
+            }
+        };
+
+        // 不正な UTF-8 は preg_match() が false を返すが、regex の誤りではなく入力不正なので 400。ログにも出さない
+        $response = $route->invoke($this->requestWith(['name' => "\xff\xfe"]));
+        $this->assertEquals(400, $response->getStatusCode());
+        $this->assertSame('rest_invalid_param', $response->getData()['code']);
+        $this->assertSame('', $this->loggedErrors());
+    }
+
     public function testInvokeReturns400WhenOptionalStringParamIsEmpty()
     {
         $route = new class extends AbstractRoute {
@@ -564,6 +606,122 @@ class AbstractRouteTest extends TestCase
         $response = $route->invoke($this->requestWith([]));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['name' => 'default'], $response->getData());
+    }
+
+    public function testGetArgsExpandsRegexToAnchoredPattern()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'name' => 'string',
+                'nick' => '?string',
+                'kind' => '(a|b)',
+                'id' => 'integer',
+                'page' => '?integer',
+                'first_name' => ['type' => 'string', 'required' => false, 'regex' => '[a-z]+', 'description' => 'first name'],
+            ];
+        };
+
+        $args = $route->getArgs();
+
+        // regex はコアの知らないキーなので、string 型は pattern にも展開する。コアは部分一致なのでアンカーを付ける
+        $this->assertSame('^(?:\w+)$', $args['name']['pattern']);
+        $this->assertSame('^(?:\w+)$', $args['nick']['pattern']);
+        $this->assertSame('^(?:(a|b))$', $args['kind']['pattern']);
+        $this->assertSame('^(?:[a-z]+)$', $args['first_name']['pattern']);
+        // integer はコアが type で検証する。pattern は string 型にしか効かないので付けない
+        $this->assertArrayNotHasKey('pattern', $args['id']);
+        $this->assertArrayNotHasKey('pattern', $args['page']);
+
+        // コアは type があれば sanitize_params() 経由で検証するので、validate_callback は付けない
+        foreach ($args as $name => $arg) {
+            $this->assertArrayNotHasKey('validate_callback', $arg, $name);
+        }
+
+        // 既存のキーは変えない
+        $this->assertSame(['type' => 'string', 'required' => true, 'regex' => '\w+', 'description' => 'name'], array_intersect_key($args['name'], array_flip(['type', 'required', 'regex', 'description'])));
+    }
+
+    public function testGetArgsKeepsExplicitPattern()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'kind' => ['type' => 'string', 'required' => false, 'regex' => '(a|b)', 'pattern' => 'a|b', 'description' => 'kind'],
+                'untyped' => ['required' => false, 'regex' => '\w+', 'description' => 'untyped'],
+            ];
+        };
+
+        $args = $route->getArgs();
+
+        // 利用側が明示した pattern はそのまま
+        $this->assertSame('a|b', $args['kind']['pattern']);
+        // type が無い定義はコアが検証しないので pattern を足しても意味がなく、触らない
+        $this->assertArrayNotHasKey('pattern', $args['untyped']);
+    }
+
+    public function testGetArgsDoesNotEmitPatternForInvalidRegex()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'broken' => ['type' => 'string', 'required' => true, 'regex' => '[', 'description' => 'broken'],
+                'all_delimiters' => ['type' => 'string', 'required' => true, 'regex' => '[#~%@!`;]+', 'description' => 'all'],
+                'ok' => '[a-z]+',
+            ];
+
+            public function callback(string $broken): array
+            {
+                return [];
+            }
+        };
+
+        $args = $route->getArgs();
+
+        // コアに渡すと preg_match() の失敗が「不一致」として 400 になり、定義ミスが入力エラーに見えてしまう。
+        // pattern を付けずに invokeCallback() の 500 + ログの経路に任せる
+        $this->assertArrayNotHasKey('pattern', $args['broken']);
+        $this->assertArrayNotHasKey('pattern', $args['all_delimiters']);
+        $this->assertSame('^(?:[a-z]+)$', $args['ok']['pattern']);
+
+        set_error_handler(fn () => true);
+        try {
+            $response = $route->invoke($this->requestWith(['broken' => 'x']));
+        } finally {
+            restore_error_handler();
+        }
+        $this->assertEquals(500, $response->getStatusCode());
+        $this->assertStringContainsString('has invalid regex "["', $this->loggedErrors());
+    }
+
+    public function testGetArgsPatternKeepsLeadingPcreVerbsAtPatternStart()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['name' => '(*UTF)(*UCP)\w+'];
+        };
+
+        // コアは '#' . pattern . '#u' と組み立てるので、先頭指示子は pattern の先頭にある必要がある
+        $this->assertSame('(*UTF)(*UCP)^(?:\w+)$', $route->getArgs()['name']['pattern']);
+    }
+
+    public function testGetArgsPatternWorksWithCorePatternValidation()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'path' => '[a-z/]+',
+                'kind' => '(a|b)',
+                'tag' => '[a-z#]+',
+                'name' => '?string',
+            ];
+        };
+        $args = $route->getArgs();
+
+        // WP コアの rest_validate_json_schema_pattern() と同じ組み立てで照合する
+        $core = fn (string $pattern, string $value): int => preg_match('#' . str_replace('#', '\\#', $pattern) . '#u', $value);
+
+        $this->assertSame(1, $core($args['path']['pattern'], 'foo/bar'), '/ を含む regex が pattern として動く');
+        $this->assertSame(0, $core($args['path']['pattern'], 'Foo'));
+        $this->assertSame(1, $core($args['kind']['pattern'], 'a'));
+        $this->assertSame(0, $core($args['kind']['pattern'], 'zzz-a-zzz'), 'コアは部分一致なので、アンカーが無いと通ってしまう');
+        $this->assertSame(1, $core($args['tag']['pattern'], 'a#b'), 'コア側の # エスケープと衝突しない');
+        $this->assertSame(0, $core($args['name']['pattern'], ''), '空文字は \w+ に一致しない');
     }
 
     public function testResponseHelperReturnsStatusAndDataWithoutTouchingRouteState()
