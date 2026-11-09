@@ -293,12 +293,14 @@ abstract class AbstractRoute implements RouteInterface
     /**
      * register_rest_route() の args として WP コアに渡したときに、コア側でも検証されるようにキーを補う。
      *
-     * - regex はコアの知らないキーなので、string 型なら pattern にも展開する。コアは pattern を
-     *   部分一致で照合するため、invokeCallback() と同じく anchorRegex() で全体一致にしてから渡す
-     * - コアは validate_callback が無い args の type や pattern を検証しない（register_rest_route() は
-     *   validate_callback を補わない）ので、rest_validate_request_arg を指定する
+     * regex はコアの知らないキーなので、string 型なら pattern にも展開する。コアは pattern を
+     * 部分一致で照合するため、invokeCallback() と同じく anchorRegex() で全体一致にしてから渡す。
      *
-     * 利用側が同名のキーを明示している場合はそちらを優先する。
+     * コアは type を持つ arg に sanitize_callback の既定値として rest_parse_request_arg を入れ
+     * （WP_REST_Request::sanitize_params()）、その中で rest_validate_request_arg も呼ぶので、
+     * validate_callback を別途指定しなくても pattern は検証される。
+     *
+     * 利用側が pattern を明示している場合はそちらを優先する。
      *
      * @param array<string, mixed> $arg
      * @return array<string, mixed>
@@ -310,9 +312,6 @@ abstract class AbstractRoute implements RouteInterface
             && !array_key_exists('pattern', $arg)
         ) {
             $arg['pattern'] = $this->anchorRegex($arg['regex']);
-        }
-        if (isset($arg['type']) && !array_key_exists('validate_callback', $arg)) {
-            $arg['validate_callback'] = 'rest_validate_request_arg';
         }
         return $arg;
     }

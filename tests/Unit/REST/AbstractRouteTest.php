@@ -565,7 +565,7 @@ class AbstractRouteTest extends TestCase
         $this->assertSame(['name' => 'default'], $response->getData());
     }
 
-    public function testGetArgsExpandsRegexToAnchoredPatternAndAddsCoreValidateCallback()
+    public function testGetArgsExpandsRegexToAnchoredPattern()
     {
         $route = new class extends AbstractRoute {
             protected const URL_PARAMS = [
@@ -589,32 +589,30 @@ class AbstractRouteTest extends TestCase
         $this->assertArrayNotHasKey('pattern', $args['id']);
         $this->assertArrayNotHasKey('pattern', $args['page']);
 
-        // コアは validate_callback が無い args の type / pattern を検証しないので、全パラメータに付ける
+        // コアは type があれば sanitize_params() 経由で検証するので、validate_callback は付けない
         foreach ($args as $name => $arg) {
-            $this->assertSame('rest_validate_request_arg', $arg['validate_callback'], $name);
+            $this->assertArrayNotHasKey('validate_callback', $arg, $name);
         }
 
         // 既存のキーは変えない
         $this->assertSame(['type' => 'string', 'required' => true, 'regex' => '\w+', 'description' => 'name'], array_intersect_key($args['name'], array_flip(['type', 'required', 'regex', 'description'])));
     }
 
-    public function testGetArgsKeepsExplicitPatternAndValidateCallback()
+    public function testGetArgsKeepsExplicitPattern()
     {
         $route = new class extends AbstractRoute {
             protected const URL_PARAMS = [
-                'kind' => ['type' => 'string', 'required' => false, 'regex' => '(a|b)', 'pattern' => 'a|b', 'validate_callback' => '__return_true', 'description' => 'kind'],
+                'kind' => ['type' => 'string', 'required' => false, 'regex' => '(a|b)', 'pattern' => 'a|b', 'description' => 'kind'],
                 'untyped' => ['required' => false, 'regex' => '\w+', 'description' => 'untyped'],
             ];
         };
 
         $args = $route->getArgs();
 
-        // 利用側が明示したキーはそのまま
+        // 利用側が明示した pattern はそのまま
         $this->assertSame('a|b', $args['kind']['pattern']);
-        $this->assertSame('__return_true', $args['kind']['validate_callback']);
-        // type が無い定義はコアの検証に渡すと _doing_it_wrong になるので触らない
+        // type が無い定義はコアが検証しないので pattern を足しても意味がなく、触らない
         $this->assertArrayNotHasKey('pattern', $args['untyped']);
-        $this->assertArrayNotHasKey('validate_callback', $args['untyped']);
     }
 
     public function testGetArgsPatternKeepsLeadingPcreVerbsAtPatternStart()
