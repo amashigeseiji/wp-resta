@@ -14,7 +14,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ## ルート
 
 - `AbstractRoute` を継承したクラス 1 つがエンドポイント 1 つ。設定で指定したディレクトリから自動で収集される
-- URL は `/wp-json/{namespace}/{route}`。`route` は `ROUTE` 定数で宣言し、省略するとクラス名から決まる
+- REST API のルートは `{namespace}/{route}`。`namespace` は設定の `routeDirectory` で、`route` は `ROUTE` 定数で宣言し、省略するとクラス名から決まる。ルートの前に付く `/wp-json/` などのプレフィックスは WordPress が決める
 - `ROUTE` の `[name]` はパスパラメータ。それ以外の宣言済みパラメータはクエリパラメータ
 - HTTP メソッドは `getMethods()` で宣言する。既定は GET
 - `#[RouteMeta]` で OpenAPI の説明とタグを宣言できる
