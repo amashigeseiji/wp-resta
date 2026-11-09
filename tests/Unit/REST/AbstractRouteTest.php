@@ -422,11 +422,66 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        // 区切り文字に使っている # が regex に含まれていてもエスケープされ、Warning も出ない
+        // 区切り文字の第一候補 # が regex に含まれていても別の区切り文字が選ばれ、Warning も出ない
         $response = $route->invoke($this->requestWith(['tag' => 'a#b']));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['tag' => 'a#b'], $response->getData());
         $this->assertSame('', $this->loggedErrors());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function regexWithEscapedHashProvider(): array
+    {
+        return [
+            'backslash escaped' => ['a\\#b'],
+            'quoted with \\Q...\\E' => ['\\Qa#b\\E'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('regexWithEscapedHashProvider')]
+    public function testInvokeKeepsEscapedHashInRegexIntact(string $regex)
+    {
+        $route = new class($regex) extends AbstractRoute {
+            public function __construct(private string $regex) {}
+
+            public function getArgs(): array
+            {
+                return ['tag' => ['type' => 'string', 'required' => true, 'regex' => $this->regex, 'description' => 'tag']];
+            }
+
+            public function callback(string $tag): array
+            {
+                return ['tag' => $tag];
+            }
+        };
+
+        // # をエスケープで処理すると '\#' が '\\#' に化けて regex が壊れる。区切り文字を変えるだけなので元のまま通る
+        $response = $route->invoke($this->requestWith(['tag' => 'a#b']));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(['tag' => 'a#b'], $response->getData());
+        $this->assertSame('', $this->loggedErrors());
+
+        $this->assertEquals(400, $route->invoke($this->requestWith(['tag' => 'a-b']))->getStatusCode());
+    }
+
+    public function testInvokeReturns500WhenRegexContainsEveryDelimiterCandidate()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['tag' => '[#~%@!`;]+'];
+
+            public function callback(string $tag): array
+            {
+                return ['tag' => $tag];
+            }
+        };
+
+        // 区切り文字の候補をすべて含む regex は組み立てられない。定義側の問題なので 500 にしてログに残す
+        $response = $route->invoke($this->requestWith(['tag' => '#']));
+        $this->assertEquals(500, $response->getStatusCode());
+        $this->assertSame('rest_internal_error', $response->getData()['code']);
+        $this->assertStringContainsString('contains every delimiter candidate', $this->loggedErrors());
     }
 
     public function testInvokeRejectsPartialMatchBecauseRegexIsAnchored()
