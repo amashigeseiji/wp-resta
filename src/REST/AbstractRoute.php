@@ -140,6 +140,41 @@ abstract class AbstractRoute implements RouteInterface
         ];
     }
 
+    /**
+     * preg_match の区切り文字の候補。regex に含まれていないものを先頭から順に選ぶ。
+     * / は '[a-z/]+' のように URL 向けの regex に現れやすいので候補に入れない
+     */
+    private const REGEX_DELIMITERS = ['#', '~', '%', '@', '!', '`', ';'];
+
+    /**
+     * URL_PARAMS の regex を、値全体に対して照合する preg_match 用のパターンに組み立てる。
+     *
+     * - 区切り文字は regex に含まれていない文字を選ぶ。エスケープで対処すると、regex 中の '\#' や
+     *   '\Q...\E' の引用範囲まで書き換えてしまい、元々有効だった regex が壊れる
+     * - ^(?:...)$ で囲んで部分一致を許さない。(?:...) は 'a|b' が '^a|b$' に化けるのを防ぐため
+     * - (*UTF) (*UCP) のような先頭専用の指示子はパターンの先頭にしか置けないので、^(?:...) の外に出す
+     * - D 修飾子で $ が末尾の改行の手前にマッチしないようにする
+     */
+    private function anchoredRegex(string $regex): string
+    {
+        $verbs = '';
+        if (preg_match('/^(?:\(\*[A-Z_]+(?:=\d+)?\))+/', $regex, $m) === 1) {
+            $verbs = $m[0];
+            $regex = substr($regex, strlen($verbs));
+        }
+        foreach (self::REGEX_DELIMITERS as $delimiter) {
+            if (!str_contains($regex, $delimiter)) {
+                return $delimiter . $verbs . '^(?:' . $regex . ')$' . $delimiter . 'D';
+            }
+        }
+        throw new LogicException(sprintf(
+            '%s::URL_PARAMS regex "%s" contains every delimiter candidate (%s).',
+            static::class,
+            $regex,
+            implode('', self::REGEX_DELIMITERS),
+        ));
+    }
+
     private function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
     {
         $parameters = $callback->getParameters();
@@ -155,8 +190,7 @@ abstract class AbstractRoute implements RouteInterface
                 }
 
                 if ($value !== null) {
-                    $regex = '/' . $define[$param->name]['regex'] . '/';
-                    $matched = preg_match($regex, (string)$value);
+                    $matched = preg_match($this->anchoredRegex($define[$param->name]['regex']), (string)$value);
                     if ($matched === false) {
                         // regex 自体が不正。クライアントの入力不正ではなくルート定義の誤りなので 500 にする
                         throw new LogicException(sprintf(
