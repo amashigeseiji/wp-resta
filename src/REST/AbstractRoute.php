@@ -140,6 +140,19 @@ abstract class AbstractRoute implements RouteInterface
         ];
     }
 
+    /**
+     * URL_PARAMS の regex を、値全体に対して照合する preg_match 用のパターンに組み立てる。
+     *
+     * - 区切り文字は WP コアの rest_validate_json_schema_pattern() と同じ # にし、regex 中の # はエスケープする。
+     *   / を区切り文字にすると '[a-z/]+' のような URL 向けの regex が書けない
+     * - ^(?:...)$ で囲んで部分一致を許さない。(?:...) は 'a|b' が '^a|b$' に化けるのを防ぐため
+     * - D 修飾子で $ が末尾の改行の手前にマッチしないようにする
+     */
+    private function anchoredRegex(string $regex): string
+    {
+        return '#^(?:' . str_replace('#', '\#', $regex) . ')$#D';
+    }
+
     private function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
     {
         $parameters = $callback->getParameters();
@@ -155,8 +168,7 @@ abstract class AbstractRoute implements RouteInterface
                 }
 
                 if ($value !== null) {
-                    $regex = '/' . $define[$param->name]['regex'] . '/';
-                    $matched = preg_match($regex, (string)$value);
+                    $matched = preg_match($this->anchoredRegex($define[$param->name]['regex']), (string)$value);
                     if ($matched === false) {
                         // regex 自体が不正。クライアントの入力不正ではなくルート定義の誤りなので 500 にする
                         throw new LogicException(sprintf(

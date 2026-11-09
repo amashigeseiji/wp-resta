@@ -389,4 +389,103 @@ class AbstractRouteTest extends TestCase
         $this->assertEquals(400, $response->getStatusCode());
         $this->assertSame('rest_invalid_param', $response->getData()['code']);
     }
+
+    public function testInvokeAcceptsValueMatchingRegexThatContainsSlash()
+    {
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'slash/[path]';
+            protected const URL_PARAMS = ['path' => '[a-z/]+'];
+
+            public function callback(string $path): array
+            {
+                return ['path' => $path];
+            }
+        };
+
+        // regex に / が含まれていても区切り文字と衝突せず、一致する値はそのまま通る
+        foreach (['foo/bar', 'foo'] as $path) {
+            $response = $route->invoke($this->requestWith(['path' => $path]));
+            $this->assertEquals(200, $response->getStatusCode(), "path={$path}");
+            $this->assertSame(['path' => $path], $response->getData());
+        }
+        $this->assertSame('', $this->loggedErrors());
+    }
+
+    public function testInvokeAcceptsValueMatchingRegexThatContainsHash()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['tag' => '[a-z#]+'];
+
+            public function callback(string $tag): array
+            {
+                return ['tag' => $tag];
+            }
+        };
+
+        // 区切り文字に使っている # が regex に含まれていてもエスケープされ、Warning も出ない
+        $response = $route->invoke($this->requestWith(['tag' => 'a#b']));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(['tag' => 'a#b'], $response->getData());
+        $this->assertSame('', $this->loggedErrors());
+    }
+
+    public function testInvokeRejectsPartialMatchBecauseRegexIsAnchored()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['kind' => '(a|b)'];
+
+            public function callback(string $kind): array
+            {
+                return ['kind' => $kind];
+            }
+        };
+
+        $this->assertEquals(200, $route->invoke($this->requestWith(['kind' => 'a']))->getStatusCode());
+        $this->assertEquals(200, $route->invoke($this->requestWith(['kind' => 'b']))->getStatusCode());
+
+        // アンカー無しだと部分一致で通ってしまう値。alternation を (?:...) で囲んでいるので ^a|b$ にも化けない
+        foreach (['zzz-a-zzz', 'ab', 'a-', '-b'] as $kind) {
+            $response = $route->invoke($this->requestWith(['kind' => $kind]));
+            $this->assertEquals(400, $response->getStatusCode(), "kind={$kind}");
+            $this->assertSame('rest_invalid_param', $response->getData()['code']);
+        }
+    }
+
+    public function testInvokeRejectsValueWithTrailingNewline()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['id' => 'integer'];
+
+            public function callback(int $id): array
+            {
+                return ['id' => $id];
+            }
+        };
+
+        // $ は既定だと末尾の改行の手前にもマッチするので、?id=123%0A が \d+ を通り抜けないことを確認する
+        $response = $route->invoke($this->requestWith(['id' => "123\n"]));
+        $this->assertEquals(400, $response->getStatusCode());
+    }
+
+    public function testInvokeReturns400WhenOptionalStringParamIsEmpty()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['name' => '?string'];
+
+            public function callback(string $name = 'default'): array
+            {
+                return ['name' => $name];
+            }
+        };
+
+        // ?name= のように空文字が渡された場合、省略（null）とは区別して \w+ に不一致の 400 にする。
+        // 省略時はデフォルト値にフォールバックする
+        $response = $route->invoke($this->requestWith(['name' => '']));
+        $this->assertEquals(400, $response->getStatusCode());
+        $this->assertSame('rest_invalid_param', $response->getData()['code']);
+
+        $response = $route->invoke($this->requestWith([]));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(['name' => 'default'], $response->getData());
+    }
 }
