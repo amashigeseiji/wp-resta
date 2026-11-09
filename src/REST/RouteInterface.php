@@ -14,7 +14,9 @@ interface RouteInterface
     public function permissionCallback(): string;
 
     /**
-     * @return array<string, array<string, string>>
+     * register_rest_route() の args としてそのまま渡せる形のパラメータ定義
+     *
+     * @return array<string, array<string, mixed>>
      */
     public function getArgs() : array;
 

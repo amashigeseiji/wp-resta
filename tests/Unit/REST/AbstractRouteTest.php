@@ -564,4 +564,89 @@ class AbstractRouteTest extends TestCase
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['name' => 'default'], $response->getData());
     }
+
+    public function testGetArgsExpandsRegexToAnchoredPatternAndAddsCoreValidateCallback()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'name' => 'string',
+                'nick' => '?string',
+                'kind' => '(a|b)',
+                'id' => 'integer',
+                'page' => '?integer',
+                'first_name' => ['type' => 'string', 'required' => false, 'regex' => '[a-z]+', 'description' => 'first name'],
+            ];
+        };
+
+        $args = $route->getArgs();
+
+        // regex はコアの知らないキーなので、string 型は pattern にも展開する。コアは部分一致なのでアンカーを付ける
+        $this->assertSame('^(?:\w+)$', $args['name']['pattern']);
+        $this->assertSame('^(?:\w+)$', $args['nick']['pattern']);
+        $this->assertSame('^(?:(a|b))$', $args['kind']['pattern']);
+        $this->assertSame('^(?:[a-z]+)$', $args['first_name']['pattern']);
+        // integer はコアが type で検証する。pattern は string 型にしか効かないので付けない
+        $this->assertArrayNotHasKey('pattern', $args['id']);
+        $this->assertArrayNotHasKey('pattern', $args['page']);
+
+        // コアは validate_callback が無い args の type / pattern を検証しないので、全パラメータに付ける
+        foreach ($args as $name => $arg) {
+            $this->assertSame('rest_validate_request_arg', $arg['validate_callback'], $name);
+        }
+
+        // 既存のキーは変えない
+        $this->assertSame(['type' => 'string', 'required' => true, 'regex' => '\w+', 'description' => 'name'], array_intersect_key($args['name'], array_flip(['type', 'required', 'regex', 'description'])));
+    }
+
+    public function testGetArgsKeepsExplicitPatternAndValidateCallback()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'kind' => ['type' => 'string', 'required' => false, 'regex' => '(a|b)', 'pattern' => 'a|b', 'validate_callback' => '__return_true', 'description' => 'kind'],
+                'untyped' => ['required' => false, 'regex' => '\w+', 'description' => 'untyped'],
+            ];
+        };
+
+        $args = $route->getArgs();
+
+        // 利用側が明示したキーはそのまま
+        $this->assertSame('a|b', $args['kind']['pattern']);
+        $this->assertSame('__return_true', $args['kind']['validate_callback']);
+        // type が無い定義はコアの検証に渡すと _doing_it_wrong になるので触らない
+        $this->assertArrayNotHasKey('pattern', $args['untyped']);
+        $this->assertArrayNotHasKey('validate_callback', $args['untyped']);
+    }
+
+    public function testGetArgsPatternKeepsLeadingPcreVerbsAtPatternStart()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['name' => '(*UTF)(*UCP)\w+'];
+        };
+
+        // コアは '#' . pattern . '#u' と組み立てるので、先頭指示子は pattern の先頭にある必要がある
+        $this->assertSame('(*UTF)(*UCP)^(?:\w+)$', $route->getArgs()['name']['pattern']);
+    }
+
+    public function testGetArgsPatternWorksWithCorePatternValidation()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'path' => '[a-z/]+',
+                'kind' => '(a|b)',
+                'tag' => '[a-z#]+',
+                'name' => '?string',
+            ];
+        };
+        $args = $route->getArgs();
+
+        // WP コアの rest_validate_json_schema_pattern() と同じ組み立てで照合する
+        $core = fn (string $pattern, string $value): int => preg_match('#' . str_replace('#', '\\#', $pattern) . '#u', $value);
+
+        $this->assertSame(1, $core($args['path']['pattern'], 'foo/bar'), '/ を含む regex が pattern として動く');
+        $this->assertSame(0, $core($args['path']['pattern'], 'Foo'));
+        $this->assertSame(1, $core($args['kind']['pattern'], 'a'));
+        $this->assertSame(0, $core($args['kind']['pattern'], 'zzz-a-zzz'), 'コアは部分一致なので、アンカーが無いと通ってしまう');
+        $this->assertSame(1, $core($args['tag']['pattern'], 'a#b'), 'コア側の # エスケープと衝突しない');
+        $this->assertSame(0, $core($args['name']['pattern'], ''), '空文字は \w+ に一致しない');
+    }
 }

@@ -31,7 +31,7 @@ abstract class AbstractRoute implements RouteInterface
     protected int $status = 200;
 
     private string $routeRegex;
-    /** @var array<string, array<string, string|bool>>*/
+    /** @var array<string, array<string, mixed>> */
     private array $args;
 
     public string $namespace = 'default';
@@ -147,24 +147,35 @@ abstract class AbstractRoute implements RouteInterface
     private const REGEX_DELIMITERS = ['#', '~', '%', '@', '!', '`', ';'];
 
     /**
-     * URL_PARAMS の regex を、値全体に対して照合する preg_match 用のパターンに組み立てる。
+     * URL_PARAMS の regex を、値全体に対して照合する形に組み立てる（区切り文字なし）。
+     * WP コアの args に渡す pattern と、invokeCallback() の preg_match の両方で使う。
      *
-     * - 区切り文字は regex に含まれていない文字を選ぶ。エスケープで対処すると、regex 中の '\#' や
-     *   '\Q...\E' の引用範囲まで書き換えてしまい、元々有効だった regex が壊れる
      * - ^(?:...)$ で囲んで部分一致を許さない。(?:...) は 'a|b' が '^a|b$' に化けるのを防ぐため
      * - (*UTF) (*UCP) のような先頭専用の指示子はパターンの先頭にしか置けないので、^(?:...) の外に出す
-     * - D 修飾子で $ が末尾の改行の手前にマッチしないようにする
      */
-    private function anchoredRegex(string $regex): string
+    private function anchorRegex(string $regex): string
     {
         $verbs = '';
         if (preg_match('/^(?:\(\*[A-Z_]+(?:=\d+)?\))+/', $regex, $m) === 1) {
             $verbs = $m[0];
             $regex = substr($regex, strlen($verbs));
         }
+        return $verbs . '^(?:' . $regex . ')$';
+    }
+
+    /**
+     * anchorRegex() の結果を preg_match に渡せるパターンにする。
+     *
+     * - 区切り文字は regex に含まれていない文字を選ぶ。エスケープで対処すると、regex 中の '\#' や
+     *   '\Q...\E' の引用範囲まで書き換えてしまい、元々有効だった regex が壊れる
+     * - D 修飾子で $ が末尾の改行の手前にマッチしないようにする
+     */
+    private function compileRegex(string $regex): string
+    {
+        $anchored = $this->anchorRegex($regex);
         foreach (self::REGEX_DELIMITERS as $delimiter) {
-            if (!str_contains($regex, $delimiter)) {
-                return $delimiter . $verbs . '^(?:' . $regex . ')$' . $delimiter . 'D';
+            if (!str_contains($anchored, $delimiter)) {
+                return $delimiter . $anchored . $delimiter . 'D';
             }
         }
         throw new LogicException(sprintf(
@@ -190,7 +201,7 @@ abstract class AbstractRoute implements RouteInterface
                 }
 
                 if ($value !== null) {
-                    $matched = preg_match($this->anchoredRegex($define[$param->name]['regex']), (string)$value);
+                    $matched = preg_match($this->compileRegex($define[$param->name]['regex']), (string)$value);
                     if ($matched === false) {
                         // regex 自体が不正。クライアントの入力不正ではなくルート定義の誤りなので 500 にする
                         throw new LogicException(sprintf(
@@ -243,7 +254,7 @@ abstract class AbstractRoute implements RouteInterface
         $args = [];
         foreach ($this::URL_PARAMS as $param => $type) {
             if (is_array($type)) {
-                $args[$param] = $type;
+                $args[$param] = $this->withCoreValidation($type);
                 continue;
             }
 
@@ -274,8 +285,36 @@ abstract class AbstractRoute implements RouteInterface
                     'description' => $type['description'] ?? $param,
                 ];
             }
+            $args[$param] = $this->withCoreValidation($args[$param]);
         }
         return $this->args = $args;
+    }
+
+    /**
+     * register_rest_route() の args として WP コアに渡したときに、コア側でも検証されるようにキーを補う。
+     *
+     * - regex はコアの知らないキーなので、string 型なら pattern にも展開する。コアは pattern を
+     *   部分一致で照合するため、invokeCallback() と同じく anchorRegex() で全体一致にしてから渡す
+     * - コアは validate_callback が無い args の type や pattern を検証しない（register_rest_route() は
+     *   validate_callback を補わない）ので、rest_validate_request_arg を指定する
+     *
+     * 利用側が同名のキーを明示している場合はそちらを優先する。
+     *
+     * @param array<string, mixed> $arg
+     * @return array<string, mixed>
+     */
+    private function withCoreValidation(array $arg): array
+    {
+        if (($arg['type'] ?? null) === 'string'
+            && isset($arg['regex']) && is_string($arg['regex'])
+            && !array_key_exists('pattern', $arg)
+        ) {
+            $arg['pattern'] = $this->anchorRegex($arg['regex']);
+        }
+        if (isset($arg['type']) && !array_key_exists('validate_callback', $arg)) {
+            $arg['validate_callback'] = 'rest_validate_request_arg';
+        }
+        return $arg;
     }
 
     public function getReadableRoute(): string
