@@ -46,6 +46,8 @@ tests/Unit, tests/Integration, tests/E2E   docs/testing.md 参照
 - ブランチは `fix/<issue>-<slug>`、`feature/<slug>`、`release/<x.y.z>-bump`。`main` に直接コミットしない
 - PR タイトルに issue 番号を含める。例: `URL_PARAMS の regex を pattern として WP コアにも渡す (#66)`
 - 挙動を変える PR は `CHANGELOG.md` の `[Unreleased]` と `docs/spec.md` を同じ PR で更新する
+- `docs/spec.md` には利用者が依存してよい約束だけを書く。実装の詳細（正規表現の修飾子、内部クラスの判定、フックの処理順など）は書かない。判断基準は「patch リリースで変えても利用者のコードが壊れないことは仕様ではない」
+- 実装が spec.md と食い違っていたら、spec を実装に寄せるのではなく issue にして実装を直す。レビューで「実装はこうなっている」と指摘されたときの選択肢は「実装を直す」か「ドキュメントから落とす」で、「実装どおりに詳しく書く」は取らない。README に注意書きが増えるのは設計の歪みのサインとして扱う
 - コミットメッセージは 1 行目で何を変えたかを言い切る。レビュー対応は `レビュー指摘の反映: ...`
 - PR を出す前に `composer test` と `composer lint` を通す
 - WP の関数・クラスへの依存を spec.md「WordPress との境界」に列挙した箇所の外に増やさない
