@@ -212,10 +212,11 @@ ROUTE定数のなかに `[var]` と `[]` で囲えばパスパラメータとし
 public function callback(int $id): RestaResponseInterface
 {
     $post = get_post($id);
-    if ($post === null) {
+    if ($post === null || $post->post_status !== 'publish') {
         return $this->response(null, 404);
     }
-    return $this->response($post, 200, ['Cache-Control' => 'no-store']);
+    // WP_Post をそのまま返すと post_password などの内部フィールドも JSON に出るので、返すフィールドを選ぶ
+    return $this->response(['id' => $post->ID, 'title' => $post->post_title], 200, ['Cache-Control' => 'no-store']);
 }
 ```
 

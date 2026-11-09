@@ -618,4 +618,20 @@ class AbstractRouteTest extends TestCase
             $response->getHeaders(),
         );
     }
+
+    public function testResponseHelperReplacesHeadersCaseInsensitively()
+    {
+        $route = new class extends AbstractRoute {
+            protected array $headers = ['Cache-Control' => 'public, max-age=3600'];
+
+            public function callback(): RestaResponseInterface
+            {
+                return $this->response(null, 200, ['cache-control' => 'no-store']);
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+        // HTTP ヘッダ名は大文字小文字を区別しない。表記が違っても古い値が残らず、callback 側の値だけになる
+        $this->assertSame(['cache-control' => 'no-store'], $response->getHeaders());
+    }
 }

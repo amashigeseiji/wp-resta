@@ -130,12 +130,22 @@ abstract class AbstractRoute implements RouteInterface
      *
      * `return $this->response(null, 404);` のように使う。$status / $body / $headers プロパティへの
      * 代入と違い、ルートに状態を持たせずに済む。$headers はクラス宣言の $headers に上書きで合成する。
+     * HTTP ヘッダ名は大文字小文字を区別しないので、表記が違う同名ヘッダも callback 側の値で置き換える。
      *
      * @param array<string, string> $headers
      */
     protected function response(mixed $data, int $status = 200, array $headers = []): RestaResponseInterface
     {
-        return new SimpleRestaResponse($data, $status, array_merge($this->headers, $headers));
+        $merged = $this->headers;
+        foreach ($headers as $name => $value) {
+            foreach (array_keys($merged) as $existing) {
+                if (strcasecmp($existing, $name) === 0) {
+                    unset($merged[$existing]);
+                }
+            }
+            $merged[$name] = $value;
+        }
+        return new SimpleRestaResponse($data, $status, $merged);
     }
 
     /**
