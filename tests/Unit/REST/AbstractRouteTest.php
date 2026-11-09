@@ -466,6 +466,27 @@ class AbstractRouteTest extends TestCase
         $this->assertEquals(400, $route->invoke($this->requestWith(['tag' => 'a-b']))->getStatusCode());
     }
 
+    public function testInvokeKeepsLeadingPcreVerbsAtPatternStart()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['name' => '(*UTF)(*UCP)\\w+'];
+
+            public function callback(string $name): array
+            {
+                return ['name' => $name];
+            }
+        };
+
+        // (*UTF) (*UCP) はパターン先頭にしか置けない。^(?: の内側に入るとコンパイルエラーで 500 になる
+        $response = $route->invoke($this->requestWith(['name' => '日本語']));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(['name' => '日本語'], $response->getData());
+        $this->assertSame('', $this->loggedErrors());
+
+        // 指示子を外に出してもアンカーは効いている
+        $this->assertEquals(400, $route->invoke($this->requestWith(['name' => '日本 語']))->getStatusCode());
+    }
+
     public function testInvokeReturns500WhenRegexContainsEveryDelimiterCandidate()
     {
         $route = new class extends AbstractRoute {
