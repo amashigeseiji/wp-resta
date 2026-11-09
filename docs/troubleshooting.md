@@ -23,6 +23,7 @@
 ## テストが失敗する
 
 - `TestRestaRequest` に渡す URL の namespace と `setNamespace()` が一致しているか
+- `TestRestaRequest` の URL にクエリ文字列を付けていないか。解釈されず、パス全体が一致しなくなる（[testing.md](testing.md)）
 - 前のテストで `Container` に bind したものが残っていないか（[testing.md](testing.md)「Container のリセット」）
 - WP 関数を呼ぶコードは Brain Monkey でモックしているか
 

@@ -38,15 +38,15 @@ URL は `/wp-json/{namespace}/{ROUTE}`。namespace は `routeDirectory` の 3 �
 - `ROUTE` に `[name]` があるものはパスパラメータ、無いものはクエリパラメータ
 - 同名のパスパラメータとクエリパラメータがあればパスパラメータが優先される（`rest_request_parameter_order` フィルタ）
 - regex は値全体に照合する。`^` `$` は書かない。区切り文字は wp-resta が付けるので `/` を含めてよい。UTF-8 モード（`u`）で照合する
-- regex は `register_rest_route()` の args に `pattern` としても渡され、WP コアが dispatch 前に検証する
+- `type` が string のパラメータの regex は `register_rest_route()` の args に `pattern` としても渡され、WP コアが dispatch 前に検証する。integer は WP コアが `type` で検証する。配列形式で integer に独自の regex を書いた場合、その regex は wp-resta 側（callback が受け取る引数）だけで検証される
 - 省略可能なパラメータは URL に無いときだけ callback のデフォルト値になる。空文字は省略ではなく値として扱い、regex に一致しなければ 400
 
 ## callback の呼び出し
 
 `AbstractRoute::invoke(RestaRequestInterface $request): RestaResponseInterface` が入口。ルートが `callback` メソッドを持つとき、引数を次の規則で解決して呼ぶ。
 
-1. 引数名が `URL_PARAMS` にある → `$request->getUrlParam()` の値。required で無ければ 400、regex 不一致なら 400
-2. クラス・インターフェース型 → DI コンテナから解決。`WP_REST_Request` と `RestaRequestInterface` はリクエストごとに bind される
+1. 引数名が `URL_PARAMS` にある → `$request->getUrlParam()` の値。required なのに値が無ければ 400 `rest_missing_callback_param`、値があって regex に一致しなければ 400 `rest_invalid_param`
+2. クラス型 → DI コンテナから解決。`WP_REST_Request` と `RestaRequestInterface` はリクエストごとに bind される。ただしインターフェース型の引数は、bind 済みでも `class_exists()` の判定で `RuntimeException`（500）になる既知の不具合があり、現状は `WP_REST_Request` のようなクラス型でしか受け取れない。コンストラクタインジェクションではインターフェースも解決できる
 3. `URL_PARAMS` に無いビルトイン型 → `LogicException`（ルート定義の誤り）
 4. union / intersection 型 → `InvalidArgumentException`
 
@@ -81,6 +81,8 @@ callback を持たないルートは `$body` / `$status` / `$headers` プロパ�
 
 500 の場合は `error_log()` に例外クラス・ルートクラス・メッセージ・位置を記録する。`WP_DEBUG` 有効時はボディにメッセージと例外クラス名も載せる。
 
+`#[Envelope]` を付けたルートでは、`invoke()` が返した 400 / 500 も `EnvelopeHook` に包まれ、`{ "data": { "code": ..., "message": ..., "data": { "status": ... } }, "meta": {} }` になる。一方、WP コアが dispatch 前に返すエラー（args の `required` / `pattern` による 400、`permission_callback` による 401 / 403）は包まれず `WP_Error` の形のまま返る。同じルートでもエラーの発生箇所で形が変わるこの不整合は既知の問題で、0.12.0 で方針を決める。
+
 ## 認可
 
 `RouteInterface::permissionCallback(): string` が `register_rest_route()` の `permission_callback` にそのまま渡される。デフォルトは `'__return_true'` を返し、WP はこれを空でない文字列として許可と解釈する。`string` 型のため拒否を表現できない（#61、0.12.0 で変更予定）。
@@ -93,7 +95,7 @@ callback を持たないルートは `$body` / `$status` / `$headers` プロパ�
 
 - クラス型はコンストラクタの型宣言から再帰的に autowiring する
 - インターフェースは `init()` の `dependencies` で実装クラスか factory クロージャを bind する
-- `bind($abstract, $concrete)` で任意の値も bind できる
+- `bind($abstract, $concrete)` の `$concrete` はクラス名、オブジェクト、factory クロージャのいずれか。スカラー値や配列は bind できない。設定値は `Config` から読むか、値を持つオブジェクトに包んで bind する
 - コンストラクタインジェクションはルート生成時、callback 引数の解決は `invoke()` 時
 
 ## 設定
