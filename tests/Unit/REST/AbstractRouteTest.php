@@ -615,6 +615,39 @@ class AbstractRouteTest extends TestCase
         $this->assertArrayNotHasKey('pattern', $args['untyped']);
     }
 
+    public function testGetArgsDoesNotEmitPatternForInvalidRegex()
+    {
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = [
+                'broken' => ['type' => 'string', 'required' => true, 'regex' => '[', 'description' => 'broken'],
+                'all_delimiters' => ['type' => 'string', 'required' => true, 'regex' => '[#~%@!`;]+', 'description' => 'all'],
+                'ok' => '[a-z]+',
+            ];
+
+            public function callback(string $broken): array
+            {
+                return [];
+            }
+        };
+
+        $args = $route->getArgs();
+
+        // コアに渡すと preg_match() の失敗が「不一致」として 400 になり、定義ミスが入力エラーに見えてしまう。
+        // pattern を付けずに invokeCallback() の 500 + ログの経路に任せる
+        $this->assertArrayNotHasKey('pattern', $args['broken']);
+        $this->assertArrayNotHasKey('pattern', $args['all_delimiters']);
+        $this->assertSame('^(?:[a-z]+)$', $args['ok']['pattern']);
+
+        set_error_handler(fn () => true);
+        try {
+            $response = $route->invoke($this->requestWith(['broken' => 'x']));
+        } finally {
+            restore_error_handler();
+        }
+        $this->assertEquals(500, $response->getStatusCode());
+        $this->assertStringContainsString('has invalid regex "["', $this->loggedErrors());
+    }
+
     public function testGetArgsPatternKeepsLeadingPcreVerbsAtPatternStart()
     {
         $route = new class extends AbstractRoute {

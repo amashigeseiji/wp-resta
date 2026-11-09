@@ -302,17 +302,30 @@ abstract class AbstractRoute implements RouteInterface
      *
      * 利用側が pattern を明示している場合はそちらを優先する。
      *
+     * regex 自体が不正な場合は pattern を付けない。コアは preg_match() の失敗を不一致として扱い、
+     * すべての値を 400 にしてしまうため、定義ミスがクライアント側のエラーとして報告されてしまう。
+     * pattern を付けなければ invokeCallback() の検証に到達し、そちらで 500 とログになる。
+     *
      * @param array<string, mixed> $arg
      * @return array<string, mixed>
      */
     private function withCoreValidation(array $arg): array
     {
-        if (($arg['type'] ?? null) === 'string'
-            && isset($arg['regex']) && is_string($arg['regex'])
-            && !array_key_exists('pattern', $arg)
+        if (($arg['type'] ?? null) !== 'string'
+            || !isset($arg['regex']) || !is_string($arg['regex'])
+            || array_key_exists('pattern', $arg)
         ) {
-            $arg['pattern'] = $this->anchorRegex($arg['regex']);
+            return $arg;
         }
+        try {
+            $compiled = $this->compileRegex($arg['regex']);
+        } catch (LogicException) {
+            return $arg;
+        }
+        if (@preg_match($compiled, '') === false) {
+            return $arg;
+        }
+        $arg['pattern'] = $this->anchorRegex($arg['regex']);
         return $arg;
     }
 
