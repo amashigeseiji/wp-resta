@@ -2,6 +2,7 @@
 namespace Test\Resta\Unit\REST;
 
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use Wp\Resta\REST\AbstractRoute;
@@ -679,5 +680,74 @@ class AbstractRouteTest extends TestCase
         $this->assertSame(0, $core($args['kind']['pattern'], 'zzz-a-zzz'), 'コアは部分一致なので、アンカーが無いと通ってしまう');
         $this->assertSame(1, $core($args['tag']['pattern'], 'a#b'), 'コア側の # エスケープと衝突しない');
         $this->assertSame(0, $core($args['name']['pattern'], ''), '空文字は \w+ に一致しない');
+    }
+
+    public function testResponseHelperReturnsStatusAndDataWithoutTouchingRouteState()
+    {
+        $route = new class extends AbstractRoute {
+            public function callback(): RestaResponseInterface
+            {
+                return $this->response(['error' => 'not found'], 404);
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+        $this->assertEquals(404, $response->getStatusCode());
+        $this->assertSame(['error' => 'not found'], $response->getData());
+        $this->assertSame([], $response->getHeaders());
+
+        // プロパティに代入していないので、同じインスタンスで次に呼んでも 404 を引きずらない
+        $this->assertEquals(200, (new ReflectionProperty($route, 'status'))->getValue($route));
+    }
+
+    public function testResponseHelperDefaultsTo200()
+    {
+        $route = new class extends AbstractRoute {
+            public function callback(): RestaResponseInterface
+            {
+                return $this->response('ok');
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame('ok', $response->getData());
+    }
+
+    public function testResponseHelperMergesDeclaredHeaders()
+    {
+        $route = new class extends AbstractRoute {
+            protected array $headers = ['Cache-Control' => 'no-store', 'X-Route' => 'declared'];
+
+            public function callback(): RestaResponseInterface
+            {
+                return $this->response(null, 204, ['X-Route' => 'callback', 'X-Extra' => '1']);
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+        $this->assertEquals(204, $response->getStatusCode());
+        $this->assertNull($response->getData());
+        // クラス宣言のヘッダは残り、同名は callback 側で上書きされる
+        $this->assertSame(
+            ['Cache-Control' => 'no-store', 'X-Route' => 'callback', 'X-Extra' => '1'],
+            $response->getHeaders(),
+        );
+    }
+
+    public function testResponseHelperReplacesHeadersCaseInsensitively()
+    {
+        $route = new class extends AbstractRoute {
+            protected array $headers = ['Cache-Control' => 'public, max-age=3600'];
+
+            public function callback(): RestaResponseInterface
+            {
+                return $this->response(null, 200, ['cache-control' => 'no-store']);
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+        // HTTP ヘッダ名は大文字小文字を区別しない。表記が違っても古い値が残らず、callback 側の値だけになる
+        $this->assertSame(['cache-control' => 'no-store'], $response->getHeaders());
     }
 }
