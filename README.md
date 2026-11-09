@@ -206,6 +206,21 @@ ROUTE定数のなかに `[var]` と `[]` で囲えばパスパラメータとし
 
 また、簡易な DI があるため、解決可能なクラスを引数に定義すると受け取ることができます。ランタイムに値が決まるもの(例えば `WP_REST_Request` )などはコンストラクタインジェクションでは値が決まっていませんが、コールバックが呼び出される時点では確定しているので、利用できます。
 
+ステータスコードやヘッダを指定したい場合は、`$this->response()` でレスポンスを作って返します。
+
+```php
+public function callback(int $id): RestaResponseInterface
+{
+    $post = get_post($id);
+    if ($post === null) {
+        return $this->response(null, 404);
+    }
+    return $this->response($post, 200, ['Cache-Control' => 'no-store']);
+}
+```
+
+ヘッダはクラスの `$headers` プロパティで宣言したものに上書きで合成されます。
+
 ### エラーレスポンス
 
 URL変数の値が regex に一致しない、または required な値が無い場合は 400 を返します。ボディは WordPress コアの `WP_Error` と同じ形（`code` / `message` / `data.status`）です。

@@ -126,6 +126,19 @@ abstract class AbstractRoute implements RouteInterface
     }
 
     /**
+     * callback からステータスやヘッダを指定してレスポンスを返すためのヘルパ。
+     *
+     * `return $this->response(null, 404);` のように使う。$status / $body / $headers プロパティへの
+     * 代入と違い、ルートに状態を持たせずに済む。$headers はクラス宣言の $headers に上書きで合成する。
+     *
+     * @param array<string, string> $headers
+     */
+    protected function response(mixed $data, int $status = 200, array $headers = []): RestaResponseInterface
+    {
+        return new SimpleRestaResponse($data, $status, array_merge($this->headers, $headers));
+    }
+
+    /**
      * WP_Error::get_error_data() を含む WP_REST_Server のエラーレスポンスと同じ形のボディを組み立てる
      *
      * @param array<string, mixed> $data
