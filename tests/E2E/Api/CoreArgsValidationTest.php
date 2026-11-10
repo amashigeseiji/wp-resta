@@ -68,6 +68,16 @@ class CoreArgsValidationTest extends AbstractE2ETestCase
         $this->assertSame('rest_invalid_param', $this->getJsonResponse($response)['code']);
     }
 
+    public function testPathParameterIsDecodedOnceInBothUrlForms(): void
+    {
+        // パーマリンク形式はエンコードのまま、?rest_route= 形式はデコード済みで WP から届く。
+        // どちらでも URL に書いた %2541 は 1 回だけデコードされて %41 になる
+        // get() はクエリを組み立て直すので、URL を文字どおり送るために client を直接使う
+        $this->assertSame('Hello, %41!', $this->getJsonResponse($this->get('/wp-json/example/hello/%2541'))['message']);
+        $this->assertSame('Hello, %41!', $this->getJsonResponse($this->client->get('/?rest_route=/example/hello/%2541'))['message']);
+        $this->assertSame('Hello, 日本語!', $this->getJsonResponse($this->client->get('/?rest_route=/example/hello/' . rawurlencode('日本語')))['message']);
+    }
+
     public function testStringPathParameterAcceptsMultibyteAndSymbols(): void
     {
         // #81: 'string' のパスパラメータは [^/]+ で登録されるので、コアのルート照合（u なし）でも日本語が通る

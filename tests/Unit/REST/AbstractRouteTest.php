@@ -743,9 +743,23 @@ class AbstractRouteTest extends TestCase
 
         $this->assertSame('tag/(?P<tag>[^/]+)', $route->getRouteRegex());
         $this->assertArrayNotHasKey('pattern', $route->getArgs()['tag']);
-        $response = $route->invoke(new TestRestaRequest('/myapi/tag/a-b?q=x%20y', $route));
+        $response = $route->invoke(new TestRestaRequest('/myapi/tag/a%20b?q=x%20y', $route));
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertSame(['tag' => 'a-b', 'q' => 'x y'], $response->getData());
+        $this->assertSame(['tag' => 'a b', 'q' => 'x y'], $response->getData());
+    }
+
+    public function testTestRestaRequestDecodesPathParametersLikeProduction()
+    {
+        // 本番（WpRestaRequest）と同じく、エンコードされたパスに照合してから値をデコードする
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'user/[name]';
+            protected const URL_PARAMS = ['name' => 'string'];
+        };
+        $route->setNamespace('myapi');
+
+        $this->assertSame('日本語', (new TestRestaRequest('/myapi/user/%E6%97%A5%E6%9C%AC%E8%AA%9E', $route))->getUrlParam('name'));
+        $this->assertSame('%41', (new TestRestaRequest('/myapi/user/%2541', $route))->getUrlParam('name'));
+        $this->assertSame('a+b', (new TestRestaRequest('/myapi/user/a+b', $route))->getUrlParam('name'));
     }
 
     public function testTestRestaRequestParsesQueryString()

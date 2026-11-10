@@ -24,13 +24,32 @@ class WpRestaRequestTest extends TestCase
         $this->assertNull($request->getUrlParam('missing'));
     }
 
-    public function testAlreadyDecodedPathParameterIsUnchanged(): void
+    public function testDoesNotDecodeTwiceWhenPathParametersArriveDecoded(): void
     {
-        // ?rest_route= 形式では WP がデコード済みで渡してくる。その場合も同じ値になる
+        // ?rest_route= 形式では WP がデコード済みで渡してくる。%2541 → %41 で届いた値を A にしてはいけない
         $wp = new WP_REST_Request();
-        $wp->set_url_params(['name' => '日本語']);
-        $wp['name'] = '日本語';
+        $wp->set_url_params(['name' => '%41']);
+        $wp['name'] = '%41';
 
-        $this->assertSame('日本語', WpRestaRequest::fromWpRequest($wp)->getUrlParam('name'));
+        $this->assertSame('%41', WpRestaRequest::fromWpRequest($wp, pathParamsAreEncoded: false)->getUrlParam('name'));
+        // パーマリンク形式なら URL に書かれた %2541 が %2541 のまま届くので、1 回のデコードで同じ %41 になる
+        $wp['name'] = '%2541';
+        $wp->set_url_params(['name' => '%2541']);
+        $this->assertSame('%41', WpRestaRequest::fromWpRequest($wp, pathParamsAreEncoded: true)->getUrlParam('name'));
+    }
+
+    public function testDetectsQueryFormByRestRouteInGet(): void
+    {
+        $wp = new WP_REST_Request();
+        $wp->set_url_params(['name' => '%41']);
+        $wp['name'] = '%41';
+
+        $_GET['rest_route'] = '/example/hello/%41';
+        try {
+            $this->assertSame('%41', WpRestaRequest::fromWpRequest($wp)->getUrlParam('name'));
+        } finally {
+            unset($_GET['rest_route']);
+        }
+        $this->assertSame('A', WpRestaRequest::fromWpRequest($wp)->getUrlParam('name'));
     }
 }

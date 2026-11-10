@@ -64,12 +64,13 @@ class TestRestaRequest implements RestaRequestInterface
             $path = preg_replace($namespacePattern, '/', $path);
         }
 
-        // ルートパターンとマッチング
+        // ルートパターンとマッチング。WP コアと同じくエンコードされたままのパスに照合し、
+        // 取り出した値は WpRestaRequest と同じくデコードして callback に渡す
         $pattern = '#^/?' . ltrim($routePattern, '/') . '$#';
         if (preg_match($pattern, $path, $matches)) {
             foreach ($matches as $key => $value) {
                 if (!is_numeric($key)) {
-                    $this->urlParams[$key] = $value;
+                    $this->urlParams[$key] = rawurldecode($value);
                 }
             }
         }
