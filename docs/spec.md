@@ -28,8 +28,10 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ### URL パラメータ
 
 - `ROUTE` の `[name]` はパスパラメータ。それ以外の宣言済みパラメータはクエリパラメータ
-- パラメータは名前と型（string / integer）を宣言する。省略可能なパラメータは `?` を付けて宣言し、callback 引数のデフォルト値が使われる
-- callback の引数に書いた `string` / `int` の引数は、`URL_PARAMS` に無くてもその名前のパラメータの宣言になる。デフォルト値があれば省略可能。同名の `URL_PARAMS` があればそちらが優先される
+- `URL_PARAMS` では名前と型（string / integer）を宣言する。省略可能なパラメータは `?` を付けて宣言し、callback 引数のデフォルト値が使われる
+- callback の引数も宣言になる。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は、`URL_PARAMS` に無くてもその名前のパラメータの宣言で、デフォルト値があれば省略可能。クラス型の引数は DI で解決され、宣言にはならない。同名の `URL_PARAMS` があればそちらが優先される
+- 型で表せない制約（正規表現、最小値、最大値、説明）は `#[Param]` で宣言する。配列の要素型は docblock の `@param string[]` のように宣言する
+- 値は宣言した型に変換されて callback に届く。`bool` は `true` / `false` / `1` / `0`、配列は `tags[]=a` の繰り返しとカンマ区切りの両方を受け取り、backed enum はそのインスタンスになる
 - `ROUTE` の `[name]` には対応する宣言が必要で、パスパラメータにデフォルト値は付けられない
 - 型に加えて正規表現で制約を宣言できる。正規表現は値全体に照合される。宣言しなければ型以外の制約はなく、`string` は任意の文字列を受け取る
 - 同名のパスパラメータとクエリパラメータがあればパスパラメータが優先される
@@ -46,7 +48,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 リクエストは認証、バリデーション、認可、callback の順に段階を通る。バリデーションを通った入力だけが認可と callback に渡り、callback の結果がレスポンスになる。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
 
-パイプラインは WordPress 無しで実行できる。`invoke(RestaRequestInterface)` がその入口で、`TestRestaRequest` が URL 文字列からリクエストを作る（[testing.md](testing.md)）。
+パイプラインは WordPress 無しで実行できる。`RequestHandler::handle(RouteInterface, RestaRequestInterface)` がその入口で、`TestRestaRequest` が URL 文字列からリクエストを作る（[testing.md](testing.md)）。ルートは宣言だけを持ち、実行の順序は `RequestHandler` が持つ。
 
 ### 認証
 
@@ -54,19 +56,20 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ### バリデーション
 
-- 宣言された制約を満たさない入力は 400 になり、callback は呼ばれない
+- 宣言された制約を満たさない入力は 400 になり、callback は呼ばれない。callback の引数で受け取るかどうかに関係なく、宣言されたパラメータはすべて検証される
+- ルートは `validate(BoundParameters $params)` をオーバーライドして、型変換後の値に対する手続き的な検証を書ける。拒否は `HttpException` を投げる
 
 ### 認可
 
-- ルートは `authorize(RestaRequestInterface $request, Principal $principal)` をオーバーライドして認可を宣言する。既定は全リクエストを許可する
+- ルートは `authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal)` をオーバーライドして認可を宣言する。既定は全リクエストを許可する
 - 拒否は例外で表す。`UnauthorizedException` は 401、`ForbiddenException` は 403 になり、callback は呼ばれない
 - `Principal` は認証状態（`isAuthenticated()`）と capability（`can()`）を答える。WordPress 上では現在のユーザーに対応し、認証方式（cookie + nonce、Application Passwords など）には依存しない。設定の `dependencies` で差し替えられる
-- 認可はバリデーションの後に行われる。`authorize()` が見る URL パラメータは宣言した制約を満たしている
+- 認可はバリデーションの後に行われる。`authorize()` が受け取る `$params` は宣言した制約を満たし、型変換済みの値
 
 ### callback
 
-- ルートが `callback` メソッドを持つとき、リクエストごとに呼ばれる
-- callback の引数は、宣言済みの URL パラメータなら名前で、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決できる
+- ルートの `callback` メソッドがリクエストごとに呼ばれる。`callback` を持たないルートは非推奨で、次の minor で許可されなくなる
+- callback の引数は、宣言済みの URL パラメータなら名前で型変換済みの値が、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決でき、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
 - WordPress の REST API から移行するコードのために、`WP_REST_Request` も callback 引数で受け取れる。新しく書くコードでは使わない
 - callback の戻り値がレスポンスボディになる
 
@@ -74,6 +77,8 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 - `RestaResponseInterface` を返せばステータスとヘッダも含めてそのまま使われる
 - `$this->response($data, $status, $headers)` でステータスとヘッダを指定したレスポンスを作れる
+- ルートに宣言した既定ヘッダは、エラーを含むどのレスポンスにも付く。レスポンス自身が同名のヘッダを持てばそちらが優先される
+- `RestaResponseInterface::withHeaders()` でヘッダを足した複製を作れる。購読者がレスポンスにヘッダを付けるときに使う
 - `#[Envelope]` を付けたルートは、ボディが `{ "data": ..., "meta": ... }` に包まれる
 - `RouteInvocationEvent` の購読者はレスポンスを差し替えられる（「イベント」）
 

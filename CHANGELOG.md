@@ -14,19 +14,24 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   - 廃止イベント: `KernelState::boot` / `boot.guard` / `registerRoutes` / `registerRoutes.guard`、`RequestState::convert` / `invoke` / `respond` とその `.guard`
   - 代替: `KernelState::registerRoutes` → `wp.rest_api_init`（発火のたびに dispatch される。購読者が呼ばれる時点でルートは登録済み）。`RequestState::invoke` の after → `RouteInvocationEvent`。guard の代替はない
   - コンストラクタ変更: `RequestHandler(DispatcherInterface)`、`WpKernelAdapter(DispatcherInterface, Config)`。`WpKernelAdapter` を継承している場合は影響する
+- `AbstractRoute::invoke()` を削除した（#79）。ルートは宣言だけを持ち、検証・認可・callback・`RouteInvocationEvent` の順序は WP 非依存の `RequestHandler::handle(RouteInterface, RestaRequestInterface)` が持つ。テストは `(new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request)` に書き換える。`Wp\Resta\Lifecycle\RequestHandler` は `Wp\Resta\REST\RequestHandler` に移り、コンストラクタは `(Principal, DispatcherInterface)` になった。`Lifecycle` 名前空間は無くなった
 - `RouteInterface::permissionCallback()` と `AbstractRoute::permissionCallback()` を削除した（#61）。戻り値型が `string` 固定で、WordPress の `permission_callback` として呼ばれても拒否を表せず、オーバーライドしても常に許可になっていた。代替は `authorize()`。オーバーライドしていたルートは呼ばれなくなるだけでエラーにはならないので、`authorize()` に書き換える
 
 ### 追加
 
-- ルート単位の認可（#61）。`authorize(RestaRequestInterface $request, Principal $principal)` をオーバーライドし、`UnauthorizedException`（401 `rest_not_logged_in`）か `ForbiddenException`（403 `rest_forbidden`）を投げて拒否する。順序はバリデーション → 認可 → callback で WordPress コアと同じ
-- `Wp\Resta\Auth\Principal`。認証状態と capability を答えるインターフェースで、`Resta::init()` が WordPress の現在ユーザーに委譲する `WpPrincipal` を bind する。`dependencies` で差し替え可能。テスト用に `TestPrincipal`、bind が無いときの既定として `AnonymousPrincipal` がある
-- `Container::has()`
+- callback のシグニチャからの URL パラメータ宣言（#79、#77）。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は `URL_PARAMS` に書かなくても宣言になり、値は宣言した型に変換されて届く。`#[Param(pattern:, min:, max:, description:)]` で制約を足せ、配列の要素型は `@param string[]` から読む。`RouteInterface::getParameters()` / `getCallback()` を追加
+- `RestaResponseInterface::withHeaders(array): static`。ヘッダを上書きマージした複製を返す。`RouteInterface::getHeaders()` でルートの既定ヘッダを宣言し、エラーを含むどのレスポンスにも付く（レスポンス自身の同名が優先）。これまでは callback が `RestaResponseInterface` を直接返すと既定ヘッダが付かなかった
+- 手続き的な検証のフック `validate(BoundParameters $params)`（#79）。型と正規表現の検証の後、`authorize()` の前に呼ばれる
+- ルート単位の認可（#61）。`authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal)` をオーバーライドし、`UnauthorizedException`（401 `rest_not_logged_in`）か `ForbiddenException`（403 `rest_forbidden`）を投げて拒否する。順序はバリデーション → 認可 → callback で WordPress コアと同じ
+- `Wp\Resta\Auth\Principal`。認証状態と capability を答えるインターフェースで、`Resta::init()` が WordPress の現在ユーザーに委譲する `WpPrincipal` を bind する。`dependencies` で差し替え可能。テスト用に `TestPrincipal`
 
 ### 変更
 
-- callback の引数に書いた `string` / `int` の引数が、`URL_PARAMS` に無くてもその名前の URL パラメータの宣言として扱われるようになった（#79）。これまでは `LogicException` で 500 になっていた。デフォルト値があれば省略可能なクエリパラメータ、無ければ必須。同名の `URL_PARAMS` があればそちらが優先される
+- callback の引数に書いたビルトイン型の引数が、`URL_PARAMS` に無くても URL パラメータの宣言として扱われるようになった（#79）。これまでは `LogicException` で 500 になっていた。同名の `URL_PARAMS` があればそちらが優先される
 - `ROUTE` の `[name]` に対応する宣言が無いと `LogicException` になる。これまでは `[name]` が文字どおりのパスとして登録されていた
-- `RouteInterface` に `getParameters(): RouteParameters` と `getCallback(): Callback` を追加した（#79）。`getArgs()` と `getRouteRegex()` はこの宣言からの導出になり、出力は変わらない
+- 宣言されたパラメータは、callback の引数で受け取るかどうかに関係なくすべて wp-resta が検証するようになった（#79）。これまでは callback の引数にあるものだけ wp-resta が検証し、それ以外は WordPress コアの検証に頼っていた
+- `getArgs()` が `'sanitize_callback' => null` を出すようになり、WordPress コアの型変換を止めた。型変換は wp-resta が行い、`RestaRequestInterface::getUrlParam()` はクライアントが送った値をそのまま返す。`WP_REST_Request::get_param()` から直接読んでいたコードには文字列のまま届く
+- `callback` メソッドを持たないルート（`$body` だけを返す）は非推奨になった（`E_USER_DEPRECATED`）。0.13 で `LogicException` にする。`callback()` で body を返す形に書き換える
 - WordPress コアに渡す `permission_callback` は常に `__return_true` になった（#61）。認可は `invoke()` の中で行われるので、`RouteInvocationEvent` の購読者には 401 / 403 のレスポンスも渡る
 - `rest_api_init` が何度発火しても、そのたびにルートを登録し直すようになった（#60）。WordPress のテストフレームワーク（`WP_Test_REST_Controller_Testcase`）のように `$wp_rest_server` をテストごとに作り直す環境で、2 つ目以降のテストが致命的エラーになっていた
 - 設定の `adapters` を省略すると `WpKernelAdapter` が使われる。これまでは明示しないとルートが登録されなかった

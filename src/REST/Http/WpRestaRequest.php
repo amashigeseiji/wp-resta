@@ -55,8 +55,8 @@ class WpRestaRequest implements RestaRequestInterface
         // 配列アクセスで URL パラメータを取得できる（パスパラメータ優先の順序はコアに任せる）
         $value = $this->inner[$name] ?? null;
 
-        // どちらの URL 形式でも同じ値が callback に届くよう、エンコードのまま届くパスパラメータだけデコードする。
-        // クエリパラメータとコアが型変換した値には触らない
+        // どちらの URL 形式でも同じ値が届くよう、エンコードのまま届くパスパラメータだけデコードする。
+        // 型変換はしない（args に sanitize_callback => null を渡しているのでコアも変換しない）
         if ($this->pathParamsAreEncoded && is_string($value) && array_key_exists($name, $this->inner->get_url_params())) {
             return rawurldecode($value);
         }

@@ -2,7 +2,10 @@
 namespace Test\Resta\Unit\REST;
 
 use PHPUnit\Framework\TestCase;
+use Wp\Resta\Auth\TestPrincipal;
+use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\RequestHandler;
 use Wp\Resta\REST\Http\TestRestaRequest;
 
 class HelloWorldWithParamTest extends TestCase
@@ -27,7 +30,7 @@ class HelloWorldWithParamTest extends TestCase
 
         // TestRestaRequest が自動的にパスパラメータをパース
         $request = new TestRestaRequest('/myroute/hello/amashige', $route);
-        $response = $route->invoke($request);
+        $response = (new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request);
 
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('Hello, amashige!', $response->getData());

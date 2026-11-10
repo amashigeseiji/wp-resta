@@ -106,7 +106,10 @@ use Wp\Resta\REST\AbstractRoute;
 
 class HelloWorld extends AbstractRoute
 {
-    public $body = 'Hello, world!';
+    public function callback(): string
+    {
+        return 'Hello, world!';
+    }
 }
 ```
 
@@ -174,7 +177,29 @@ ROUTE定数のなかに `[var]` と `[]` で囲えばパスパラメータとし
 
 `'string'` は任意の文字列、`'integer'` は整数を受け取り、`?` を付けると省略可能になります。それ以外の文字列は正規表現として、値全体に照合されます（`^` `$` を自分で書く必要はなく、`'[a-z/]+'` のように `/` を含めても構いません）。`'string'` を英数字だけに絞りたいなら `'\w+'` のように正規表現を書きます。
 
-regex は `register_rest_route()` の `args` に `pattern` としても渡され、WordPress コアが dispatch 前に検証します。そのため callback の引数で受け取らないパラメータ（`WP_REST_Request` から直接読む場合など）にも効きます。
+宣言したパラメータは、callback の引数で受け取るかどうかに関係なくすべて検証されます。regex は `register_rest_route()` の `args` に `pattern` としても渡されるので、WordPress の REST API discovery にも載ります。
+
+`URL_PARAMS` を書かなくても、callback の引数の型がそのまま宣言になります。`int` / `float` / `bool` / `string` / `array` / backed enum が使え、デフォルト値があれば省略可能、無ければ必須です。型で表せない制約は `#[Param]` で足します。
+
+```php
+use Wp\Resta\REST\Attributes\Param;
+
+protected const ROUTE = 'posts/[id]';
+
+/**
+ * @param string[] $tags
+ */
+public function callback(
+    int $id,
+    #[Param(min: 1, max: 100)] int $per_page = 10,
+    Sort $sort = Sort::Asc,        // backed enum → asc / desc だけ受け付け、enum のインスタンスで届く
+    bool $published = true,        // true / false / 1 / 0
+    array $tags = [],              // ?tags[]=a&tags[]=b でも ?tags=a,b でも
+    #[Param(pattern: '[a-z-]+')] string $slug = '',
+): array
+```
+
+値は宣言した型に変換されて届きます（`'42'` → `42`、`'true'` → `true`）。同名の `URL_PARAMS` があればそちらが優先されます。
 
 省略可能な変数は、URL に含まれなかった場合だけ callback のデフォルト値が使われます。`?name=` のように空文字で渡された値は省略とはみなさず、正規表現に一致しなければ 400 になります。
 
@@ -219,7 +244,7 @@ public function callback(int $id): RestaResponseInterface
 }
 ```
 
-ヘッダはクラスの `$headers` プロパティで宣言したものに上書きで合成されます。
+クラスの `$headers` プロパティで宣言した既定ヘッダは、callback がどう返してもすべてのレスポンス（エラーを含む）に付き、同名ならレスポンス側の値が勝ちます。
 
 ### 認可
 
@@ -231,18 +256,31 @@ use Wp\Resta\REST\Exception\ForbiddenException;
 use Wp\Resta\REST\Exception\UnauthorizedException;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 
-protected function authorize(RestaRequestInterface $request, Principal $principal): void
+use Wp\Resta\REST\Parameter\BoundParameters;
+
+public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
 {
     if (!$principal->isAuthenticated()) {
         throw new UnauthorizedException();   // 401
     }
-    if (!$principal->can('edit_post', (int)$request->getUrlParam('id'))) {
+    if (!$principal->can('edit_post', $params->get('id'))) {
         throw new ForbiddenException();      // 403
     }
 }
 ```
 
-`Principal` は WordPress の現在のユーザーに対応し、`can()` は `current_user_can()` と同じ引数を取ります。cookie + nonce でも Application Passwords でも、WordPress が認証した結果がそのまま見えます。`authorize()` は URL変数の検証が通った後、`callback` の前に呼ばれます。
+`Principal` は WordPress の現在のユーザーに対応し、`can()` は `current_user_can()` と同じ引数を取ります。cookie + nonce でも Application Passwords でも、WordPress が認証した結果がそのまま見えます。`authorize()` は URL変数の検証が通った後、`callback` の前に呼ばれるので、`$params` には型変換済みの値が入っています。
+
+複数のパラメータにまたがる検証や DB を引く検証は `validate()` に書きます。型と正規表現の検証が通った後、`authorize()` の前に呼ばれます。
+
+```php
+public function validate(BoundParameters $params): void
+{
+    if ($params->get('from') > $params->get('to')) {
+        throw new InvalidParameterException('from', 'from must be <= to');   // 400
+    }
+}
+```
 
 WordPress のユーザーに対応づかない独自の認証を使う場合は、`Principal` の実装を書いて `dependencies` で差し替えます。
 
@@ -362,14 +400,17 @@ class Sample extends AbstractRoute
 
 ## Testing Your Routes
 
-wp-resta を使って作成した Route クラスは、**WordPress 環境なしで**テストできます。
+wp-resta を使って作成した Route クラスは、**WordPress 環境なしで**テストできます。リクエストの処理（検証、認可、callback）は `RequestHandler` が行うので、テストでは `RequestHandler` にルートと `TestRestaRequest` を渡します。
 
 ### 基本的なテスト
 
 ```php
 <?php
 use PHPUnit\Framework\TestCase;
+use Wp\Resta\Auth\TestPrincipal;
+use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\Http\TestRestaRequest;
+use Wp\Resta\REST\RequestHandler;
 use MyREST\Routes\HelloWorld;
 
 class HelloWorldTest extends TestCase
@@ -377,10 +418,9 @@ class HelloWorldTest extends TestCase
     public function testHelloWorld()
     {
         $route = new HelloWorld();
+        $handler = new RequestHandler(new TestPrincipal(), new Dispatcher());
 
-        // TestRestaRequest でシンプルにテスト
-        $request = new TestRestaRequest('/helloworld', $route);
-        $response = $route->invoke($request);
+        $response = $handler->handle($route, new TestRestaRequest('/helloworld', $route));
 
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('Hello, world!', $response->getData());
@@ -390,16 +430,16 @@ class HelloWorldTest extends TestCase
 
 ### 認可のテスト
 
-`invoke()` に渡る `Principal` は DI コンテナから解決されます。`TestPrincipal` を bind すると、認証状態と capability を固定してテストできます。bind しなければ未認証として扱われます。
+`RequestHandler` に渡す `TestPrincipal` で、認証状態と capability を固定します。引数なしの `TestPrincipal` は未認証です。
 
 ```php
-use Wp\Resta\Auth\Principal;
-use Wp\Resta\Auth\TestPrincipal;
-use Wp\Resta\DI\Container;
-
-Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true, capabilities: ['edit_posts']));
-$response = $route->invoke(new TestRestaRequest('/myapi/secret', $route));
+$handler = new RequestHandler(new TestPrincipal(authenticated: true, capabilities: ['edit_posts']), new Dispatcher());
+$response = $handler->handle($route, new TestRestaRequest('/myapi/secret', $route));
 $this->assertEquals(200, $response->getStatusCode());
+
+$handler = new RequestHandler(new TestPrincipal(), new Dispatcher());
+$response = $handler->handle($route, new TestRestaRequest('/myapi/secret', $route));
+$this->assertEquals(401, $response->getStatusCode());
 ```
 
 ### URL パラメータを使ったテスト
@@ -422,7 +462,7 @@ class HelloWorldWithParamTest extends TestCase
 
         // URL パラメータは自動的にパースされる
         $request = new TestRestaRequest('/myroute/hello/amashige', $route);
-        $response = $route->invoke($request);
+        $response = (new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request);
 
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('Hello, amashige!', $response->getData());
@@ -440,7 +480,7 @@ public function testJsonResponse()
 {
     $route = new MyApiRoute();
     $request = new TestRestaRequest('/api/user/123', $route);
-    $response = $route->invoke($request);
+    $response = (new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request);
 
     $data = $response->getData();
     $this->assertIsArray($data);

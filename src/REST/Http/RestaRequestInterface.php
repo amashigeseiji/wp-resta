@@ -13,12 +13,13 @@ namespace Wp\Resta\REST\Http;
 interface RestaRequestInterface
 {
     /**
-     * URL パラメータを取得
+     * 宣言された名前に対してクライアントが送った値を返す。無ければ null。
      *
-     * ルート定義の [id] や [slug] などのパラメータを取得する。
+     * パスとクエリの値は文字列で、パスパラメータはパーセントデコード済み。配列で送られた値（?tags[]=a）は配列。
+     * 型変換と検証はここでは行わず、RouteParameters::validate() の仕事。
+     * 同名のパスパラメータとクエリパラメータがあればパスパラメータ。
      *
      * @param string $name パラメータ名
-     * @return mixed パラメータ値（存在しない場合は null）
      */
     public function getUrlParam(string $name): mixed;
 }

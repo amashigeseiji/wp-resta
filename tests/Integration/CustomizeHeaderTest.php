@@ -2,7 +2,10 @@
 namespace Test\Resta\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Wp\Resta\Auth\TestPrincipal;
+use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\RequestHandler;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\TestRestaRequest;
 
@@ -24,7 +27,7 @@ class CustomizeHeaderTest extends TestCase
 
         // WordPress 非依存のテストリクエスト
         $request = new TestRestaRequest('/example/test', $route);
-        $response = $route->invoke($request);
+        $response = (new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request);
 
         $this->assertInstanceOf(RestaResponseInterface::class, $response);
 

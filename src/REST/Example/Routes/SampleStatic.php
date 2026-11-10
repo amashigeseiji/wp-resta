@@ -9,8 +9,14 @@ use Wp\Resta\REST\Attributes\RouteMeta;
 #[Envelope]
 class SampleStatic extends AbstractRoute
 {
-    protected $body = [
-        'name' => 'static_parameter',
-        'body' => 'this is sttatic parameter',
-    ];
+    /**
+     * @return array{name: string, body: string}
+     */
+    public function callback(): array
+    {
+        return [
+            'name' => 'static_parameter',
+            'body' => 'this is sttatic parameter',
+        ];
+    }
 }

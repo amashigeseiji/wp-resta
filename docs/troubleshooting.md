@@ -29,7 +29,7 @@
 
 - `authorize()` が投げている。`code` が `rest_not_logged_in` なら未認証、`rest_forbidden` なら capability 不足
 - cookie 認証では `X-WP-Nonce` ヘッダが無いと WordPress が未認証として扱う（`wp_rest` の nonce）
-- Unit テストで 401 になるなら `Principal` を bind していない。`TestPrincipal` を bind する（[testing.md](testing.md)）
+- Unit テストで 401 になるなら `RequestHandler` に渡した `TestPrincipal` が未認証。`new TestPrincipal(authenticated: true)` を渡す（[testing.md](testing.md)）
 
 ## 500 が返る
 

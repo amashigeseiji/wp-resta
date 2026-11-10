@@ -33,10 +33,10 @@ class ParameterDefinitionBuilderTest extends TestCase
         ], new class {});
 
         $this->assertSame([
-            'id' => ['type' => 'integer', 'required' => true, 'regex' => '\d+', 'description' => 'id'],
-            'name' => ['type' => 'string', 'required' => false, 'regex' => null, 'description' => 'name'],
-            'slug' => ['type' => 'string', 'required' => true, 'regex' => '[a-z]+', 'description' => 'slug', 'pattern' => '^(?:[a-z]+)$'],
-        ], $params->toCoreArgs());
+            'id' => ['type' => 'integer', 'required' => true, 'regex' => '\d+', 'description' => 'id', 'sanitize_callback' => null],
+            'name' => ['type' => 'string', 'required' => false, 'regex' => null, 'description' => 'name', 'sanitize_callback' => null],
+            'slug' => ['type' => 'string', 'required' => true, 'regex' => '[a-z]+', 'description' => 'slug', 'sanitize_callback' => null, 'pattern' => '^(?:[a-z]+)$'],
+        ], $params->toCoreArgs(), '型変換は wp-resta が行うので sanitize_callback => null をコアに渡す');
         $this->assertTrue($params->get('id')->isPath());
         $this->assertFalse($params->get('name')->isPath());
     }
@@ -49,11 +49,11 @@ class ParameterDefinitionBuilderTest extends TestCase
         ], new class {});
 
         $this->assertSame(
-            ['type' => 'string', 'required' => false, 'regex' => '(asc|desc)', 'description' => '並び順', 'enum' => ['asc', 'desc'], 'pattern' => '^(?:(asc|desc))$'],
+            ['type' => 'string', 'required' => false, 'regex' => '(asc|desc)', 'description' => '並び順', 'enum' => ['asc', 'desc'], 'sanitize_callback' => null, 'pattern' => '^(?:(asc|desc))$'],
             $params->get('order')->toCoreArg(),
         );
         $this->assertSame(['asc', 'desc'], $params->get('order')->enum);
-        $this->assertSame(['type' => 'string'], $params->get('free')->toCoreArg(), 'regex が無ければ pattern も付かない');
+        $this->assertSame(['type' => 'string', 'sanitize_callback' => null], $params->get('free')->toCoreArg(), 'regex が無ければ pattern も付かない');
         $this->assertFalse($params->get('free')->required);
         $this->assertNull($params->get('free')->regex);
     }
@@ -85,7 +85,7 @@ class ParameterDefinitionBuilderTest extends TestCase
         $this->assertSame(1.5, $ratio->default);
 
         $this->assertSame('boolean', $params->get('flag')->type);
-        $this->assertSame(['type' => 'integer', 'required' => true, 'regex' => '\d+', 'description' => 'id'], $id->toCoreArg());
+        $this->assertSame(['type' => 'integer', 'required' => true, 'regex' => '\d+', 'description' => 'id', 'sanitize_callback' => null], $id->toCoreArg());
     }
 
     public function testClassTypedArgumentsAreNotParameters(): void

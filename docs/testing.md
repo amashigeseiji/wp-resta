@@ -21,11 +21,14 @@ composer lint            # PHPStan
 
 ## ルートのユニットテスト
 
-`TestRestaRequest` が URL 文字列をルート定義に照らしてパラメータに分解するので、WordPress 無しで `invoke()` を呼べる。
+ルートの実行（検証、認可、callback、`RouteInvocationEvent`）は `RequestHandler` が行い、WordPress に依存しない。`TestRestaRequest` が URL 文字列をルート定義に照らしてパラメータに分解するので、WordPress 無しで本番と同じパイプラインを通せる。
 
 ```php
 use PHPUnit\Framework\TestCase;
+use Wp\Resta\Auth\TestPrincipal;
+use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\Http\TestRestaRequest;
+use Wp\Resta\REST\RequestHandler;
 use MyApp\Routes\MyRoute;
 
 class MyRouteTest extends TestCase
@@ -34,9 +37,10 @@ class MyRouteTest extends TestCase
     {
         $route = new MyRoute();
         $route->setNamespace('myapi');
+        $handler = new RequestHandler(new TestPrincipal(), new Dispatcher());
 
         $request = new TestRestaRequest('/myapi/myroute/123', $route);
-        $response = $route->invoke($request);
+        $response = $handler->handle($route, $request);
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame(123, $response->getData()['id']);
@@ -47,8 +51,9 @@ class MyRouteTest extends TestCase
 - `setNamespace()` を呼ばないと URL の namespace 部分が一致せずパラメータが取れない
 - クエリパラメータは `'/myapi/myroute/123?name=test'` のように URL に付ける。同名ならパスパラメータが優先される
 - 400 / 500 の検証は `getStatusCode()` と `getData()['code']` を見る（形は spec.md「エラーレスポンス」）
-- `TestRestaRequest` の値はすべて文字列。WP コアの型変換は走らない
-- `authorize()` を持つルートは `Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true, capabilities: ['edit_posts']))` で主体を固定する。bind しなければ未認証として扱われ、401 / 403 の検証に使える。bind したら「Container のリセット」を忘れない
+- `TestRestaRequest` の値はクライアントが送った文字列のまま。宣言した型への変換は `RequestHandler` の中で行われるので、本番と同じ値が callback に届く
+- `authorize()` を持つルートは `new TestPrincipal(authenticated: true, capabilities: ['edit_posts'])` を `RequestHandler` に渡して主体を固定する。引数なしの `TestPrincipal` は未認証で、401 / 403 の検証に使える
+- `#[Envelope]` の包みや自作のリスナーまで含めて確認したいときは、`Dispatcher` に `addSubscriber(new EnvelopeHook())` などを足してから `RequestHandler` に渡す
 
 ## DI のモック
 
