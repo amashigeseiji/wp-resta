@@ -14,9 +14,17 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   - 廃止イベント: `KernelState::boot` / `boot.guard` / `registerRoutes` / `registerRoutes.guard`、`RequestState::convert` / `invoke` / `respond` とその `.guard`
   - 代替: `KernelState::registerRoutes` → `wp.rest_api_init`（発火のたびに dispatch される。購読者が呼ばれる時点でルートは登録済み）。`RequestState::invoke` の after → `RouteInvocationEvent`。guard の代替はない
   - コンストラクタ変更: `RequestHandler(DispatcherInterface)`、`WpKernelAdapter(DispatcherInterface, Config)`。`WpKernelAdapter` を継承している場合は影響する
+- `RouteInterface::permissionCallback()` と `AbstractRoute::permissionCallback()` を削除した（#61）。戻り値型が `string` 固定で、WordPress の `permission_callback` として呼ばれても拒否を表せず、オーバーライドしても常に許可になっていた。代替は `authorize()`。オーバーライドしていたルートは呼ばれなくなるだけでエラーにはならないので、`authorize()` に書き換える
+
+### 追加
+
+- ルート単位の認可（#61）。`authorize(RestaRequestInterface $request, Principal $principal)` をオーバーライドし、`UnauthorizedException`（401 `rest_not_logged_in`）か `ForbiddenException`（403 `rest_forbidden`）を投げて拒否する。順序はバリデーション → 認可 → callback で WordPress コアと同じ
+- `Wp\Resta\Auth\Principal`。認証状態と capability を答えるインターフェースで、`Resta::init()` が WordPress の現在ユーザーに委譲する `WpPrincipal` を bind する。`dependencies` で差し替え可能。テスト用に `TestPrincipal`、bind が無いときの既定として `AnonymousPrincipal` がある
+- `Container::has()`
 
 ### 変更
 
+- WordPress コアに渡す `permission_callback` は常に `__return_true` になった（#61）。認可は `invoke()` の中で行われるので、`RouteInvocationEvent` の購読者には 401 / 403 のレスポンスも渡る
 - `rest_api_init` が何度発火しても、そのたびにルートを登録し直すようになった（#60）。WordPress のテストフレームワーク（`WP_Test_REST_Controller_Testcase`）のように `$wp_rest_server` をテストごとに作り直す環境で、2 つ目以降のテストが致命的エラーになっていた
 - 設定の `adapters` を省略すると `WpKernelAdapter` が使われる。これまでは明示しないとルートが登録されなかった
 - `URL_PARAMS` の `'string'` が任意の文字列を受け取るようになった（#81）。これまでは `\w+` の省略形で、パスパラメータに置くと WordPress コアの照合（UTF-8 モード無し）で日本語などが 404 になり、クエリパラメータでは通るという食い違いがあった。パスパラメータは次の `/` までの任意の文字列、クエリパラメータは制約なしになる。英数字に絞りたいルートは `'\w+'` と明示する

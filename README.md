@@ -221,9 +221,34 @@ public function callback(int $id): RestaResponseInterface
 
 ヘッダはクラスの `$headers` プロパティで宣言したものに上書きで合成されます。
 
+### 認可
+
+ログインしているか、特定の capability を持っているかで利用を制限したいルートは、`authorize()` をオーバーライドします。既定はすべてのリクエストを許可します。
+
+```php
+use Wp\Resta\Auth\Principal;
+use Wp\Resta\REST\Exception\ForbiddenException;
+use Wp\Resta\REST\Exception\UnauthorizedException;
+use Wp\Resta\REST\Http\RestaRequestInterface;
+
+protected function authorize(RestaRequestInterface $request, Principal $principal): void
+{
+    if (!$principal->isAuthenticated()) {
+        throw new UnauthorizedException();   // 401
+    }
+    if (!$principal->can('edit_post', (int)$request->getUrlParam('id'))) {
+        throw new ForbiddenException();      // 403
+    }
+}
+```
+
+`Principal` は WordPress の現在のユーザーに対応し、`can()` は `current_user_can()` と同じ引数を取ります。cookie + nonce でも Application Passwords でも、WordPress が認証した結果がそのまま見えます。`authorize()` は URL変数の検証が通った後、`callback` の前に呼ばれます。
+
+WordPress のユーザーに対応づかない独自の認証を使う場合は、`Principal` の実装を書いて `dependencies` で差し替えます。
+
 ### エラーレスポンス
 
-URL変数の値が regex に一致しない、または required な値が無い場合は 400 を返します。ボディは WordPress コアの `WP_Error` と同じ形（`code` / `message` / `data.status`）です。
+URL変数の値が regex に一致しない、または required な値が無い場合は 400 を返します。`authorize()` で拒否した場合は 401 または 403 を返します。ボディは WordPress コアの `WP_Error` と同じ形（`code` / `message` / `data.status`）です。
 
 ```json
 {"code": "rest_invalid_param", "message": "Invalid parameter(s): id", "data": {"status": 400, "params": {"id": "id is invalid."}}}
@@ -361,6 +386,20 @@ class HelloWorldTest extends TestCase
         $this->assertEquals('Hello, world!', $response->getData());
     }
 }
+```
+
+### 認可のテスト
+
+`invoke()` に渡る `Principal` は DI コンテナから解決されます。`TestPrincipal` を bind すると、認証状態と capability を固定してテストできます。bind しなければ未認証として扱われます。
+
+```php
+use Wp\Resta\Auth\Principal;
+use Wp\Resta\Auth\TestPrincipal;
+use Wp\Resta\DI\Container;
+
+Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true, capabilities: ['edit_posts']));
+$response = $route->invoke(new TestRestaRequest('/myapi/secret', $route));
+$this->assertEquals(200, $response->getStatusCode());
 ```
 
 ### URL パラメータを使ったテスト

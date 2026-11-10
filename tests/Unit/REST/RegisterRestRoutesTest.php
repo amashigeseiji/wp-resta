@@ -79,6 +79,15 @@ class RegisterRestRoutesTest extends TestCase
         return $this->registered[$routeRegex]['callback']($request);
     }
 
+    public function testPermissionCallbackPassedToCoreAlwaysAllows(): void
+    {
+        // 認可は invoke() の authorize() が行う（#61）。WP コアに渡す permission_callback は常に許可
+        $this->assertNotEmpty($this->registered);
+        foreach ($this->registered as $route => $args) {
+            $this->assertSame('__return_true', $args['permission_callback'], $route);
+        }
+    }
+
     public function testStatusSetInPreviousRequestDoesNotCarryOverToNextRequest(): void
     {
         $notFound = $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);

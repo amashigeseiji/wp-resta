@@ -25,6 +25,12 @@
 - 前のテストで `Container` に bind したものが残っていないか（[testing.md](testing.md)「Container のリセット」）
 - WP 関数を呼ぶコードは Brain Monkey でモックしているか
 
+## 401 / 403 が返る
+
+- `authorize()` が投げている。`code` が `rest_not_logged_in` なら未認証、`rest_forbidden` なら capability 不足
+- cookie 認証では `X-WP-Nonce` ヘッダが無いと WordPress が未認証として扱う（`wp_rest` の nonce）
+- Unit テストで 401 になるなら `Principal` を bind していない。`TestPrincipal` を bind する（[testing.md](testing.md)）
+
 ## 500 が返る
 
 - `error_log()` に `[wp-resta] Uncaught ...` が出ている。`WP_DEBUG` を有効にするとレスポンスにもメッセージと例外クラスが載る
