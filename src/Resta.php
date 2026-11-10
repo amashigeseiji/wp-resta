@@ -44,13 +44,14 @@ class Resta
         // WP の rest_api_init のたびにルートを登録する。register_rest_route() は何度呼んでも壊れず、
         // $wp_rest_server が作り直される場面（WP のテストフレームワークなど）では登録し直す必要がある（#60）。
         // RegisterRestRoutes の解決をここまで遅らせるのは、REST 以外のリクエストでルートディレクトリを
-        // スキャンしないため。利用者のリスナーより先に登録するので、利用者が wp.rest_api_init を購読した
-        // ときにはルートは登録済み
+        // スキャンしないため。priority を最大にしておくことで、利用者がどの priority で wp.rest_api_init を
+        // 購読しても、呼ばれる時点でルートは登録済みになる（spec「イベント」）
         $dispatcher->addListener(
             WpKernelAdapter::REST_API_INIT,
             function () use ($container): void {
                 $container->get(RegisterRestRoutes::class)->register();
-            }
+            },
+            ['priority' => PHP_INT_MAX]
         );
 
         // フレームワーク内部リスナーを登録

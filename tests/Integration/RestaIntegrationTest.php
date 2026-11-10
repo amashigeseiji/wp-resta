@@ -239,13 +239,15 @@ class RestaIntegrationTest extends TestCase
             return true;
         });
 
+        // 利用者が既定より高い priority を指定し、さらに伝播を止めても、ルート登録はそれより先に済んでいる
         $registeredWhenListenerRan = null;
         $listener = new class($registeredWhenListenerRan, $registered) {
             public function __construct(private mixed &$seen, private int &$registered) {}
-            #[\Wp\Resta\EventDispatcher\Attributes\Listen('wp.rest_api_init')]
+            #[\Wp\Resta\EventDispatcher\Attributes\Listen('wp.rest_api_init', priority: 1000)]
             public function onRestApiInit(\Wp\Resta\EventDispatcher\Event $event): void
             {
                 $this->seen = $this->registered;
+                $event->stopPropagation();
             }
         };
         Container::getInstance()->bind(get_class($listener), $listener);
@@ -253,7 +255,8 @@ class RestaIntegrationTest extends TestCase
         (new Resta())->init(array_merge($this->baseConfig(), ['listeners' => [get_class($listener)]]));
         $captured['rest_api_init'][0]();
 
-        $this->assertGreaterThan(0, $registeredWhenListenerRan, '利用者のリスナーはルート登録後に呼ばれる');
+        $this->assertGreaterThan(0, $registeredWhenListenerRan, '利用者のリスナーは priority によらずルート登録後に呼ばれる');
+        $this->assertSame($registeredWhenListenerRan, $registered, '利用者が stopPropagation() してもルート登録は影響を受けない');
     }
 
     public function testRestaInitThrowsForInvalidAdapter(): void
