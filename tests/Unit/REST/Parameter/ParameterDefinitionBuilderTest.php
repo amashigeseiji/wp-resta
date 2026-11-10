@@ -152,6 +152,23 @@ class ParameterDefinitionBuilderTest extends TestCase
         $this->assertSame('ids', $params->get('ids')->description, '説明が無ければ名前');
     }
 
+    public function testUnreadableParamTypeDoesNotLoseFollowingParams(): void
+    {
+        // array{...: string} の空白で型の読み取りが止まっても、バックトラックの上限に達して
+        // docblock 全体の解析が失敗してはいけない。後続の @param は読める
+        $params = $this->build('x', [], new class {
+            /**
+             * @param array{descriptive_property_name: string, another_property_name: int} $options
+             * @param string[] $tags Tags
+             */
+            public function callback(array $options = [], array $tags = []): void {}
+        });
+
+        $this->assertSame([], $params->get('options')->items, '読めない型は任意');
+        $this->assertSame(['type' => 'string'], $params->get('tags')->items);
+        $this->assertSame('Tags', $params->get('tags')->description);
+    }
+
     public function testSingleLineDocblockIsRead(): void
     {
         $params = $this->build('x', [], new class {

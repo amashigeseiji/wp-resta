@@ -229,8 +229,10 @@ final class ParameterDefinitionBuilder
         }
         // /** @param string[] $tags */ のような 1 行形式も読めるよう、開始・終了記号を先に取り除く
         $body = preg_replace('#^\s*/\*\*|\*/\s*$#', '', $docComment) ?? $docComment;
-        // 型は array<string, float> のように山括弧の中に空白を含みうる
-        preg_match_all('/^\s*\*?\s*@param\s+((?:[^\s<]+|<[^>]*>)+)\s+\$(\w+)[ \t]*(.*)$/m', $body, $matches, PREG_SET_ORDER);
+        // 型は array<string, float> のように山括弧の中に空白を含みうる。1 文字ずつ読む所有格の量指定子（++）にして、
+        // array{a: string} のような読めない型でバックトラックが爆発して preg_match_all が失敗し、
+        // 後続の @param まで失われることを防ぐ。読めない型の行は単に一致しない
+        preg_match_all('/^\s*\*?\s*@param\s+((?:[^\s<]|<[^>]*>)++)\s+\$(\w+)[ \t]*(.*)$/m', $body, $matches, PREG_SET_ORDER);
         $result = [];
         foreach ($matches as [, $type, $name, $description]) {
             $description = trim($description);
