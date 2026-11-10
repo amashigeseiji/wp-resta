@@ -288,6 +288,8 @@ class ParameterDefinitionBuilderTest extends TestCase
         });
 
         $this->assertSame(['type' => 'array', 'items' => ['type' => 'string']], $params->get('tags')->toOpenApiParameter()['schema']);
-        $this->assertSame(['type' => 'array', 'items' => []], $params->get('raw')->toOpenApiParameter()['schema'], '要素型が読めなくても items は出す');
+        $rawSchema = $params->get('raw')->toOpenApiParameter()['schema'];
+        $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $rawSchema, '要素型が読めなくても items は出す');
+        $this->assertSame('{"type":"array","items":{}}', json_encode($rawSchema), 'JSON では空の items が {} になる');
     }
 }

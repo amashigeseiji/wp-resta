@@ -66,8 +66,9 @@ final class ParameterDefinition
     {
         $schema = ['type' => $this->type];
         if ($this->type === 'array') {
-            // OpenAPI 3.0 では array の schema に items が必須。要素型が読めなければ任意（{}）
-            $schema['items'] = $this->items ?? [];
+            // OpenAPI 3.0 では array の schema に items（Schema Object）が必須。要素型が読めなければ任意の {}。
+            // PHP の空配列は JSON で [] になるので、空のときは stdClass で {} にする
+            $schema['items'] = $this->items ? $this->items : new \stdClass();
         }
         return [
             'name' => $this->name,
