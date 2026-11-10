@@ -16,6 +16,9 @@ use Wp\Resta\REST\Exception\MissingParameterException;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
+use Wp\Resta\REST\Parameter\ParameterDefinitionBuilder;
+use Wp\Resta\REST\Parameter\ParameterRegex;
+use Wp\Resta\REST\Parameter\RouteParameters;
 
 abstract class AbstractRoute implements RouteInterface
 {
@@ -32,9 +35,7 @@ abstract class AbstractRoute implements RouteInterface
     protected $body = '';
     protected int $status = 200;
 
-    private string $routeRegex;
-    /** @var array<string, array<string, mixed>> */
-    private array $args;
+    private RouteParameters $parameters;
 
     public string $namespace = 'default';
 
@@ -49,33 +50,39 @@ abstract class AbstractRoute implements RouteInterface
     }
 
     /** regex を宣言していないパスパラメータに使う regex。次の / までの任意の文字列 */
-    public const PATH_SEGMENT_REGEX = '[^/]+';
+    /** @deprecated ParameterRegex::PATH_SEGMENT を使う */
+    public const PATH_SEGMENT_REGEX = ParameterRegex::PATH_SEGMENT;
 
     public function getRouteRegex(): string
     {
-        if (isset($this->routeRegex)) {
-            return $this->routeRegex;
-        }
-
         if (!$this::ROUTE) {
             $classNameParts = explode('\\', $this::class);
             $class = end($classNameParts);
-            $route = strtolower($class);
-        } elseif (!$this::URL_PARAMS) {
-            $route = $this::ROUTE;
-        } else {
-            $key = [];
-            $replace = [];
-            foreach ($this->getArgs() as $paramName => $type) {
-                $key[] = '[' . $paramName . ']';
-                // regex が無い（制約なし）パスパラメータは次の / までの任意の文字列。
-                // Unicode に依存しないので、WP コアの照合（u なし）と wp-resta の照合（u あり）で結果が揃う
-                $regex = $type['regex'] ?? self::PATH_SEGMENT_REGEX;
-                $replace[] = "(?P<{$paramName}>{$regex})";
-            }
-            $route = str_replace($key, $replace, $this::ROUTE);
+            return strtolower($class);
         }
-        return $this->routeRegex = $route;
+        return $this->getParameters()->pathRegex($this::ROUTE);
+    }
+
+    /**
+     * URL パラメータの宣言。ROUTE、URL_PARAMS、callback のシグニチャから導出され、ルートごとに 1 回だけ作られる
+     */
+    public function getParameters(): RouteParameters
+    {
+        return $this->parameters ??= (new ParameterDefinitionBuilder())->build(
+            $this::ROUTE,
+            $this::URL_PARAMS,
+            $this->getCallback(),
+            static::class,
+        );
+    }
+
+    public function getCallback(): Callback
+    {
+        if (method_exists($this, 'callback')) {
+            return Callback::fromMethod($this, 'callback');
+        }
+        // callback を持たないルートは、宣言された body を返す callback として扱う
+        return Callback::returning($this->body);
     }
 
     public function getMethods(): string
@@ -194,55 +201,6 @@ abstract class AbstractRoute implements RouteInterface
     }
 
     /**
-     * preg_match の区切り文字の候補。regex に含まれていないものを先頭から順に選ぶ。
-     * / は '[a-z/]+' のように URL 向けの regex に現れやすいので候補に入れない
-     */
-    private const REGEX_DELIMITERS = ['#', '~', '%', '@', '!', '`', ';'];
-
-    /**
-     * URL_PARAMS の regex を、値全体に対して照合する形に組み立てる（区切り文字なし）。
-     * WP コアの args に渡す pattern と、resolveArguments() の preg_match の両方で使う。
-     *
-     * - ^(?:...)$ で囲んで部分一致を許さない。(?:...) は 'a|b' が '^a|b$' に化けるのを防ぐため
-     * - (*UTF) (*UCP) のような先頭専用の指示子はパターンの先頭にしか置けないので、^(?:...) の外に出す
-     */
-    private function anchorRegex(string $regex): string
-    {
-        $verbs = '';
-        if (preg_match('/^(?:\(\*[A-Z_]+(?:=\d+)?\))+/', $regex, $m) === 1) {
-            $verbs = $m[0];
-            $regex = substr($regex, strlen($verbs));
-        }
-        return $verbs . '^(?:' . $regex . ')$';
-    }
-
-    /**
-     * anchorRegex() の結果を preg_match に渡せるパターンにする。
-     *
-     * - 区切り文字は regex に含まれていない文字を選ぶ。エスケープで対処すると、regex 中の '\#' や
-     *   '\Q...\E' の引用範囲まで書き換えてしまい、元々有効だった regex が壊れる
-     * - u 修飾子で UTF-8 モードにする。WP コアの rest_validate_json_schema_pattern() も u 付きなので判定が
-     *   揃う。PHP の u は Unicode プロパティも有効にするため、\w が日本語などの文字にも一致し、.{n} が
-     *   バイト数ではなく文字数になる
-     * - D 修飾子で $ が末尾の改行の手前にマッチしないようにする
-     */
-    private function compileRegex(string $regex): string
-    {
-        $anchored = $this->anchorRegex($regex);
-        foreach (self::REGEX_DELIMITERS as $delimiter) {
-            if (!str_contains($anchored, $delimiter)) {
-                return $delimiter . $anchored . $delimiter . 'uD';
-            }
-        }
-        throw new LogicException(sprintf(
-            '%s::URL_PARAMS regex "%s" contains every delimiter candidate (%s).',
-            static::class,
-            $regex,
-            implode('', self::REGEX_DELIMITERS),
-        ));
-    }
-
-    /**
      * callback の引数を解決する。URL パラメータは宣言された制約に照合し、それ以外のクラス型は DI で解決する
      *
      * @return array<string, mixed> 引数名 => 値
@@ -267,7 +225,7 @@ abstract class AbstractRoute implements RouteInterface
 
                 $regex = $define[$param->name]['regex'] ?? null;
                 if ($value !== null && $regex !== null) {
-                    $matched = preg_match($this->compileRegex($regex), (string)$value);
+                    $matched = preg_match(ParameterRegex::compile($regex, static::class . '::URL_PARAMS'), (string)$value);
                     if ($matched === false && in_array(preg_last_error(), [PREG_BAD_UTF8_ERROR, PREG_BAD_UTF8_OFFSET_ERROR], true)) {
                         // 値が UTF-8 として不正。regex の誤りではなくクライアントの入力不正なので 400 にする
                         throw new InvalidParameterException($param->name);
@@ -299,10 +257,6 @@ abstract class AbstractRoute implements RouteInterface
                 // ReflectionUnionType または ReflectionIntersectionType の場合は決定できない
                 throw new InvalidArgumentException(static::class . '::callback() argument type ' . $type . ' cannot resolve.');
             }
-            if ($type->isBuiltin()) {
-                // ビルトイン型はURL定義にないものがこちらに紛れているとおもわれる
-                throw new LogicException($this::class . "::callback() has invalid argument `{$type->getName()} \${$param->name}`. Please check URL_PARAMS has `{$param->name}` parameter.");
-            }
             $class = $type->getName();
             if ($request instanceof $class) {
                 // 現在のリクエスト（RestaRequestInterface やその実装）は DI コンテナを介さず直接渡す。
@@ -321,86 +275,7 @@ abstract class AbstractRoute implements RouteInterface
 
     public function getArgs(): array
     {
-        if (isset($this->args)) {
-            return $this->args;
-        }
-        $args = [];
-        foreach ($this::URL_PARAMS as $param => $type) {
-            if (is_array($type)) {
-                $args[$param] = $this->withCoreValidation($type);
-                continue;
-            }
-
-            switch($type) {
-            case 'string':
-            case '?string':
-                // 'string' は任意の文字列。regex による制約は付けない（#81）
-                $args[$param] = [
-                    'type' => 'string',
-                    'required' => $type === 'string',
-                    'regex' => null,
-                    'description' => $param,
-                ];
-                break;
-            case 'integer':
-            case '?integer':
-                $args[$param] = [
-                    'type' => 'integer',
-                    'required' => $type === 'integer',
-                    'regex' => '\d+',
-                    'description' => $type['description'] ?? $param,
-                ];
-                break;
-            default:
-                $args[$param] = [
-                    'type' => 'string',
-                    'required' => true,
-                    'regex' => $type,
-                    'description' => $type['description'] ?? $param,
-                ];
-            }
-            $args[$param] = $this->withCoreValidation($args[$param]);
-        }
-        return $this->args = $args;
-    }
-
-    /**
-     * register_rest_route() の args として WP コアに渡したときに、コア側でも検証されるようにキーを補う。
-     *
-     * regex はコアの知らないキーなので、string 型なら pattern にも展開する。コアは pattern を
-     * 部分一致で照合するため、resolveArguments() と同じく anchorRegex() で全体一致にしてから渡す。
-     *
-     * コアは type を持つ arg に sanitize_callback の既定値として rest_parse_request_arg を入れ
-     * （WP_REST_Request::sanitize_params()）、その中で rest_validate_request_arg も呼ぶので、
-     * validate_callback を別途指定しなくても pattern は検証される。
-     *
-     * 利用側が pattern を明示している場合はそちらを優先する。
-     *
-     * regex 自体が不正な場合は pattern を付けない。コアは preg_match() の失敗を不一致として扱い、
-     * すべての値を 400 にしてしまうため、定義ミスがクライアント側のエラーとして報告されてしまう。
-     * pattern を付けなければ resolveArguments() の検証に到達し、そちらで 500 とログになる。
-     *
-     * @param array<string, mixed> $arg
-     * @return array<string, mixed>
-     */
-    private function withCoreValidation(array $arg): array
-    {
-        if (($arg['type'] ?? null) !== 'string'
-            || !isset($arg['regex']) || !is_string($arg['regex'])
-            || array_key_exists('pattern', $arg)
-        ) {
-            return $arg;
-        }
-        try {
-            $compiled = $this->compileRegex($arg['regex']);
-        } catch (LogicException) {
-            return $arg;
-        }
-        if (@preg_match($compiled, '') === false) {
-            return $arg;
-        }
-        $arg['pattern'] = $this->anchorRegex($arg['regex']);
-        return $arg;
+        return $this->getParameters()->toCoreArgs();
     }
 
     public function getReadableRoute(): string

@@ -23,7 +23,9 @@ src/
   Config.php                init() の設定キー
   DI/Container.php          シングルトンの DI コンテナ（autowiring）
   REST/
-    AbstractRoute.php       ルート基底。invoke()、callback 引数解決、getArgs()、response()
+    AbstractRoute.php       ルート基底。invoke()、callback 引数解決、getParameters()、response()
+    Parameter/              ParameterDefinition、RouteParameters（宣言）、ParameterDefinitionBuilder（ROUTE + URL_PARAMS + シグニチャ → 宣言）
+    Callback.php            callback の定義（シグニチャを読む）
     RegisterRestRoutes.php  ルート収集と register_rest_route()。WP 境界
     Http/                   RestaRequestInterface、WpRestaRequest（WP 境界）、TestRestaRequest
     Exception/              HttpException と 400 / 401 / 403 のサブクラス
@@ -74,5 +76,5 @@ composer generate:types  # TypeScript 型の生成
 
 - `Container` はシングルトン。bind したテストは `tearDown()` でリセットする
 - ルートインスタンスはプロセス内で共有される。`$this->status` などへの代入は非推奨化の方向（#59）で、`$this->response()` を使う
-- `callback` の引数に `URL_PARAMS` に無いビルトイン型を書くと `LogicException`
+- `callback` の引数のビルトイン型は `URL_PARAMS` に無くても URL パラメータの宣言になる。`ROUTE` の `[name]` に対応する宣言が無いと `LogicException`
 - WP のパーマリンク設定が「基本」だと `/wp-json/` が動かない

@@ -84,16 +84,8 @@ class ResponseSchema
 
             // パラメータを集めておく
             $parameters = [];
-            foreach ($route->getArgs() as $name => $def) {
-                $parameters[] = [
-                    'name' => $name,
-                    'required' => $def['required'] ?? false,
-                    'description' => $def['description'] ?? $name,
-                    'in' => str_contains($path, "{{$name}}") ? 'path' : 'query', // 他にもヘッダー埋め込みなどの種類があるが、あまり使わなそうなので決め打ちにしておきます
-                    'schema' => [
-                        'type' => $def['type'],
-                    ]
-                ];
+            foreach ($route->getParameters() as $definition) {
+                $parameters[] = $definition->toOpenApiParameter();
             }
 
             // attribute から meta 情報を取得
