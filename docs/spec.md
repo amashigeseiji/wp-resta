@@ -22,8 +22,8 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ### ルート
 
 - `AbstractRoute` を継承したクラス 1 つがエンドポイント 1 つ。設定で指定したディレクトリから自動で収集される
-- REST API のルートは `{namespace}/{route}`。`namespace` は設定の `routeDirectory` で、`route` は `ROUTE` 定数で宣言し、省略するとクラス名から決まる。ルートの前に付く `/wp-json/` などのプレフィックスは WordPress が決める
-- HTTP メソッドは `getMethods()` で宣言する。既定は GET
+- REST API のルートは `{namespace}/{route}`。`namespace` は設定の `routeDirectory` で決まる。`route` は `ROUTE` 定数で宣言し、省略するとクラス名から決まる。ルートの前に付く `/wp-json/` などのプレフィックスは WordPress が決める
+- HTTP メソッドは `getMethods()` で宣言する。既定は GET。複数のメソッドは `'GET,POST'` のようにカンマ区切りで宣言する
 
 ### URL パラメータ
 
@@ -31,7 +31,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - パラメータは名前と型（string / integer）を宣言する。省略可能なパラメータは `?` を付けて宣言し、callback 引数のデフォルト値が使われる
 - 型に加えて正規表現で制約を宣言できる。正規表現は値全体に照合される
 - 同名のパスパラメータとクエリパラメータがあればパスパラメータが優先される
-- 空文字は省略ではなく値として扱う
+- 空文字は省略ではなく値として扱う。省略可能なパラメータに空文字を渡してもデフォルト値は使われず、宣言した制約に照合される
 
 ### 宣言から導出されるもの
 
@@ -41,7 +41,9 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ## HTTP 実行のパイプライン
 
-リクエストは次の段階を順に通る。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
+リクエストは次の段階を通る。バリデーションを通った入力だけが callback に渡り、callback の結果がレスポンスになる。認可の位置はまだ決めていない。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
+
+パイプラインは WordPress 無しで実行できる。`invoke(RestaRequestInterface)` がその入口で、`TestRestaRequest` が URL 文字列からリクエストを作る（[testing.md](testing.md)）。
 
 ### 認証
 
@@ -53,12 +55,13 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ### 認可
 
-- ルート単位の認可は既定で全リクエストを許可する。認可を宣言する手段と、バリデーションとの順序は 0.12.0 で決める（#61）
+- ルート単位の認可は既定で全リクエストを許可する。認可を宣言する手段は現時点で仕様に含まない
 
 ### callback
 
 - ルートが `callback` メソッドを持つとき、リクエストごとに呼ばれる
-- callback の引数は、宣言済みの URL パラメータなら名前で、それ以外のクラス型なら DI コンテナから解決される。`WP_REST_Request` と `RestaRequestInterface` は解決できる
+- callback の引数は、宣言済みの URL パラメータなら名前で、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決できる
+- WordPress の REST API から移行するコードのために、`WP_REST_Request` も callback 引数で受け取れる。新しく書くコードでは使わない
 - callback の戻り値がレスポンスボディになる
 
 ### レスポンス
@@ -93,12 +96,12 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 | キー | 内容 |
 |---|---|
-| `routeDirectory` | ルートクラスのディレクトリ、名前空間プレフィックス、REST namespace の組 |
-| `schemaDirectory` | スキーマクラスのディレクトリと名前空間プレフィックスの組 |
+| `routeDirectory` | `[ディレクトリ, 名前空間プレフィックス, REST namespace]` の組の配列。REST namespace を省略すると `default` |
+| `schemaDirectory` | `[ディレクトリ, 名前空間プレフィックス]` の組の配列 |
 | `dependencies` | DI の対応づけ |
 | `hooks` | WordPress フックをまとめた `HookProvider` のクラス |
 | `listeners` | イベントの購読者 |
-| `adapters` | WordPress ライフサイクルの橋渡し |
+| `adapters` | WordPress ライフサイクルの橋渡し。`WpKernelAdapter` を含めないとルートは登録されず、イベントも発火しない |
 
 ## WordPress との境界
 
@@ -111,8 +114,17 @@ WordPress に依存するのは次の役割だけ。
 
 これは wp-resta 本体の制約であって、利用者の制約ではない。ルートの callback や利用者のサービスが WordPress の関数を呼ぶのは自由。
 
+本体が依存する WordPress の API は次のとおり。ここに無いものへの依存を増やすときは、対応バージョンへの影響を確認する。
+
+- 関数: `add_action()`、`add_filter()`、`register_rest_route()`、`rest_url()`
+- クラス: `WP_REST_Request`、`WP_REST_Response`、`WP_HTTP_Response`、`WP_Error`
+- フック: `init`、`rest_api_init`、`rest_request_parameter_order`
+- `register_rest_route()` の引数: `args` の `type` / `required` / `pattern` / `sanitize_callback` / `validate_callback`、`permission_callback`
+- 任意の `SwaggerHook` はこれに加えて管理画面とリライトルールの API を使う
+
 ## 互換性ポリシー
 
+- PHP 8.2 以上、WordPress 6.1 以上で動作する。下限を上げるときは minor で行い、CHANGELOG に書く
 - 1.0 未満のため、minor（0.y）の更新に破壊的変更を含むことがある。patch（0.y.z）は後方互換
 - この文書に書かれた約束を変える変更は破壊的変更として扱い、CHANGELOG に代替手段とともに書く
 - 非推奨化は `E_USER_DEPRECATED` で 1 minor 以上警告してから削除する
