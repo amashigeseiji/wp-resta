@@ -1,6 +1,8 @@
 <?php
 namespace Wp\Resta;
 
+use Wp\Resta\Kernel\WpKernelAdapter;
+
 class Config
 {
     /** @var array<string[]> */
@@ -13,7 +15,7 @@ class Config
     public readonly array $hooks;
     /** @var array<class-string> */
     public readonly array $listeners;
-    /** @var array<class-string> */
+    /** @var array<class-string> WordPress ライフサイクルの橋渡し。省略時は WpKernelAdapter */
     public readonly array $adapters;
     /**
      * @var array<string, mixed>
@@ -50,7 +52,10 @@ class Config
 
         // listeners/adapters のバリデーション: 文字列のみフィルタ、重複排除
         $this->listeners = $this->normalizeStringArray($config['listeners'] ?? []);
-        $this->adapters = $this->normalizeStringArray($config['adapters'] ?? []);
+        // adapters はキーを省略したときだけ WpKernelAdapter を既定にする。明示した空配列はそのまま
+        $this->adapters = array_key_exists('adapters', $config)
+            ? $this->normalizeStringArray($config['adapters'])
+            : [WpKernelAdapter::class];
     }
 
     public function get(string $key) : mixed

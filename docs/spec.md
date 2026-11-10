@@ -87,6 +87,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ## イベント
 
 - `wp.init`: WordPress の `init` で発火する
+- `wp.rest_api_init`: WordPress の `rest_api_init` で発火する。WordPress が何度発火しても、そのたびに発火する。購読者が呼ばれる時点でルートは登録済み
 - `RouteInvocationEvent`: callback の実行後に発火し、レスポンスを差し替えられる
 
 購読方法は [extending.md](extending.md)。
@@ -102,7 +103,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 | `dependencies` | DI の対応づけ |
 | `hooks` | WordPress フックをまとめた `HookProvider` のクラス |
 | `listeners` | イベントの購読者 |
-| `adapters` | WordPress ライフサイクルの橋渡し。`WpKernelAdapter` を含めないとルートは登録されず、イベントも発火しない |
+| `adapters` | WordPress ライフサイクルの橋渡し。省略すると `WpKernelAdapter` が使われる |
 
 ## WordPress との境界
 

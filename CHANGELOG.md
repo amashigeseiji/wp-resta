@@ -8,8 +8,17 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 0.12.0 で予定している内容は [milestone 0.12.0](https://github.com/amashigeseiji/wp-resta/milestone/1) を参照。
 
+### 削除
+
+- ステートマシン（`Wp\Resta\StateMachine\*`、`Kernel`、`KernelState`、`Lifecycle\Request`、`RequestState`、`RequestContext`）を撤去した（#60）。`rest_api_init` が同一プロセスで 2 回発火すると `registerRoutes` 遷移で例外になっていたのは、WordPress が所有するライフサイクルを一方向の状態機械に写し取っていたことが原因で、WordPress のフックは発火回数も順序も保証しないため状態を持たないイベント変換に戻した。あわせて、使われていなかった遷移イベントも消えた
+  - 廃止イベント: `KernelState::boot` / `boot.guard` / `registerRoutes` / `registerRoutes.guard`、`RequestState::convert` / `invoke` / `respond` とその `.guard`
+  - 代替: `KernelState::registerRoutes` → `wp.rest_api_init`（発火のたびに dispatch される。購読者が呼ばれる時点でルートは登録済み）。`RequestState::invoke` の after → `RouteInvocationEvent`。guard の代替はない
+  - コンストラクタ変更: `RequestHandler(DispatcherInterface)`、`WpKernelAdapter(DispatcherInterface, Config)`。`WpKernelAdapter` を継承している場合は影響する
+
 ### 変更
 
+- `rest_api_init` が何度発火しても、そのたびにルートを登録し直すようになった（#60）。WordPress のテストフレームワーク（`WP_Test_REST_Controller_Testcase`）のように `$wp_rest_server` をテストごとに作り直す環境で、2 つ目以降のテストが致命的エラーになっていた
+- 設定の `adapters` を省略すると `WpKernelAdapter` が使われる。これまでは明示しないとルートが登録されなかった
 - `URL_PARAMS` の `'string'` が任意の文字列を受け取るようになった（#81）。これまでは `\w+` の省略形で、パスパラメータに置くと WordPress コアの照合（UTF-8 モード無し）で日本語などが 404 になり、クエリパラメータでは通るという食い違いがあった。パスパラメータは次の `/` までの任意の文字列、クエリパラメータは制約なしになる。英数字に絞りたいルートは `'\w+'` と明示する
 - 上記に伴い、`'string'` / `'?string'` のクエリパラメータに空文字を渡すと 400 ではなく空文字のまま callback に届く。非空を要求するなら `'.+'` のように正規表現を書く
 - `getArgs()` が返す `'string'` の定義は `regex` が `null` になり、`pattern` を含まない

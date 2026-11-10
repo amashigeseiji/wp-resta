@@ -8,7 +8,7 @@ use Attribute;
  *
  * Dispatcher::addSubscriber() と組み合わせて使う。
  * NamedEvent のサブクラスを受け取るメソッドには属性不要（型から自動推論）。
- * TransitionEvent や Event('wp.init') など文字列名のイベントにはこの属性が必要。
+ * Event('wp.init') など文字列名のイベントにはこの属性が必要。
  *
  * <code>
  * class MyListener
@@ -20,9 +20,8 @@ use Attribute;
  *     #[Listen('wp.init')]
  *     public function onInit(Event $event): void {}
  *
- *     // TransitionEvent → 動的な名前なので属性必須
- *     #[Listen('KernelState::Bootstrapped::boot')]
- *     public function onBoot(TransitionEvent $event): void {}
+ *     #[Listen('wp.rest_api_init')]
+ *     public function onRestApiInit(Event $event): void {}
  * }
  * </code>
  */

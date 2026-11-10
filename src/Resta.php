@@ -5,16 +5,9 @@ use Wp\Resta\DI\Container;
 use Wp\Resta\Config;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
-use Wp\Resta\Kernel\Kernel;
-use Wp\Resta\Kernel\KernelState;
 use Wp\Resta\Kernel\WpKernelAdapter;
-use Wp\Resta\Lifecycle\RequestState;
 use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
-use Wp\Resta\StateMachine\StateMachine;
-use Wp\Resta\StateMachine\TransitionApplier;
-use Wp\Resta\StateMachine\TransitionEvent;
-use Wp\Resta\StateMachine\TransitionRegistry;
 
 class Resta
 {
@@ -45,27 +38,20 @@ class Resta
             }
         }
 
-        // SM インフラストラクチャを構築
-        $kernel = new Kernel();
-        $registry = new TransitionRegistry();
-        $registry->registerFromEnum(KernelState::class);
-        $registry->registerFromEnum(RequestState::class);
-        $container->bind(TransitionRegistry::class, $registry);
         $dispatcher = new Dispatcher();
-        $sm = new StateMachine($registry, $dispatcher);
-
-        // DI コンテナに登録
-        $container->bind(Kernel::class, $kernel);
-        $container->bind(TransitionApplier::class, $sm);
-        $container->bind(StateMachine::class, $sm);
         $container->bind(DispatcherInterface::class, $dispatcher);
 
-        // registerRoutes 遷移が完了したときにルートを実際に登録する
+        // WP の rest_api_init のたびにルートを登録する。register_rest_route() は何度呼んでも壊れず、
+        // $wp_rest_server が作り直される場面（WP のテストフレームワークなど）では登録し直す必要がある（#60）。
+        // RegisterRestRoutes の解決をここまで遅らせるのは、REST 以外のリクエストでルートディレクトリを
+        // スキャンしないため。priority を最大にしておくことで、利用者がどの priority で wp.rest_api_init を
+        // 購読しても、呼ばれる時点でルートは登録済みになる（spec「イベント」）
         $dispatcher->addListener(
-            TransitionEvent::afterEventName(KernelState::Bootstrapped, 'registerRoutes'),
+            WpKernelAdapter::REST_API_INIT,
             function () use ($container): void {
                 $container->get(RegisterRestRoutes::class)->register();
-            }
+            },
+            ['priority' => PHP_INT_MAX]
         );
 
         // フレームワーク内部リスナーを登録
@@ -76,11 +62,7 @@ class Resta
             $dispatcher->addSubscriber($container->get($listenerClass));
         }
 
-        // DI 設定完了 → Bootstrapped に遷移
-        $sm->apply($kernel, 'boot');
-
-        // WP ライフサイクルをフレームワークに橋渡し
-        // WpKernelAdapter はオートワイヤリングで解決される
+        // WP ライフサイクルをフレームワークに橋渡しする。省略時は WpKernelAdapter
         foreach ($config->adapters as $adapter) {
             $adapterInstance = $container->get($adapter);
             if (!($adapterInstance instanceof WpKernelAdapter)) {

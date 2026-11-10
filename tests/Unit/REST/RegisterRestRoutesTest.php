@@ -11,13 +11,9 @@ use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
-use Wp\Resta\Lifecycle\RequestState;
 use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\RouteInterface;
 use Wp\Resta\REST\RouteInvocationEvent;
-use Wp\Resta\StateMachine\StateMachine;
-use Wp\Resta\StateMachine\TransitionApplier;
-use Wp\Resta\StateMachine\TransitionRegistry;
 
 /**
  * RegisterRestRoutes::register() が register_rest_route() に渡す callback のテスト
@@ -40,16 +36,8 @@ class RegisterRestRoutesTest extends TestCase
 
         $this->resetContainer();
 
-        $registry = new TransitionRegistry();
-        $registry->registerFromEnum(RequestState::class);
         $this->dispatcher = new Dispatcher();
-        $sm = new StateMachine($registry, $this->dispatcher);
-
-        $container = Container::getInstance();
-        $container->bind(TransitionRegistry::class, $registry);
-        $container->bind(TransitionApplier::class, $sm);
-        $container->bind(StateMachine::class, $sm);
-        $container->bind(DispatcherInterface::class, $this->dispatcher);
+        Container::getInstance()->bind(DispatcherInterface::class, $this->dispatcher);
 
         $this->registered = [];
         Functions\when('register_rest_route')->alias(function (string $namespace, string $route, array $args): bool {

@@ -30,13 +30,12 @@ src/
     Attributes/             RouteMeta、Envelope
     Hooks/EnvelopeHook.php  RouteInvocationEvent を購読してレスポンスを包む
     Example/                サンプルのルートとスキーマ
-  Kernel/WpKernelAdapter.php  WP フック → Dispatcher イベント。WP 境界
-  Lifecycle/RequestHandler.php  WP_REST_Request → invoke() → WP_REST_Response。WP 境界
+  Kernel/WpKernelAdapter.php  WP フック → Dispatcher イベント（wp.init、wp.rest_api_init）。WP 境界
+  Lifecycle/RequestHandler.php  WP_REST_Request → invoke() → RouteInvocationEvent → WP_REST_Response。WP 境界
   EventDispatcher/          Dispatcher、Event、NamedEvent、#[Listen]
   Hooks/                    HookProvider（#[AddAction] / #[AddFilter]）、SwaggerHook
   OpenApi/                  OpenAPI 生成、スキーマ推論
   CodeGen/                  TypeScript 生成
-  StateMachine/, Kernel/Kernel.php, Lifecycle/Request*.php  0.12.0 で撤去予定（#60）
 tests/Unit, tests/Integration, tests/E2E   docs/testing.md 参照
 ```
 

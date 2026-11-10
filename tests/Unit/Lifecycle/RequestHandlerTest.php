@@ -6,42 +6,25 @@ use ReflectionClass;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\Lifecycle\RequestHandler;
-use Wp\Resta\Lifecycle\RequestState;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
 use Wp\Resta\REST\RouteInvocationEvent;
-use Wp\Resta\StateMachine\StateMachine;
-use Wp\Resta\StateMachine\TransitionApplier;
-use Wp\Resta\StateMachine\TransitionRegistry;
 
 /**
  * RequestHandler のユニットテスト
  *
- * RequestHandler はリクエストライフサイクル全体（Received → Prepared → Invoked → Responded）
- * を StateMachine + Dispatcher で駆動する。
+ * RequestHandler は WP_REST_Request → invoke() → RouteInvocationEvent → WP_REST_Response の直線処理。
  * WP クラスのスタブは tests/bootstrap.php で定義されている。
  */
 class RequestHandlerTest extends TestCase
 {
     private Dispatcher $dispatcher;
-    private StateMachine $sm;
-    private TransitionRegistry $registry;
 
     protected function setUp(): void
     {
         parent::setUp();
-
-        $this->registry = new TransitionRegistry();
-        $this->registry->registerFromEnum(RequestState::class);
-
         $this->dispatcher = new Dispatcher();
-        $this->sm         = new StateMachine($this->registry, $this->dispatcher);
-
-        // Container に必要なバインドを登録
-        $container = Container::getInstance();
-        $container->bind(TransitionRegistry::class, $this->registry);
-        $container->bind(TransitionApplier::class, $this->sm);
-        $container->bind(StateMachine::class, $this->sm);
     }
 
     protected function tearDown(): void
@@ -54,10 +37,10 @@ class RequestHandlerTest extends TestCase
         parent::tearDown();
     }
 
-    private function makeRoute(array $data = ['result' => 'ok'], int $status = 200): AbstractRoute
+    private function makeRoute(array $data = ['result' => 'ok']): AbstractRoute
     {
-        return new class($data, $status) extends AbstractRoute {
-            public function __construct(private array $data, private int $s) {}
+        return new class($data) extends AbstractRoute {
+            public function __construct(private array $data) {}
 
             public function callback(): array
             {
@@ -68,7 +51,7 @@ class RequestHandlerTest extends TestCase
 
     private function makeHandler(): RequestHandler
     {
-        return new RequestHandler($this->sm, $this->dispatcher);
+        return new RequestHandler($this->dispatcher);
     }
 
     // --- 基本的なライフサイクル ---
@@ -124,6 +107,24 @@ class RequestHandlerTest extends TestCase
         $this->assertEquals('test-value', $result->get_headers()['X-Custom']);
     }
 
+    public function testHandleMakesCurrentRequestAvailableToCallback(): void
+    {
+        // callback 引数の WP_REST_Request と RestaRequestInterface は、いま処理中のリクエストになる
+        $handler = $this->makeHandler();
+        $route   = new class extends AbstractRoute {
+            public function callback(\WP_REST_Request $wp, RestaRequestInterface $request): array
+            {
+                return ['wp' => spl_object_id($wp), 'request' => $request->getUrlParam('id')];
+            }
+        };
+
+        $wpRequest = new \WP_REST_Request();
+        $wpRequest['id'] = 42;
+        $result = $handler->handle($wpRequest, $route);
+
+        $this->assertSame(['wp' => spl_object_id($wpRequest), 'request' => 42], $result->get_data());
+    }
+
     // --- RouteInvocationEvent リスナーとの連携 ---
 
     public function testListenerCanModifyResponseViaRouteInvocationEvent(): void
@@ -167,53 +168,22 @@ class RequestHandlerTest extends TestCase
         $this->assertEquals(2, $callCount);
     }
 
-    // --- 状態遷移の正当性 ---
-
-    public function testHandleProgressesThroughAllRequestStates(): void
+    public function testRouteInvocationEventCarriesRequestRouteAndResponse(): void
     {
-        $states = [];
-        $dispatcher = $this->dispatcher;
-
-        // 各遷移後イベントで状態を記録
-        foreach (['convert', 'invoke', 'respond'] as $action) {
-            $dispatcher->addListener(
-                \Wp\Resta\StateMachine\TransitionEvent::afterEventName(
-                    match ($action) {
-                        'convert' => RequestState::Received,
-                        'invoke'  => RequestState::Prepared,
-                        'respond' => RequestState::Invoked,
-                    },
-                    $action
-                ),
-                function (\Wp\Resta\StateMachine\TransitionEvent $e) use ($action, &$states): void {
-                    $states[] = $action;
-                }
-            );
-        }
-
-        $handler = $this->makeHandler();
-        $handler->handle(new \WP_REST_Request(), $this->makeRoute());
-
-        $this->assertEquals(['convert', 'invoke', 'respond'], $states);
-    }
-
-    // --- エラーケース ---
-
-    public function testHandleThrowsIfStateDoesNotAdvance(): void
-    {
-        // StateMachine を「常に遷移しない」ものに差し替える
-        $noOpSm = new class implements TransitionApplier {
-            public function apply(\Wp\Resta\StateMachine\HasState $subject, string $action): void
+        $seen = null;
+        $this->dispatcher->addSubscriber(new class($seen) {
+            public function __construct(private mixed &$seen) {}
+            public function onInvoke(RouteInvocationEvent $event): void
             {
-                // 何もしない = 状態が変わらない
+                $this->seen = [$event->request, $event->route, $event->response->getData()];
             }
-        };
+        });
 
-        $handler = new RequestHandler($noOpSm, $this->dispatcher);
+        $route = $this->makeRoute(['x' => 1]);
+        $this->makeHandler()->handle(new \WP_REST_Request(), $route);
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to transition.');
-
-        $handler->handle(new \WP_REST_Request(), $this->makeRoute());
+        $this->assertInstanceOf(RestaRequestInterface::class, $seen[0]);
+        $this->assertSame($route, $seen[1]);
+        $this->assertSame(['x' => 1], $seen[2]);
     }
 }
