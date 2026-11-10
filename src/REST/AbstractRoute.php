@@ -75,9 +75,9 @@ abstract class AbstractRoute implements RouteInterface
             );
         }
         // callback を持たないルートは非推奨。0.13 で LogicException にする。
-        // それまでは宣言された body を返す callback として扱い、実行者は「無い場合」を知らない
+        // それまでは宣言された body と status を返す callback として扱い、実行者は「無い場合」を知らない
         trigger_error(static::class . ' has no callback(). Routes without callback() are deprecated; return the body from callback() instead.', E_USER_DEPRECATED);
-        return Callback::returning($this->body);
+        return Callback::returning(new SimpleRestaResponse($this->body, $this->status));
     }
 
     public function getMethods(): string

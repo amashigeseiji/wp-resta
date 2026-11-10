@@ -90,6 +90,19 @@ class RouteParametersValidateTest extends TestCase
         $this->assertSame(10, $bound->get('per_page'));
     }
 
+    public function testNullableEnumDefaultsToNullWhenOmitted(): void
+    {
+        $params = $this->params('x', [], new class {
+            public function callback(?Sort $sort = null): void {}
+        });
+
+        $bound = $params->validate($this->request([]));
+        $this->assertTrue($bound->has('sort'));
+        $this->assertNull($bound->get('sort'), 'default の null は enum に変換せずそのまま束縛する');
+
+        $this->assertSame(Sort::Desc, $params->validate($this->request(['sort' => 'desc']))->get('sort'));
+    }
+
     public function testOmittedOptionalParameterWithoutDefaultIsAbsent(): void
     {
         $params = $this->params('x', ['name' => '?string'], new class {

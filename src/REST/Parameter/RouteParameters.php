@@ -108,9 +108,12 @@ final class RouteParameters implements IteratorAggregate, Countable
         return new BoundParameters($values);
     }
 
-    /** backed enum など、束縛先の型があればそのインスタンスにする */
+    /** backed enum など、束縛先の型があればそのインスタンスにする。null（nullable な引数の default）はそのまま */
     private static function bind(ParameterDefinition $definition, mixed $value): mixed
     {
+        if ($value === null) {
+            return null;
+        }
         if ($definition->bindType !== null && is_subclass_of($definition->bindType, BackedEnum::class) && !($value instanceof BackedEnum)) {
             return $definition->bindType::from($value);
         }

@@ -6,6 +6,7 @@ use ReflectionProperty;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use ReflectionClass;
+use Test\Resta\Fixtures\Parameter\Sort;
 use Wp\Resta\Auth\Principal;
 use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\EventDispatcher\Dispatcher;
@@ -392,6 +393,33 @@ class AbstractRouteTest extends TestCase
 
         $this->assertInstanceOf(RestaResponseInterface::class, $response);
         $this->assertEquals(200, $response->getStatusCode());
+    }
+
+    public function testRouteWithoutCallbackKeepsDeclaredStatus()
+    {
+        $route = new class extends AbstractRoute {
+            protected int $status = 201;
+            protected $body = ['created' => true];
+        };
+        $this->expectUserDeprecationMessageMatches('/has no callback\\(\\)/');
+
+        $response = $this->handle($route, new TestRestaRequest('/test', $route));
+
+        $this->assertSame(201, $response->getStatusCode(), 'callback が無くても宣言された $status は保たれる');
+        $this->assertSame(['created' => true], $response->getData());
+    }
+
+    public function testNullableEnumArgumentReceivesNullWhenOmitted()
+    {
+        $route = new class extends AbstractRoute {
+            public function callback(?Sort $sort = null): array
+            {
+                return ['sort' => $sort?->value];
+            }
+        };
+
+        $this->assertSame(['sort' => null], $this->handle($route, new TestRestaRequest('/test', $route))->getData());
+        $this->assertSame(['sort' => 'desc'], $this->handle($route, new TestRestaRequest('/test?sort=desc', $route))->getData());
     }
 
     public function testInvokeWithCustomStatus()
