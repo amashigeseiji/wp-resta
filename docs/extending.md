@@ -91,7 +91,7 @@ DI コンテナ経由でインスタンス化されるため、コンストラ�
 
 #### `RouteInvocationEvent`
 
-ルートの `invoke()` 実行後、WordPress にレスポンスを返す前に発火します。`$event->response` を書き換えることでレスポンスを変換できます。
+ルートの callback の実行後（`RequestHandler` の中）、WordPress にレスポンスを返す前に発火します。400 / 401 / 403 / 500 のエラーレスポンスでも発火します。`$event->response` を書き換えることでレスポンスを変換できます。
 
 ```php
 use Wp\Resta\REST\Http\RestaResponseInterface;

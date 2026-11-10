@@ -201,6 +201,11 @@ final class ParameterDefinitionBuilder
      */
     private static function withCorePattern(array $arg): array
     {
+        if (!array_key_exists('sanitize_callback', $arg)) {
+            // 型変換は RouteParameters::validate() が行う。コアの rest_parse_request_arg による変換を止めて、
+            // RestaRequestInterface::getUrlParam() がクライアントの送った値をそのまま返すようにする
+            $arg['sanitize_callback'] = null;
+        }
         if (($arg['type'] ?? null) !== 'string'
             || !isset($arg['regex']) || !is_string($arg['regex'])
             || array_key_exists('pattern', $arg)

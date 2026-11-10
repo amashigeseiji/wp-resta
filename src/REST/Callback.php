@@ -4,8 +4,13 @@ namespace Wp\Resta\REST;
 use Closure;
 use ReflectionFunction;
 use ReflectionMethod;
+use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionType;
+use RuntimeException;
+use Wp\Resta\DI\Container;
+use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Parameter\BoundParameters;
 
 /**
  * ルートの callback の定義。シグニチャ（引数、戻り値型、docblock）を読むための薄い包み。
@@ -50,5 +55,48 @@ final class Callback
     {
         $doc = $this->reflection->getDocComment();
         return $doc === false ? null : $doc;
+    }
+
+    /**
+     * callback の引数を組み立てる。検証はしない（RouteParameters::validate() が済ませている）。
+     *
+     * - 束縛済みの値に名前があればその値
+     * - 無ければ省略された省略可能なパラメータなので、引数を渡さず PHP のデフォルト値に任せる
+     * - クラス型は現在のリクエスト（RestaRequestInterface やその実装）ならそれを、それ以外は DI で解決する
+     *
+     * @return array<string, mixed> 引数名 => 値
+     */
+    public function resolve(BoundParameters $params, RestaRequestInterface $request, Container $container): array
+    {
+        $args = [];
+        foreach ($this->reflection->getParameters() as $param) {
+            if ($params->has($param->name)) {
+                $args[$param->name] = $params->get($param->name);
+                continue;
+            }
+            $type = $param->getType();
+            if (!($type instanceof ReflectionNamedType) || $type->isBuiltin()) {
+                // 宣言された URL パラメータで、省略されたもの。デフォルト値は invokeArgs() が埋める
+                continue;
+            }
+            $class = $type->getName();
+            if ($request instanceof $class) {
+                $args[$param->name] = $request;
+                continue;
+            }
+            if (!class_exists($class) && !interface_exists($class)) {
+                throw new RuntimeException('cannot resolve type: ' . $class);
+            }
+            $args[$param->name] = $container->get($class);
+        }
+        return $args;
+    }
+
+    /**
+     * @param array<string, mixed> $args resolve() の結果
+     */
+    public function invoke(array $args): mixed
+    {
+        return $this->reflection->invokeArgs($args);
     }
 }

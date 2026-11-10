@@ -6,9 +6,9 @@ use ReflectionProperty;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use ReflectionClass;
-use Wp\Resta\Auth\AnonymousPrincipal;
 use Wp\Resta\Auth\Principal;
 use Wp\Resta\Auth\TestPrincipal;
+use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\DI\Container;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Exception\ForbiddenException;
@@ -17,6 +17,8 @@ use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\TestRestaRequest;
+use Wp\Resta\REST\Parameter\BoundParameters;
+use Wp\Resta\REST\RequestHandler;
 
 class AbstractRouteTest extends TestCase
 {
@@ -46,6 +48,14 @@ class AbstractRouteTest extends TestCase
     }
 
     /**
+     * パイプラインを通す。invoke() の撤去後、ルートの実行は RequestHandler が担う
+     */
+    private function handle(AbstractRoute $route, RestaRequestInterface $request, ?Principal $principal = null): RestaResponseInterface
+    {
+        return (new RequestHandler($principal ?? new TestPrincipal(), new Dispatcher()))->handle($route, $request);
+    }
+
+    /**
      * @param array<string, mixed> $params
      */
     private function requestWith(array $params): RestaRequestInterface
@@ -70,7 +80,7 @@ class AbstractRouteTest extends TestCase
         };
 
         $request = new TestRestaRequest('/test', $route);
-        $response = $route->invoke($request);
+        $response = $this->handle($route, $request);
 
         $this->assertInstanceOf(RestaResponseInterface::class, $response);
         $this->assertEquals(200, $response->getStatusCode());
@@ -95,7 +105,7 @@ class AbstractRouteTest extends TestCase
         };
         $request = $this->requestWith(['id' => '7']);
 
-        $response = $route->invoke($request);
+        $response = $this->handle($route, $request);
 
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals(['id' => 7, 'same' => '7'], $response->getData());
@@ -118,7 +128,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
 
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals(['value' => 'bound'], $response->getData());
@@ -133,7 +143,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
 
         $this->assertEquals(500, $response->getStatusCode());
         $this->assertEquals('rest_internal_error', $response->getData()['code']);
@@ -154,7 +164,7 @@ class AbstractRouteTest extends TestCase
         };
 
         $request = new TestRestaRequest('/test', $route);
-        $response = $route->invoke($request);
+        $response = $this->handle($route, $request);
 
         $headers = $response->getHeaders();
         $this->assertArrayHasKey('X-Custom-Header', $headers);
@@ -174,7 +184,7 @@ class AbstractRouteTest extends TestCase
         };
 
         $request = new TestRestaRequest('/test', $route);
-        $response = $route->invoke($request);
+        $response = $this->handle($route, $request);
 
         $this->assertEquals(201, $response->getStatusCode());
         $this->assertEquals(['created' => true], $response->getData());
@@ -190,7 +200,7 @@ class AbstractRouteTest extends TestCase
         };
 
         $request = new TestRestaRequest('/test', $route);
-        $response = $route->invoke($request);
+        $response = $this->handle($route, $request);
 
         $this->assertEquals(500, $response->getStatusCode());
 
@@ -219,7 +229,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke(new TestRestaRequest('/test', $route));
+        $response = $this->handle($route, new TestRestaRequest('/test', $route));
 
         $this->assertEquals(500, $response->getStatusCode());
         $data = $response->getData();
@@ -238,7 +248,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke(new TestRestaRequest('/test', $route));
+        $response = $this->handle($route, new TestRestaRequest('/test', $route));
 
         $this->assertEquals(500, $response->getStatusCode());
         $this->assertSame('rest_internal_error', $response->getData()['code']);
@@ -256,7 +266,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke(new TestRestaRequest('/test', $route));
+        $response = $this->handle($route, new TestRestaRequest('/test', $route));
 
         $this->assertEquals(500, $response->getStatusCode());
     }
@@ -271,7 +281,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke(new TestRestaRequest('/test', $route));
+        $response = $this->handle($route, new TestRestaRequest('/test', $route));
 
         $this->assertSame('kept', $response->getHeaders()['X-Custom']);
     }
@@ -285,7 +295,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke(new TestRestaRequest('/test', $route));
+        $response = $this->handle($route, new TestRestaRequest('/test', $route));
 
         $this->assertEquals(404, $response->getStatusCode());
         $this->assertSame([
@@ -309,7 +319,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
 
         $this->assertEquals(500, $response->getStatusCode());
         $log = $this->loggedErrors();
@@ -338,7 +348,7 @@ class AbstractRouteTest extends TestCase
         // preg_match() の Warning はテスト出力に出さない（invoke() 側は握り潰さずログと 500 にする）
         set_error_handler(fn() => true, E_WARNING);
         try {
-            $response = $route->invoke($this->requestWith(['id' => 'abc']));
+            $response = $this->handle($route, $this->requestWith(['id' => 'abc']));
         } finally {
             restore_error_handler();
         }
@@ -359,7 +369,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
 
         $this->assertEquals(400, $response->getStatusCode());
         $this->assertSame([
@@ -375,9 +385,10 @@ class AbstractRouteTest extends TestCase
         $route = new class extends AbstractRoute {
             // No callback method
         };
+        $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
         $request = new TestRestaRequest('/test', $route);
-        $response = $route->invoke($request);
+        $response = $this->handle($route, $request);
 
         $this->assertInstanceOf(RestaResponseInterface::class, $response);
         $this->assertEquals(200, $response->getStatusCode());
@@ -395,7 +406,7 @@ class AbstractRouteTest extends TestCase
         };
 
         $request = new TestRestaRequest('/test', $route);
-        $response = $route->invoke($request);
+        $response = $this->handle($route, $request);
 
         $this->assertEquals(201, $response->getStatusCode());
 
@@ -422,7 +433,7 @@ class AbstractRouteTest extends TestCase
         };
 
         // フルアンカーのregexに対して、スペースが混ざった不正な値を送る
-        $response = $route->invoke($this->requestWith(['item_ids' => '1,2, 3']));
+        $response = $this->handle($route, $this->requestWith(['item_ids' => '1,2, 3']));
 
         // 入力不正はクライアント側の誤りなので 400。WP コアの rest_invalid_param と同じ形
         $this->assertEquals(400, $response->getStatusCode());
@@ -452,7 +463,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith(['item_ids' => '1,2, 3']));
+        $response = $this->handle($route, $this->requestWith(['item_ids' => '1,2, 3']));
 
         // 不正な値を黙ってデフォルト値にフォールバックさせず、400 にする
         $this->assertEquals(400, $response->getStatusCode());
@@ -473,7 +484,7 @@ class AbstractRouteTest extends TestCase
 
         // regex に / が含まれていても区切り文字と衝突せず、一致する値はそのまま通る
         foreach (['foo/bar', 'foo'] as $path) {
-            $response = $route->invoke($this->requestWith(['path' => $path]));
+            $response = $this->handle($route, $this->requestWith(['path' => $path]));
             $this->assertEquals(200, $response->getStatusCode(), "path={$path}");
             $this->assertSame(['path' => $path], $response->getData());
         }
@@ -492,7 +503,7 @@ class AbstractRouteTest extends TestCase
         };
 
         // 区切り文字の第一候補 # が regex に含まれていても別の区切り文字が選ばれ、Warning も出ない
-        $response = $route->invoke($this->requestWith(['tag' => 'a#b']));
+        $response = $this->handle($route, $this->requestWith(['tag' => 'a#b']));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['tag' => 'a#b'], $response->getData());
         $this->assertSame('', $this->loggedErrors());
@@ -515,9 +526,14 @@ class AbstractRouteTest extends TestCase
         $route = new class($regex) extends AbstractRoute {
             public function __construct(private string $regex) {}
 
-            public function getArgs(): array
+            public function getParameters(): \Wp\Resta\REST\Parameter\RouteParameters
             {
-                return ['tag' => ['type' => 'string', 'required' => true, 'regex' => $this->regex, 'description' => 'tag']];
+                return (new \Wp\Resta\REST\Parameter\ParameterDefinitionBuilder())->build(
+                    '',
+                    ['tag' => ['type' => 'string', 'required' => true, 'regex' => $this->regex, 'description' => 'tag']],
+                    $this->getCallback(),
+                    static::class,
+                );
             }
 
             public function callback(string $tag): array
@@ -527,12 +543,12 @@ class AbstractRouteTest extends TestCase
         };
 
         // # をエスケープで処理すると '\#' が '\\#' に化けて regex が壊れる。区切り文字を変えるだけなので元のまま通る
-        $response = $route->invoke($this->requestWith(['tag' => 'a#b']));
+        $response = $this->handle($route, $this->requestWith(['tag' => 'a#b']));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['tag' => 'a#b'], $response->getData());
         $this->assertSame('', $this->loggedErrors());
 
-        $this->assertEquals(400, $route->invoke($this->requestWith(['tag' => 'a-b']))->getStatusCode());
+        $this->assertEquals(400, $this->handle($route, $this->requestWith(['tag' => 'a-b']))->getStatusCode());
     }
 
     public function testInvokeKeepsLeadingPcreVerbsAtPatternStart()
@@ -547,13 +563,13 @@ class AbstractRouteTest extends TestCase
         };
 
         // (*UTF) (*UCP) はパターン先頭にしか置けない。^(?: の内側に入るとコンパイルエラーで 500 になる
-        $response = $route->invoke($this->requestWith(['name' => '日本語']));
+        $response = $this->handle($route, $this->requestWith(['name' => '日本語']));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['name' => '日本語'], $response->getData());
         $this->assertSame('', $this->loggedErrors());
 
         // 指示子を外に出してもアンカーは効いている
-        $this->assertEquals(400, $route->invoke($this->requestWith(['name' => '日本 語']))->getStatusCode());
+        $this->assertEquals(400, $this->handle($route, $this->requestWith(['name' => '日本 語']))->getStatusCode());
     }
 
     public function testInvokeReturns500WhenRegexContainsEveryDelimiterCandidate()
@@ -568,7 +584,7 @@ class AbstractRouteTest extends TestCase
         };
 
         // 区切り文字の候補をすべて含む regex は組み立てられない。定義側の問題なので 500 にしてログに残す
-        $response = $route->invoke($this->requestWith(['tag' => '#']));
+        $response = $this->handle($route, $this->requestWith(['tag' => '#']));
         $this->assertEquals(500, $response->getStatusCode());
         $this->assertSame('rest_internal_error', $response->getData()['code']);
         $this->assertStringContainsString('contains every delimiter candidate', $this->loggedErrors());
@@ -585,12 +601,12 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $this->assertEquals(200, $route->invoke($this->requestWith(['kind' => 'a']))->getStatusCode());
-        $this->assertEquals(200, $route->invoke($this->requestWith(['kind' => 'b']))->getStatusCode());
+        $this->assertEquals(200, $this->handle($route, $this->requestWith(['kind' => 'a']))->getStatusCode());
+        $this->assertEquals(200, $this->handle($route, $this->requestWith(['kind' => 'b']))->getStatusCode());
 
         // アンカー無しだと部分一致で通ってしまう値。alternation を (?:...) で囲んでいるので ^a|b$ にも化けない
         foreach (['zzz-a-zzz', 'ab', 'a-', '-b'] as $kind) {
-            $response = $route->invoke($this->requestWith(['kind' => $kind]));
+            $response = $this->handle($route, $this->requestWith(['kind' => $kind]));
             $this->assertEquals(400, $response->getStatusCode(), "kind={$kind}");
             $this->assertSame('rest_invalid_param', $response->getData()['code']);
         }
@@ -608,7 +624,7 @@ class AbstractRouteTest extends TestCase
         };
 
         // $ は既定だと末尾の改行の手前にもマッチするので、?id=123%0A が \d+ を通り抜けないことを確認する
-        $response = $route->invoke($this->requestWith(['id' => "123\n"]));
+        $response = $this->handle($route, $this->requestWith(['id' => "123\n"]));
         $this->assertEquals(400, $response->getStatusCode());
     }
 
@@ -627,13 +643,13 @@ class AbstractRouteTest extends TestCase
         };
 
         // u 修飾子により \w が日本語の文字にも一致する。WP コアの pattern 検証（u 付き）と同じ判定になる
-        $response = $route->invoke($this->requestWith(['name' => '日本語']));
+        $response = $this->handle($route, $this->requestWith(['name' => '日本語']));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame('日本語', $response->getData()['name']);
 
         // .{2} はバイト数ではなく文字数。é は 1 文字（2 バイト）なので不一致、éé は一致
-        $this->assertEquals(400, $route->invoke($this->requestWith(['two' => 'é']))->getStatusCode());
-        $this->assertEquals(200, $route->invoke($this->requestWith(['two' => 'éé']))->getStatusCode());
+        $this->assertEquals(400, $this->handle($route, $this->requestWith(['two' => 'é']))->getStatusCode());
+        $this->assertEquals(200, $this->handle($route, $this->requestWith(['two' => 'éé']))->getStatusCode());
     }
 
     public function testInvokeReturns400WhenValueIsNotValidUtf8()
@@ -648,7 +664,7 @@ class AbstractRouteTest extends TestCase
         };
 
         // 不正な UTF-8 は preg_match() が false を返すが、regex の誤りではなく入力不正なので 400。ログにも出さない
-        $response = $route->invoke($this->requestWith(['name' => "\xff\xfe"]));
+        $response = $this->handle($route, $this->requestWith(['name' => "\xff\xfe"]));
         $this->assertEquals(400, $response->getStatusCode());
         $this->assertSame('rest_invalid_param', $response->getData()['code']);
         $this->assertSame('', $this->loggedErrors());
@@ -669,17 +685,17 @@ class AbstractRouteTest extends TestCase
         };
 
         // ?name= のように空文字が渡された場合は省略（null）ではなく値。'string' は制約なしなので空文字のまま callback に渡る（#81）
-        $response = $route->invoke($this->requestWith(['name' => '']));
+        $response = $this->handle($route, $this->requestWith(['name' => '']));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame('', $response->getData()['name']);
 
         // 非空を要求したければ regex を明示する。空文字はデフォルト値に化けず 400
-        $response = $route->invoke($this->requestWith(['word' => '']));
+        $response = $this->handle($route, $this->requestWith(['word' => '']));
         $this->assertEquals(400, $response->getStatusCode());
         $this->assertSame('rest_invalid_param', $response->getData()['code']);
 
         // 省略時はデフォルト値
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['name' => 'default', 'word' => 'default'], $response->getData());
     }
@@ -699,7 +715,7 @@ class AbstractRouteTest extends TestCase
 
         // 制約なしの 'string' でも配列は型の宣言を満たさない。TypeError の 500 ではなく 400
         foreach (['/myapi/items?name[]=test', '/myapi/items?id[]=1'] as $url) {
-            $response = $route->invoke(new TestRestaRequest($url, $route));
+            $response = $this->handle($route, new TestRestaRequest($url, $route));
             $this->assertEquals(400, $response->getStatusCode(), $url);
             $this->assertSame('rest_invalid_param', $response->getData()['code']);
         }
@@ -722,13 +738,13 @@ class AbstractRouteTest extends TestCase
 
         $this->assertSame('user/(?P<name>[^/]+)', $route->getRouteRegex());
         foreach (['日本語', 'foo-bar', 'a.b', 'tenjuu99'] as $name) {
-            $response = $route->invoke(new TestRestaRequest('/myapi/user/' . $name, $route));
+            $response = $this->handle($route, new TestRestaRequest('/myapi/user/' . $name, $route));
             $this->assertEquals(200, $response->getStatusCode(), $name);
             $this->assertSame($name, $response->getData()['name']);
         }
 
         // / を含む値はルートに一致せず、パラメータが取れない
-        $response = $route->invoke(new TestRestaRequest('/myapi/user/a/b', $route));
+        $response = $this->handle($route, new TestRestaRequest('/myapi/user/a/b', $route));
         $this->assertEquals(400, $response->getStatusCode());
         $this->assertSame('rest_missing_callback_param', $response->getData()['code']);
     }
@@ -748,8 +764,8 @@ class AbstractRouteTest extends TestCase
         $route->setNamespace('myapi');
 
         $this->assertSame('user/(?P<name>\w+)', $route->getRouteRegex());
-        $this->assertEquals(200, $route->invoke($this->requestWith(['name' => 'tenjuu99']))->getStatusCode());
-        $this->assertEquals(400, $route->invoke($this->requestWith(['name' => 'foo-bar']))->getStatusCode());
+        $this->assertEquals(200, $this->handle($route, $this->requestWith(['name' => 'tenjuu99']))->getStatusCode());
+        $this->assertEquals(400, $this->handle($route, $this->requestWith(['name' => 'foo-bar']))->getStatusCode());
     }
 
     public function testArrayDefinitionWithoutRegexIsUnconstrained()
@@ -770,7 +786,7 @@ class AbstractRouteTest extends TestCase
 
         $this->assertSame('tag/(?P<tag>[^/]+)', $route->getRouteRegex());
         $this->assertArrayNotHasKey('pattern', $route->getArgs()['tag']);
-        $response = $route->invoke(new TestRestaRequest('/myapi/tag/a%20b?q=x%20y', $route));
+        $response = $this->handle($route, new TestRestaRequest('/myapi/tag/a%20b?q=x%20y', $route));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['tag' => 'a b', 'q' => 'x y'], $response->getData());
     }
@@ -781,6 +797,7 @@ class AbstractRouteTest extends TestCase
         $route = new class extends AbstractRoute {
             protected const ROUTE = 'user/[name]';
             protected const URL_PARAMS = ['name' => 'string'];
+            public function callback(): array { return []; }
         };
         $route->setNamespace('myapi');
 
@@ -808,7 +825,7 @@ class AbstractRouteTest extends TestCase
         $this->assertSame('test', $request->getUrlParam('name'));
         $this->assertNull($request->getUrlParam('missing'));
 
-        $response = $route->invoke($request);
+        $response = $this->handle($route, $request);
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['id' => 123, 'name' => 'test'], $response->getData());
     }
@@ -824,6 +841,7 @@ class AbstractRouteTest extends TestCase
                 'page' => '?integer',
                 'first_name' => ['type' => 'string', 'required' => false, 'regex' => '[a-z]+', 'description' => 'first name'],
             ];
+            public function callback(): array { return []; }
         };
 
         $args = $route->getArgs();
@@ -856,6 +874,7 @@ class AbstractRouteTest extends TestCase
                 'kind' => ['type' => 'string', 'required' => false, 'regex' => '(a|b)', 'pattern' => 'a|b', 'description' => 'kind'],
                 'untyped' => ['required' => false, 'regex' => '\w+', 'description' => 'untyped'],
             ];
+            public function callback(): array { return []; }
         };
 
         $args = $route->getArgs();
@@ -891,7 +910,7 @@ class AbstractRouteTest extends TestCase
 
         set_error_handler(fn () => true);
         try {
-            $response = $route->invoke($this->requestWith(['broken' => 'x']));
+            $response = $this->handle($route, $this->requestWith(['broken' => 'x']));
         } finally {
             restore_error_handler();
         }
@@ -903,6 +922,7 @@ class AbstractRouteTest extends TestCase
     {
         $route = new class extends AbstractRoute {
             protected const URL_PARAMS = ['name' => '(*UTF)(*UCP)\w+'];
+            public function callback(): array { return []; }
         };
 
         // コアは '#' . pattern . '#u' と組み立てるので、先頭指示子は pattern の先頭にある必要がある
@@ -919,6 +939,7 @@ class AbstractRouteTest extends TestCase
                 'name' => ['type' => 'string', 'required' => false, 'regex' => '\w+', 'description' => 'name'],
                 'free' => '?string',
             ];
+            public function callback(): array { return []; }
         };
         $args = $route->getArgs();
         // 制約なしの 'string' には pattern を出さない（#81）
@@ -944,7 +965,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
         $this->assertEquals(404, $response->getStatusCode());
         $this->assertSame(['error' => 'not found'], $response->getData());
         $this->assertSame([], $response->getHeaders());
@@ -962,7 +983,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame('ok', $response->getData());
     }
@@ -978,7 +999,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
         $this->assertEquals(204, $response->getStatusCode());
         $this->assertNull($response->getData());
         // クラス宣言のヘッダは残り、同名は callback 側で上書きされる
@@ -999,7 +1020,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
         // HTTP ヘッダ名は大文字小文字を区別しない。表記が違っても古い値が残らず、callback 側の値だけになる
         $this->assertSame(['cache-control' => 'no-store'], $response->getHeaders());
     }
@@ -1016,21 +1037,23 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $this->assertSame(['page' => 1], $route->invoke($this->requestWith([]))->getData());
-        $this->assertSame(['page' => 3], $route->invoke($this->requestWith(['page' => '3']))->getData());
-        $this->assertSame(400, $route->invoke($this->requestWith(['page' => 'abc']))->getStatusCode());
-        $this->assertSame(['page' => ['type' => 'integer', 'required' => false, 'regex' => '\d+', 'description' => 'page']], $route->getArgs());
+        $this->assertSame(['page' => 1], $this->handle($route, $this->requestWith([]))->getData());
+        $this->assertSame(['page' => 3], $this->handle($route, $this->requestWith(['page' => '3']))->getData());
+        $this->assertSame(400, $this->handle($route, $this->requestWith(['page' => 'abc']))->getStatusCode());
+        $this->assertSame(['page' => ['type' => 'integer', 'required' => false, 'regex' => '\d+', 'description' => 'page', 'sanitize_callback' => null]], $route->getArgs());
     }
 
     public function testRouteWithoutCallbackHasCallbackReturningDeclaredBody()
     {
+        // 0.12 では非推奨の警告付きで動く。0.13 で LogicException にする
         $route = new class extends AbstractRoute {
             protected $body = ['static' => true];
         };
+        $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
         $this->assertSame([], $route->getCallback()->getParameters());
         $this->assertCount(0, $route->getParameters());
-        $this->assertSame(['static' => true], $route->invoke($this->requestWith([]))->getData());
+        $this->assertSame(['static' => true], $this->handle($route, $this->requestWith([]))->getData());
     }
 
     // --- 認可（#61） ---
@@ -1044,18 +1067,18 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame(['ok' => true], $response->getData());
     }
 
-    public function testAuthorizeReceivesAnonymousPrincipalWhenNoneIsBound()
+    public function testAuthorizeReceivesPrincipalGivenToRequestHandler()
     {
-        // Resta::init() を通らない WordPress 無しの invoke() では、誰も認証していない扱い
+        // 主体は RequestHandler のコンストラクタで渡す。Container への bind は要らない
         $route = new class extends AbstractRoute {
             public ?Principal $seen = null;
-            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 $this->seen = $principal;
             }
@@ -1065,16 +1088,16 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $route->invoke($this->requestWith([]));
+        $this->handle($route, $this->requestWith([]));
 
-        $this->assertInstanceOf(AnonymousPrincipal::class, $route->seen);
+        $this->assertInstanceOf(TestPrincipal::class, $route->seen);
+        $this->assertFalse($route->seen->isAuthenticated());
     }
 
-    public function testAuthorizeUsesPrincipalBoundInContainer()
+    public function testAuthorizeUsesPrincipalGivenToRequestHandler()
     {
-        Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true, capabilities: ['edit_posts']));
         $route = new class extends AbstractRoute {
-            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 if (!$principal->can('edit_posts')) {
                     throw new ForbiddenException();
@@ -1086,7 +1109,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]), new TestPrincipal(authenticated: true, capabilities: ['edit_posts']));
 
         $this->assertSame(200, $response->getStatusCode());
     }
@@ -1095,7 +1118,7 @@ class AbstractRouteTest extends TestCase
     {
         $route = new class extends AbstractRoute {
             public bool $called = false;
-            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 throw new ForbiddenException();
             }
@@ -1106,7 +1129,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
 
         $this->assertSame(403, $response->getStatusCode());
         $this->assertSame([
@@ -1120,7 +1143,7 @@ class AbstractRouteTest extends TestCase
     public function testUnauthorizedExceptionFromAuthorizeReturns401()
     {
         $route = new class extends AbstractRoute {
-            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 if (!$principal->isAuthenticated()) {
                     throw new UnauthorizedException();
@@ -1132,7 +1155,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
 
         $this->assertSame(401, $response->getStatusCode());
         $this->assertSame('rest_not_logged_in', $response->getData()['code']);
@@ -1145,7 +1168,7 @@ class AbstractRouteTest extends TestCase
         $route = new class extends AbstractRoute {
             protected const URL_PARAMS = ['id' => 'integer'];
             public bool $authorized = false;
-            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 $this->authorized = true;
                 throw new ForbiddenException();
@@ -1156,7 +1179,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $response = $route->invoke($this->requestWith(['id' => 'abc']));
+        $response = $this->handle($route, $this->requestWith(['id' => 'abc']));
 
         $this->assertSame(400, $response->getStatusCode());
         $this->assertFalse($route->authorized);
@@ -1168,7 +1191,7 @@ class AbstractRouteTest extends TestCase
         $route = new class extends AbstractRoute {
             protected const URL_PARAMS = ['id' => 'integer'];
             public mixed $seen = null;
-            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 $this->seen = $request->getUrlParam('id');
             }
@@ -1178,7 +1201,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $route->invoke($this->requestWith(['id' => '42']));
+        $this->handle($route, $this->requestWith(['id' => '42']));
 
         $this->assertSame('42', $route->seen);
     }
@@ -1187,13 +1210,14 @@ class AbstractRouteTest extends TestCase
     {
         $route = new class extends AbstractRoute {
             protected $body = ['static' => true];
-            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 throw new ForbiddenException();
             }
         };
+        $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
-        $response = $route->invoke($this->requestWith([]));
+        $response = $this->handle($route, $this->requestWith([]));
 
         $this->assertSame(403, $response->getStatusCode());
     }

@@ -11,7 +11,7 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 ## 読む順
 
 1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する
-2. `src/REST/AbstractRoute.php`: `invoke()`（バリデーション → `authorize()` → callback）と callback 引数の解決。ルートまわりの変更はここから
+2. `src/REST/RequestHandler.php`: パイプライン（`validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getParameters()`、`getCallback()`、フック）だけを持つ
 3. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
 4. 目的別: [docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
 
@@ -23,18 +23,18 @@ src/
   Config.php                init() の設定キー
   DI/Container.php          シングルトンの DI コンテナ（autowiring）
   REST/
-    AbstractRoute.php       ルート基底。invoke()、callback 引数解決、getParameters()、response()
-    Parameter/              ParameterDefinition、RouteParameters（宣言）、ParameterDefinitionBuilder（ROUTE + URL_PARAMS + シグニチャ → 宣言）
-    Callback.php            callback の定義（シグニチャを読む）
-    RegisterRestRoutes.php  ルート収集と register_rest_route()。WP 境界
-    Http/                   RestaRequestInterface、WpRestaRequest（WP 境界）、TestRestaRequest
+    AbstractRoute.php       ルート基底。宣言のみ: getParameters()、getCallback()、validate() / authorize() フック、respond()、response()
+    RequestHandler.php      パイプライン。WP 非依存。テストもこれを通す
+    Callback.php            callback の定義。シグニチャを読む、resolve()（引数の束縛 + DI）、invoke()
+    Parameter/              ParameterDefinition、RouteParameters（宣言。validate() で検証・型変換）、BoundParameters（値）、ParameterDefinitionBuilder
+    RegisterRestRoutes.php  ルート収集と register_rest_route()。WP_REST_Request/Response の変換を呼ぶ。WP 境界
+    Http/                   RestaRequestInterface、WpRestaRequest / WpRestaResponse（WP 境界）、TestRestaRequest
     Exception/              HttpException と 400 / 401 / 403 のサブクラス
     Attributes/             RouteMeta、Envelope
     Hooks/EnvelopeHook.php  RouteInvocationEvent を購読してレスポンスを包む
     Example/                サンプルのルートとスキーマ
-  Auth/                     Principal、WpPrincipal（WP 境界）、TestPrincipal、AnonymousPrincipal
+  Auth/                     Principal、WpPrincipal（WP 境界）、TestPrincipal
   Kernel/WpKernelAdapter.php  WP フック → Dispatcher イベント（wp.init、wp.rest_api_init）。WP 境界
-  Lifecycle/RequestHandler.php  WP_REST_Request → invoke() → RouteInvocationEvent → WP_REST_Response。WP 境界
   EventDispatcher/          Dispatcher、Event、NamedEvent、#[Listen]
   Hooks/                    HookProvider（#[AddAction] / #[AddFilter]）、SwaggerHook
   OpenApi/                  OpenAPI 生成、スキーマ推論
@@ -68,13 +68,13 @@ composer generate:types  # TypeScript 型の生成
 ## ルートを追加するとき
 
 - callback は薄く保つ。ロジックは Service クラスに置き、コンストラクタで DI する
-- テストを必ず書く。`TestRestaRequest` で WP 無しに `invoke()` を呼ぶ（docs/testing.md）
+- テストを必ず書く。`RequestHandler` に `TestRestaRequest` を渡して WP 無しに実行する（docs/testing.md）
 - インターフェースを注入するなら `init()` の `dependencies` に bind する
 - `#[RouteMeta]` で説明とタグを付け、戻り値型かスキーマクラスでレスポンスの形を宣言する
 
 ## 落とし穴
 
 - `Container` はシングルトン。bind したテストは `tearDown()` でリセットする
-- ルートインスタンスはプロセス内で共有される。`$this->status` などへの代入は非推奨化の方向（#59）で、`$this->response()` を使う
+- ルートインスタンスはプロセス内で共有される。`$this->status` などへの代入は非推奨化の方向（#59）で、`$this->response()` を使う。callback の無いルート（`$body` だけ）は 0.12 で非推奨、0.13 で `LogicException`
 - `callback` の引数のビルトイン型は `URL_PARAMS` に無くても URL パラメータの宣言になる。`ROUTE` の `[name]` に対応する宣言が無いと `LogicException`
 - WP のパーマリンク設定が「基本」だと `/wp-json/` が動かない

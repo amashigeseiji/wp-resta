@@ -38,6 +38,7 @@ class RegisterRestRoutesTest extends TestCase
 
         $this->dispatcher = new Dispatcher();
         Container::getInstance()->bind(DispatcherInterface::class, $this->dispatcher);
+        Container::getInstance()->bind(\Wp\Resta\Auth\Principal::class, new \Wp\Resta\Auth\TestPrincipal());
 
         $this->registered = [];
         Functions\when('register_rest_route')->alias(function (string $namespace, string $route, array $args): bool {
@@ -77,6 +78,21 @@ class RegisterRestRoutesTest extends TestCase
             $request[$name] = $value;
         }
         return $this->registered[$routeRegex]['callback']($request);
+    }
+
+    public function testCallbackConvertsWpRequestAndResponseAndBindsWpRequest(): void
+    {
+        // WP 境界はこのクロージャ。WP_REST_Request を wp-resta のリクエストに変換して RequestHandler を呼び、
+        // 結果を WP_REST_Response に戻す。移行用に WP_REST_Request を Container に bind する
+        $request = new \WP_REST_Request();
+        $request['id'] = '2';
+        $regex = array_key_first(array_filter($this->registered, fn($args, $route) => str_contains($route, 'stateful'), ARRAY_FILTER_USE_BOTH));
+
+        $response = $this->registered[$regex]['callback']($request);
+
+        $this->assertInstanceOf(\WP_REST_Response::class, $response);
+        $this->assertSame(['id' => 2], $response->get_data(), '型変換は wp-resta 側で行われ、int で届く');
+        $this->assertSame($request, Container::getInstance()->get(\WP_REST_Request::class));
     }
 
     public function testPermissionCallbackPassedToCoreAlwaysAllows(): void
