@@ -258,4 +258,15 @@ class ParameterDefinitionBuilderTest extends TestCase
         ], $params->get('id')->toOpenApiParameter());
         $this->assertSame('query', $params->get('q')->toOpenApiParameter()['in']);
     }
+
+    public function testToOpenApiParameterIncludesItemsForArray(): void
+    {
+        $params = $this->build('x', [], new class {
+            /** @param string[] $tags */
+            public function callback(array $tags = [], array $raw = []): void {}
+        });
+
+        $this->assertSame(['type' => 'array', 'items' => ['type' => 'string']], $params->get('tags')->toOpenApiParameter()['schema']);
+        $this->assertSame(['type' => 'array', 'items' => []], $params->get('raw')->toOpenApiParameter()['schema'], '要素型が読めなくても items は出す');
+    }
 }

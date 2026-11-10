@@ -64,14 +64,17 @@ final class ParameterDefinition
      */
     public function toOpenApiParameter(): array
     {
+        $schema = ['type' => $this->type];
+        if ($this->type === 'array') {
+            // OpenAPI 3.0 では array の schema に items が必須。要素型が読めなければ任意（{}）
+            $schema['items'] = $this->items ?? [];
+        }
         return [
             'name' => $this->name,
             'required' => $this->required,
             'description' => $this->description,
             'in' => $this->location,
-            'schema' => [
-                'type' => $this->type,
-            ],
+            'schema' => $schema,
         ];
     }
 }
