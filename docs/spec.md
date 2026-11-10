@@ -42,7 +42,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ## HTTP 実行のパイプライン
 
-リクエストは次の段階を通る。バリデーションを通った入力だけが callback に渡り、callback の結果がレスポンスになる。認可の位置はまだ決めていない。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
+リクエストは認証、バリデーション、認可、callback の順に段階を通る。バリデーションを通った入力だけが認可と callback に渡り、callback の結果がレスポンスになる。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
 
 パイプラインは WordPress 無しで実行できる。`invoke(RestaRequestInterface)` がその入口で、`TestRestaRequest` が URL 文字列からリクエストを作る（[testing.md](testing.md)）。
 
@@ -56,7 +56,10 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ### 認可
 
-- ルート単位の認可は既定で全リクエストを許可する。認可を宣言する手段は現時点で仕様に含まない
+- ルートは `authorize(RestaRequestInterface $request, Principal $principal)` をオーバーライドして認可を宣言する。既定は全リクエストを許可する
+- 拒否は例外で表す。`UnauthorizedException` は 401、`ForbiddenException` は 403 になり、callback は呼ばれない
+- `Principal` は認証状態（`isAuthenticated()`）と capability（`can()`）を答える。WordPress 上では現在のユーザーに対応し、認証方式（cookie + nonce、Application Passwords など）には依存しない。設定の `dependencies` で差し替えられる
+- 認可はバリデーションの後に行われる。`authorize()` が見る URL パラメータは宣言した制約を満たしている
 
 ### callback
 
@@ -112,13 +115,14 @@ WordPress に依存するのは次の役割だけ。
 - WordPress のフックを wp-resta のイベントに変換する（`WpKernelAdapter`）
 - ルート定義を `register_rest_route()` に登録する（`RegisterRestRoutes`）
 - `WP_REST_Request` / `WP_REST_Response` と wp-resta のリクエスト / レスポンスを相互に変換する
+- WordPress の現在のユーザーを `Principal` として見せる（`WpPrincipal`）
 - アトリビュートで宣言されたフックを `add_action()` / `add_filter()` に登録する（`HookProvider`）
 
 これは wp-resta 本体の制約であって、利用者の制約ではない。ルートの callback や利用者のサービスが WordPress の関数を呼ぶのは自由。
 
 本体が依存する WordPress の API は次のとおり。ここに無いものへの依存を増やすときは、対応バージョンへの影響を確認する。
 
-- 関数: `add_action()`、`add_filter()`、`register_rest_route()`、`rest_url()`
+- 関数: `add_action()`、`add_filter()`、`register_rest_route()`、`rest_url()`、`is_user_logged_in()`、`current_user_can()`、`__return_true()`
 - クラス: `WP_REST_Request`、`WP_REST_Response`、`WP_HTTP_Response`、`WP_Error`
 - フック: `init`、`rest_api_init`、`rest_request_parameter_order`
 - `register_rest_route()` の引数: `args` の `type` / `required` / `pattern` / `sanitize_callback` / `validate_callback`、`permission_callback`

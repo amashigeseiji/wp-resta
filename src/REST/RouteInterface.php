@@ -11,7 +11,6 @@ interface RouteInterface
     public function getRouteRegex(): string;
     public function getMethods(): string;
     public function invoke(RestaRequestInterface $request): RestaResponseInterface;
-    public function permissionCallback(): string;
 
     /**
      * register_rest_route() の args としてそのまま渡せる形のパラメータ定義

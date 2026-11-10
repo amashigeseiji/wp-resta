@@ -48,6 +48,7 @@ class MyRouteTest extends TestCase
 - クエリパラメータは `'/myapi/myroute/123?name=test'` のように URL に付ける。同名ならパスパラメータが優先される
 - 400 / 500 の検証は `getStatusCode()` と `getData()['code']` を見る（形は spec.md「エラーレスポンス」）
 - `TestRestaRequest` の値はすべて文字列。WP コアの型変換は走らない
+- `authorize()` を持つルートは `Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true, capabilities: ['edit_posts']))` で主体を固定する。bind しなければ未認証として扱われ、401 / 403 の検証に使える。bind したら「Container のリセット」を忘れない
 
 ## DI のモック
 
@@ -89,7 +90,7 @@ Functions\expect('register_rest_route')->once()->with('myapi', Mockery::type('st
 
 ## E2E
 
-`docker-compose.yml` の WordPress にプラグインとして wp-resta を有効化し、`tests/E2E/Api/` から Guzzle で叩く。WP コアの検証・型変換・`permission_callback` の挙動を含めて確認したいケースはここに書く。Unit で再現できるものは Unit に書く。
+`docker-compose.yml` の WordPress にプラグインとして wp-resta を有効化し、`tests/E2E/Api/` から Guzzle で叩く。WP コアの検証・型変換・認証を含めて確認したいケースはここに書く。Unit で再現できるものは Unit に書く。
 
 ## 本体の変更で足すテストの目安
 

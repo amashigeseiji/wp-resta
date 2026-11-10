@@ -6,8 +6,13 @@ use ReflectionProperty;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use ReflectionClass;
+use Wp\Resta\Auth\AnonymousPrincipal;
+use Wp\Resta\Auth\Principal;
+use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\DI\Container;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Exception\ForbiddenException;
+use Wp\Resta\REST\Exception\UnauthorizedException;
 use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
@@ -996,6 +1001,171 @@ class AbstractRouteTest extends TestCase
         $response = $route->invoke($this->requestWith([]));
         // HTTP ヘッダ名は大文字小文字を区別しない。表記が違っても古い値が残らず、callback 側の値だけになる
         $this->assertSame(['cache-control' => 'no-store'], $response->getHeaders());
+    }
+
+    // --- 認可（#61） ---
+
+    public function testAuthorizeDefaultsToAllow()
+    {
+        $route = new class extends AbstractRoute {
+            public function callback(): array
+            {
+                return ['ok' => true];
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(['ok' => true], $response->getData());
+    }
+
+    public function testAuthorizeReceivesAnonymousPrincipalWhenNoneIsBound()
+    {
+        // Resta::init() を通らない WordPress 無しの invoke() では、誰も認証していない扱い
+        $route = new class extends AbstractRoute {
+            public ?Principal $seen = null;
+            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            {
+                $this->seen = $principal;
+            }
+            public function callback(): array
+            {
+                return [];
+            }
+        };
+
+        $route->invoke($this->requestWith([]));
+
+        $this->assertInstanceOf(AnonymousPrincipal::class, $route->seen);
+    }
+
+    public function testAuthorizeUsesPrincipalBoundInContainer()
+    {
+        Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true, capabilities: ['edit_posts']));
+        $route = new class extends AbstractRoute {
+            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            {
+                if (!$principal->can('edit_posts')) {
+                    throw new ForbiddenException();
+                }
+            }
+            public function callback(): array
+            {
+                return ['ok' => true];
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function testForbiddenExceptionFromAuthorizeReturns403InWpErrorShape()
+    {
+        $route = new class extends AbstractRoute {
+            public bool $called = false;
+            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            {
+                throw new ForbiddenException();
+            }
+            public function callback(): array
+            {
+                $this->called = true;
+                return [];
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame([
+            'code' => 'rest_forbidden',
+            'message' => 'Sorry, you are not allowed to do that.',
+            'data' => ['status' => 403],
+        ], $response->getData());
+        $this->assertFalse($route->called, '拒否されたら callback は呼ばれない');
+    }
+
+    public function testUnauthorizedExceptionFromAuthorizeReturns401()
+    {
+        $route = new class extends AbstractRoute {
+            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            {
+                if (!$principal->isAuthenticated()) {
+                    throw new UnauthorizedException();
+                }
+            }
+            public function callback(): array
+            {
+                return [];
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame('rest_not_logged_in', $response->getData()['code']);
+        $this->assertSame(401, $response->getData()['data']['status']);
+    }
+
+    public function testValidationRunsBeforeAuthorize()
+    {
+        // WP コアと同じ順序。制約を満たさない入力は認可より先に 400 になり、authorize() は呼ばれない
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['id' => 'integer'];
+            public bool $authorized = false;
+            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            {
+                $this->authorized = true;
+                throw new ForbiddenException();
+            }
+            public function callback(int $id): array
+            {
+                return ['id' => $id];
+            }
+        };
+
+        $response = $route->invoke($this->requestWith(['id' => 'abc']));
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertFalse($route->authorized);
+    }
+
+    public function testAuthorizeSeesValidatedUrlParameter()
+    {
+        // 順序がバリデーション → 認可なので、authorize() の中で見る値は制約を通った後のもの
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['id' => 'integer'];
+            public mixed $seen = null;
+            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            {
+                $this->seen = $request->getUrlParam('id');
+            }
+            public function callback(int $id): array
+            {
+                return ['id' => $id];
+            }
+        };
+
+        $route->invoke($this->requestWith(['id' => '42']));
+
+        $this->assertSame('42', $route->seen);
+    }
+
+    public function testAuthorizeAppliesToRouteWithoutCallback()
+    {
+        $route = new class extends AbstractRoute {
+            protected $body = ['static' => true];
+            protected function authorize(RestaRequestInterface $request, Principal $principal): void
+            {
+                throw new ForbiddenException();
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+
+        $this->assertSame(403, $response->getStatusCode());
     }
 }
 

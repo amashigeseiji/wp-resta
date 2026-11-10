@@ -277,6 +277,30 @@ class RestaIntegrationTest extends TestCase
         $resta->init($config);
     }
 
+    public function testRestaInitBindsWpPrincipalAsPrincipal(): void
+    {
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
+
+        (new Resta())->init($this->baseConfig());
+
+        $this->assertInstanceOf(\Wp\Resta\Auth\WpPrincipal::class, Container::getInstance()->get(\Wp\Resta\Auth\Principal::class));
+    }
+
+    public function testUserDependenciesCanReplacePrincipal(): void
+    {
+        // WordPress のユーザーに対応づかない認証を使う利用者は dependencies で Principal を差し替えられる
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
+        $own = new \Wp\Resta\Auth\TestPrincipal(authenticated: true);
+
+        (new Resta())->init(array_merge($this->baseConfig(), [
+            'dependencies' => [\Wp\Resta\Auth\Principal::class => $own],
+        ]));
+
+        $this->assertSame($own, Container::getInstance()->get(\Wp\Resta\Auth\Principal::class));
+    }
+
     public function testRestaInitBindsInterfaceDependency(): void
     {
         Functions\when('add_action')->justReturn();

@@ -45,6 +45,14 @@ class Container
     }
 
     /**
+     * bind されているか。class であれば bind 無しでも get() できるので、ここでは明示的な bind だけを見る
+     */
+    public function has(string $interface) : bool
+    {
+        return isset($this->binder[$interface]);
+    }
+
+    /**
      * @template T of object
      * @param class-string<T> $interface
      * @return T

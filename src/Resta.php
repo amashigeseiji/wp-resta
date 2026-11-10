@@ -1,6 +1,8 @@
 <?php
 namespace Wp\Resta;
 
+use Wp\Resta\Auth\Principal;
+use Wp\Resta\Auth\WpPrincipal;
 use Wp\Resta\DI\Container;
 use Wp\Resta\Config;
 use Wp\Resta\EventDispatcher\Dispatcher;
@@ -28,6 +30,10 @@ class Resta
         $config = new Config($restaConfig);
         $container = Container::getInstance();
         $container->bind(Config::class, $config);
+
+        // 認可の主体。WpPrincipal は状態を持たず呼ばれた時点の現在ユーザーに委譲するので、ここで 1 回 bind すれば足りる。
+        // 利用者の dependencies が後から bind するので、WordPress のユーザーに対応づかない認証を使うときは差し替えられる
+        $container->bind(Principal::class, WpPrincipal::class);
 
         foreach ($config->dependencies as $interface => $dependency) {
             if (is_string($interface)) {

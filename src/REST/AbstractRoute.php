@@ -7,6 +7,8 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use RuntimeException;
 use Throwable;
+use Wp\Resta\Auth\AnonymousPrincipal;
+use Wp\Resta\Auth\Principal;
 use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Exception\InvalidParameterException;
@@ -83,52 +85,74 @@ abstract class AbstractRoute implements RouteInterface
 
     public function invoke(RestaRequestInterface $request): RestaResponseInterface
     {
-        if (is_callable([$this, 'callback'])) {
-            try {
-                $result = $this->invokeCallback(
-                    new ReflectionMethod($this, 'callback'),
-                    $request
-                );
+        try {
+            // バリデーション → 認可 → callback の順（spec「HTTP 実行のパイプライン」）。
+            // WP コアと同じ順序で、authorize() が見る URL パラメータは制約を通った後の値になる
+            $callback = is_callable([$this, 'callback']) ? new ReflectionMethod($this, 'callback') : null;
+            $args = $callback === null ? [] : $this->resolveArguments($callback, $request);
 
+            $this->authorize($request, $this->resolvePrincipal());
+
+            if ($callback !== null) {
+                $result = $callback->invokeArgs($this, $args);
                 if ($result instanceof RestaResponseInterface) {
                     return $result;
                 }
-
                 $this->body = $result;
-            } catch (HttpException $e) {
-                // 入力不正などクライアント起因のエラー。WP_Error と同じ形で返す
-                return new SimpleRestaResponse(
-                    $this->errorBody($e->getErrorCode(), $e->getMessage(), $e->getStatusCode(), $e->getData()),
-                    $e->getStatusCode(),
-                    $this->headers,
-                );
-            } catch (Throwable $e) {
-                // callback のバグや DI 解決失敗など。握り潰さずログに出して 500 を返す
-                // 匿名クラスの名前は NUL 文字を含み error_log がそこで切れる。
-                // クラス名はメッセージにも含まれうるので、整形後の文字列全体から取り除く
-                error_log(str_replace("\0", '', sprintf(
-                    '[wp-resta] Uncaught %s in %s: %s in %s:%d',
-                    $e::class,
-                    static::class,
-                    $e->getMessage(),
-                    $e->getFile(),
-                    $e->getLine(),
-                )));
-                $data = [];
-                $message = 'Internal Server Error';
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    $message = $e->getMessage();
-                    $data['exception'] = $e::class;
-                }
-                return new SimpleRestaResponse(
-                    $this->errorBody('rest_internal_error', $message, 500, $data),
-                    500,
-                    $this->headers,
-                );
             }
+        } catch (HttpException $e) {
+            // 入力不正・認可の拒否などクライアント起因のエラー。WP_Error と同じ形で返す
+            return new SimpleRestaResponse(
+                $this->errorBody($e->getErrorCode(), $e->getMessage(), $e->getStatusCode(), $e->getData()),
+                $e->getStatusCode(),
+                $this->headers,
+            );
+        } catch (Throwable $e) {
+            // callback のバグや DI 解決失敗など。握り潰さずログに出して 500 を返す
+            // 匿名クラスの名前は NUL 文字を含み error_log がそこで切れる。
+            // クラス名はメッセージにも含まれうるので、整形後の文字列全体から取り除く
+            error_log(str_replace("\0", '', sprintf(
+                '[wp-resta] Uncaught %s in %s: %s in %s:%d',
+                $e::class,
+                static::class,
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine(),
+            )));
+            $data = [];
+            $message = 'Internal Server Error';
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                $message = $e->getMessage();
+                $data['exception'] = $e::class;
+            }
+            return new SimpleRestaResponse(
+                $this->errorBody('rest_internal_error', $message, 500, $data),
+                500,
+                $this->headers,
+            );
         }
 
         return new SimpleRestaResponse($this->body, $this->status, $this->headers);
+    }
+
+    /**
+     * ルート単位の認可。既定は全リクエストを許可する。
+     *
+     * 拒否するときは UnauthorizedException（401）か ForbiddenException（403）を投げる。
+     * バリデーションの後、callback の前に呼ばれる。
+     */
+    protected function authorize(RestaRequestInterface $request, Principal $principal): void
+    {
+    }
+
+    private function resolvePrincipal(): Principal
+    {
+        $container = Container::getInstance();
+        if ($container->has(Principal::class)) {
+            return $container->get(Principal::class);
+        }
+        // Resta::init() を通らない WordPress 無しの invoke() では、誰も認証していないものとして扱う
+        return new AnonymousPrincipal();
     }
 
     /**
@@ -177,7 +201,7 @@ abstract class AbstractRoute implements RouteInterface
 
     /**
      * URL_PARAMS の regex を、値全体に対して照合する形に組み立てる（区切り文字なし）。
-     * WP コアの args に渡す pattern と、invokeCallback() の preg_match の両方で使う。
+     * WP コアの args に渡す pattern と、resolveArguments() の preg_match の両方で使う。
      *
      * - ^(?:...)$ で囲んで部分一致を許さない。(?:...) は 'a|b' が '^a|b$' に化けるのを防ぐため
      * - (*UTF) (*UCP) のような先頭専用の指示子はパターンの先頭にしか置けないので、^(?:...) の外に出す
@@ -218,7 +242,12 @@ abstract class AbstractRoute implements RouteInterface
         ));
     }
 
-    private function invokeCallback(ReflectionMethod $callback, RestaRequestInterface $request) : mixed
+    /**
+     * callback の引数を解決する。URL パラメータは宣言された制約に照合し、それ以外のクラス型は DI で解決する
+     *
+     * @return array<string, mixed> 引数名 => 値
+     */
+    private function resolveArguments(ReflectionMethod $callback, RestaRequestInterface $request) : array
     {
         $parameters = $callback->getParameters();
         $args = [];
@@ -287,12 +316,7 @@ abstract class AbstractRoute implements RouteInterface
             // クラス/インターフェースなど一意に確定できるものだけインジェクトする
             $args[$param->name] = Container::getInstance()->get($class);
         }
-        return $callback->invokeArgs($this, $args);
-    }
-
-    public function permissionCallback() : string
-    {
-        return '__return_true';
+        return $args;
     }
 
     public function getArgs(): array
@@ -344,7 +368,7 @@ abstract class AbstractRoute implements RouteInterface
      * register_rest_route() の args として WP コアに渡したときに、コア側でも検証されるようにキーを補う。
      *
      * regex はコアの知らないキーなので、string 型なら pattern にも展開する。コアは pattern を
-     * 部分一致で照合するため、invokeCallback() と同じく anchorRegex() で全体一致にしてから渡す。
+     * 部分一致で照合するため、resolveArguments() と同じく anchorRegex() で全体一致にしてから渡す。
      *
      * コアは type を持つ arg に sanitize_callback の既定値として rest_parse_request_arg を入れ
      * （WP_REST_Request::sanitize_params()）、その中で rest_validate_request_arg も呼ぶので、
@@ -354,7 +378,7 @@ abstract class AbstractRoute implements RouteInterface
      *
      * regex 自体が不正な場合は pattern を付けない。コアは preg_match() の失敗を不一致として扱い、
      * すべての値を 400 にしてしまうため、定義ミスがクライアント側のエラーとして報告されてしまう。
-     * pattern を付けなければ invokeCallback() の検証に到達し、そちらで 500 とログになる。
+     * pattern を付けなければ resolveArguments() の検証に到達し、そちらで 500 とログになる。
      *
      * @param array<string, mixed> $arg
      * @return array<string, mixed>

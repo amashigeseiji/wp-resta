@@ -74,7 +74,9 @@ class RegisterRestRoutes
                     'callback' => function (WP_REST_Request $request) use ($route, $handler): WP_REST_Response {
                         return $handler->handle($request, clone $route);
                     },
-                    'permission_callback' => [$route, 'permissionCallback'],
+                    // 認可は invoke() の中で authorize() が行う（spec「HTTP 実行のパイプライン」）。
+                    // WP コアに渡す permission_callback は常に許可で、WP 5.5 以降の必須引数を満たすためだけにある
+                    'permission_callback' => '__return_true',
                     'args' => $route->getArgs(),
                     'schema' => [$route, 'getSchema'],
                 ],

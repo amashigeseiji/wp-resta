@@ -11,7 +11,7 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 ## 読む順
 
 1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する
-2. `src/REST/AbstractRoute.php`: `invoke()` と callback 引数の解決。ルートまわりの変更はここから
+2. `src/REST/AbstractRoute.php`: `invoke()`（バリデーション → `authorize()` → callback）と callback 引数の解決。ルートまわりの変更はここから
 3. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
 4. 目的別: [docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
 
@@ -26,10 +26,11 @@ src/
     AbstractRoute.php       ルート基底。invoke()、callback 引数解決、getArgs()、response()
     RegisterRestRoutes.php  ルート収集と register_rest_route()。WP 境界
     Http/                   RestaRequestInterface、WpRestaRequest（WP 境界）、TestRestaRequest
-    Exception/              HttpException と 400 系サブクラス
+    Exception/              HttpException と 400 / 401 / 403 のサブクラス
     Attributes/             RouteMeta、Envelope
     Hooks/EnvelopeHook.php  RouteInvocationEvent を購読してレスポンスを包む
     Example/                サンプルのルートとスキーマ
+  Auth/                     Principal、WpPrincipal（WP 境界）、TestPrincipal、AnonymousPrincipal
   Kernel/WpKernelAdapter.php  WP フック → Dispatcher イベント（wp.init、wp.rest_api_init）。WP 境界
   Lifecycle/RequestHandler.php  WP_REST_Request → invoke() → RouteInvocationEvent → WP_REST_Response。WP 境界
   EventDispatcher/          Dispatcher、Event、NamedEvent、#[Listen]
