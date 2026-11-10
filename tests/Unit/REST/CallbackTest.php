@@ -26,6 +26,20 @@ class CallbackTest extends TestCase
         $this->assertStringContainsString('@param string[] $tags', (string)$callback->getDocComment());
     }
 
+    public function testFromMethodWrapsProtectedCallback(): void
+    {
+        $object = new class {
+            protected function callback(int $id): int
+            {
+                return $id;
+            }
+        };
+
+        $callback = Callback::fromMethod($object, 'callback');
+
+        $this->assertSame('id', $callback->getParameters()[0]->name);
+    }
+
     public function testReturningHasNoParameters(): void
     {
         $callback = Callback::returning(['static' => true]);

@@ -3,6 +3,7 @@ namespace Wp\Resta\REST;
 
 use Closure;
 use ReflectionFunction;
+use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionType;
 
@@ -23,7 +24,9 @@ final class Callback
 
     public static function fromMethod(object $object, string $method): self
     {
-        return new self(Closure::fromCallable([$object, $method]));
+        // Closure::fromCallable() はこのクラスのスコープで可視性を判定するので protected な callback で失敗する。
+        // ReflectionMethod::getClosure() なら可視性によらず包める
+        return new self((new ReflectionMethod($object, $method))->getClosure($object));
     }
 
     /** 固定の値を返す引数なしの callback */
