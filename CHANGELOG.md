@@ -24,6 +24,9 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 変更
 
+- callback の引数に書いた `string` / `int` の引数が、`URL_PARAMS` に無くてもその名前の URL パラメータの宣言として扱われるようになった（#79）。これまでは `LogicException` で 500 になっていた。デフォルト値があれば省略可能なクエリパラメータ、無ければ必須。同名の `URL_PARAMS` があればそちらが優先される
+- `ROUTE` の `[name]` に対応する宣言が無いと `LogicException` になる。これまでは `[name]` が文字どおりのパスとして登録されていた
+- `RouteInterface` に `getParameters(): RouteParameters` と `getCallback(): Callback` を追加した（#79）。`getArgs()` と `getRouteRegex()` はこの宣言からの導出になり、出力は変わらない
 - WordPress コアに渡す `permission_callback` は常に `__return_true` になった（#61）。認可は `invoke()` の中で行われるので、`RouteInvocationEvent` の購読者には 401 / 403 のレスポンスも渡る
 - `rest_api_init` が何度発火しても、そのたびにルートを登録し直すようになった（#60）。WordPress のテストフレームワーク（`WP_Test_REST_Controller_Testcase`）のように `$wp_rest_server` をテストごとに作り直す環境で、2 つ目以降のテストが致命的エラーになっていた
 - 設定の `adapters` を省略すると `WpKernelAdapter` が使われる。これまでは明示しないとルートが登録されなかった

@@ -299,22 +299,23 @@ class AbstractRouteTest extends TestCase
 
     public function testInvokeLogsFullMessageWhenExceptionMessageContainsAnonymousClassName()
     {
-        // URL_PARAMS の定義忘れで投げる LogicException はメッセージにルートクラス名を含む。
+        // ROUTE の [id] に対応する宣言が無いときの LogicException はメッセージにルートクラス名を含む。
         // 匿名クラス名の NUL 文字でログが切れないこと
         $route = new class extends AbstractRoute {
-            public function callback(int $id): array
+            protected const ROUTE = 'test/[id]';
+            public function callback(): array
             {
-                return ['id' => $id];
+                return [];
             }
         };
 
-        $response = $route->invoke(new TestRestaRequest('/test', $route));
+        $response = $route->invoke($this->requestWith([]));
 
         $this->assertEquals(500, $response->getStatusCode());
         $log = $this->loggedErrors();
         $this->assertStringNotContainsString("\0", $log);
-        $this->assertStringContainsString('Please check URL_PARAMS has `id` parameter.', $log);
-        $this->assertMatchesRegularExpression('/ in \S+AbstractRoute\.php:\d+/', $log);
+        $this->assertStringContainsString('ROUTE has [id] but no parameter named "id"', $log);
+        $this->assertMatchesRegularExpression('/ in \S+ParameterDefinitionBuilder\.php:\d+/', $log);
     }
 
     public function testInvokeReturns500WhenRegexItselfIsInvalid()
@@ -1001,6 +1002,35 @@ class AbstractRouteTest extends TestCase
         $response = $route->invoke($this->requestWith([]));
         // HTTP ヘッダ名は大文字小文字を区別しない。表記が違っても古い値が残らず、callback 側の値だけになる
         $this->assertSame(['cache-control' => 'no-store'], $response->getHeaders());
+    }
+
+    // --- 宣言の導出（#79 3a） ---
+
+    public function testBuiltinCallbackArgumentWithoutUrlParamsIsResolvedAsQueryParameter()
+    {
+        // URL_PARAMS に無い int $page はクエリパラメータの宣言になり、省略時はデフォルト値、指定時はその値
+        $route = new class extends AbstractRoute {
+            public function callback(int $page = 1): array
+            {
+                return ['page' => $page];
+            }
+        };
+
+        $this->assertSame(['page' => 1], $route->invoke($this->requestWith([]))->getData());
+        $this->assertSame(['page' => 3], $route->invoke($this->requestWith(['page' => '3']))->getData());
+        $this->assertSame(400, $route->invoke($this->requestWith(['page' => 'abc']))->getStatusCode());
+        $this->assertSame(['page' => ['type' => 'integer', 'required' => false, 'regex' => '\d+', 'description' => 'page']], $route->getArgs());
+    }
+
+    public function testRouteWithoutCallbackHasCallbackReturningDeclaredBody()
+    {
+        $route = new class extends AbstractRoute {
+            protected $body = ['static' => true];
+        };
+
+        $this->assertSame([], $route->getCallback()->getParameters());
+        $this->assertCount(0, $route->getParameters());
+        $this->assertSame(['static' => true], $route->invoke($this->requestWith([]))->getData());
     }
 
     // --- 認可（#61） ---
