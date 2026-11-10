@@ -186,6 +186,49 @@ class RequestHandlerTest extends TestCase
         $this->assertSame(403, $seen[2], 'エラーレスポンスも RouteInvocationEvent を通る');
     }
 
+    public function testDeclaredHeadersApplyToEveryResponseAndResponseWins(): void
+    {
+        // ルートの既定ヘッダは、callback が直接返したレスポンスにもエラーにも付く。同名はレスポンス側が勝つ
+        $route = new class extends AbstractRoute {
+            protected array $headers = ['Cache-Control' => 'no-store', 'X-Route' => 'r'];
+            public function callback(string $mode = 'data'): mixed
+            {
+                return match ($mode) {
+                    'direct' => new SimpleRestaResponse(['direct' => true], 200, ['cache-control' => 'max-age=60']),
+                    'error' => throw new InvalidParameterException('mode'),
+                    default => ['data' => true],
+                };
+            }
+        };
+
+        $data = $this->handler()->handle($route, new TestRestaRequest('/x', $route));
+        $this->assertSame(['Cache-Control' => 'no-store', 'X-Route' => 'r'], $data->getHeaders());
+
+        $direct = $this->handler()->handle($route, new TestRestaRequest('/x?mode=direct', $route));
+        $this->assertSame(['X-Route' => 'r', 'cache-control' => 'max-age=60'], $direct->getHeaders(), '直接返したレスポンスの同名ヘッダが勝つ');
+
+        $error = $this->handler()->handle($route, new TestRestaRequest('/x?mode=error', $route));
+        $this->assertSame(400, $error->getStatusCode());
+        $this->assertSame(['Cache-Control' => 'no-store', 'X-Route' => 'r'], $error->getHeaders(), 'エラーレスポンスにも付く');
+    }
+
+    public function testStatusAssignedInCallbackStillWorksThroughBridge(): void
+    {
+        // 0.12 の橋: callback 内の $this->status への代入は、AbstractRoute::getCallback() が戻り値の包みに変換する
+        $route = new class extends AbstractRoute {
+            public function callback(): ?array
+            {
+                $this->status = 404;
+                return null;
+            }
+        };
+
+        $response = $this->handler()->handle($route, new TestRestaRequest('/x', $route));
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertNull($response->getData());
+    }
+
     public function testCurrentRequestIsPassedToCallbackWithoutContainer(): void
     {
         $route = new class extends AbstractRoute {

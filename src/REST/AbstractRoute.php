@@ -65,7 +65,14 @@ abstract class AbstractRoute implements RouteInterface
     public function getCallback(): Callback
     {
         if (method_exists($this, 'callback')) {
-            return Callback::fromMethod($this, 'callback');
+            // 0.12 の橋: callback 内で $this->status に代入された値を、戻り値の包みに変換する。
+            // プロパティへの代入は非推奨化の方向（#59）で、プロパティを削除するときにこの橋も消す。
+            // 実行者はルートのプロパティを知らず、callback が body か RestaResponseInterface を返すとだけ見る
+            return Callback::fromMethod($this, 'callback')->withResult(
+                fn(mixed $result): mixed => $result instanceof RestaResponseInterface
+                    ? $result
+                    : new SimpleRestaResponse($result, $this->status)
+            );
         }
         // callback を持たないルートは非推奨。0.13 で LogicException にする。
         // それまでは宣言された body を返す callback として扱い、実行者は「無い場合」を知らない
@@ -98,36 +105,23 @@ abstract class AbstractRoute implements RouteInterface
     {
     }
 
-    public function respond(mixed $result, ?int $status = null): RestaResponseInterface
+    public function getHeaders(): array
     {
-        if ($result instanceof RestaResponseInterface) {
-            return $result;
-        }
-        // $status / $headers プロパティへの代入は非推奨化の方向（#59）。callback は $this->response() を使う
-        return new SimpleRestaResponse($result, $status ?? $this->status, $this->headers);
+        return $this->headers;
     }
 
     /**
      * callback からステータスやヘッダを指定してレスポンスを返すためのヘルパ。
      *
      * `return $this->response(null, 404);` のように使う。$status / $body / $headers プロパティへの
-     * 代入と違い、ルートに状態を持たせずに済む。$headers はクラス宣言の $headers に上書きで合成する。
-     * HTTP ヘッダ名は大文字小文字を区別しないので、表記が違う同名ヘッダも callback 側の値で置き換える。
+     * 代入と違い、ルートに状態を持たせずに済む。ルートの既定ヘッダ（getHeaders()）は実行者が合成するので、
+     * ここで渡すのはこのレスポンス固有のヘッダだけでよい。同名なら渡したほうが勝つ
      *
      * @param array<string, string> $headers
      */
     protected function response(mixed $data, int $status = 200, array $headers = []): RestaResponseInterface
     {
-        $merged = $this->headers;
-        foreach ($headers as $name => $value) {
-            foreach (array_keys($merged) as $existing) {
-                if (strcasecmp($existing, $name) === 0) {
-                    unset($merged[$existing]);
-                }
-            }
-            $merged[$name] = $value;
-        }
-        return new SimpleRestaResponse($data, $status, $merged);
+        return new SimpleRestaResponse($data, $status, $headers);
     }
 
     public function getArgs(): array

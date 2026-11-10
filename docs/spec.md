@@ -77,6 +77,8 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 - `RestaResponseInterface` を返せばステータスとヘッダも含めてそのまま使われる
 - `$this->response($data, $status, $headers)` でステータスとヘッダを指定したレスポンスを作れる
+- ルートに宣言した既定ヘッダは、エラーを含むどのレスポンスにも付く。レスポンス自身が同名のヘッダを持てばそちらが優先される
+- `RestaResponseInterface::withHeaders()` でヘッダを足した複製を作れる。購読者がレスポンスにヘッダを付けるときに使う
 - `#[Envelope]` を付けたルートは、ボディが `{ "data": ..., "meta": ... }` に包まれる
 - `RouteInvocationEvent` の購読者はレスポンスを差し替えられる（「イベント」）
 

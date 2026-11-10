@@ -20,6 +20,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 ### 追加
 
 - callback のシグニチャからの URL パラメータ宣言（#79、#77）。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は `URL_PARAMS` に書かなくても宣言になり、値は宣言した型に変換されて届く。`#[Param(pattern:, min:, max:, description:)]` で制約を足せ、配列の要素型は `@param string[]` から読む。`RouteInterface::getParameters()` / `getCallback()` を追加
+- `RestaResponseInterface::withHeaders(array): static`。ヘッダを上書きマージした複製を返す。`RouteInterface::getHeaders()` でルートの既定ヘッダを宣言し、エラーを含むどのレスポンスにも付く（レスポンス自身の同名が優先）。これまでは callback が `RestaResponseInterface` を直接返すと既定ヘッダが付かなかった
 - 手続き的な検証のフック `validate(BoundParameters $params)`（#79）。型と正規表現の検証の後、`authorize()` の前に呼ばれる
 - ルート単位の認可（#61）。`authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal)` をオーバーライドし、`UnauthorizedException`（401 `rest_not_logged_in`）か `ForbiddenException`（403 `rest_forbidden`）を投げて拒否する。順序はバリデーション → 認可 → callback で WordPress コアと同じ
 - `Wp\Resta\Auth\Principal`。認証状態と capability を答えるインターフェースで、`Resta::init()` が WordPress の現在ユーザーに委譲する `WpPrincipal` を bind する。`dependencies` で差し替え可能。テスト用に `TestPrincipal`

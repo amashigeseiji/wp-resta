@@ -53,6 +53,13 @@ class EnvelopeResponse implements RestaResponseInterface
         return $this->headers;
     }
 
+    public function withHeaders(array $headers): static
+    {
+        $clone = clone $this;
+        $clone->headers = Headers::merge($this->headers, $headers);
+        return $clone;
+    }
+
     /**
      * メタデータを追加
      */

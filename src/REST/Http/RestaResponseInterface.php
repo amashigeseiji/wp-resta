@@ -36,4 +36,11 @@ interface RestaResponseInterface
      * @return array<string, string> ヘッダー名 => 値 の配列
      */
     public function getHeaders(): array;
+
+    /**
+     * ヘッダを上書きマージした複製を返す。同名（大文字小文字を区別しない）は引数が勝つ。元のレスポンスは変えない
+     *
+     * @param array<string, string> $headers
+     */
+    public function withHeaders(array $headers): static;
 }

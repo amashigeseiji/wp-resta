@@ -21,10 +21,24 @@ use Wp\Resta\REST\Parameter\BoundParameters;
 final class Callback
 {
     private readonly ReflectionFunction $reflection;
+    private ?Closure $decorateResult = null;
 
     private function __construct(Closure $closure)
     {
         $this->reflection = new ReflectionFunction($closure);
+    }
+
+    /**
+     * invoke() の戻り値に処理を噛ませた複製を返す。シグニチャは元の callback のまま
+     *
+     * @internal AbstractRoute が非推奨プロパティ（$status）を戻り値の包みに変換するための橋。#59 で消す
+     * @param Closure(mixed): mixed $decorate
+     */
+    public function withResult(Closure $decorate): self
+    {
+        $clone = clone $this;
+        $clone->decorateResult = $decorate;
+        return $clone;
     }
 
     public static function fromMethod(object $object, string $method): self
@@ -97,6 +111,7 @@ final class Callback
      */
     public function invoke(array $args): mixed
     {
-        return $this->reflection->invokeArgs($args);
+        $result = $this->reflection->invokeArgs($args);
+        return $this->decorateResult === null ? $result : ($this->decorateResult)($result);
     }
 }

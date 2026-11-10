@@ -244,7 +244,7 @@ public function callback(int $id): RestaResponseInterface
 }
 ```
 
-ヘッダはクラスの `$headers` プロパティで宣言したものに上書きで合成されます。
+クラスの `$headers` プロパティで宣言した既定ヘッダは、callback がどう返してもすべてのレスポンス（エラーを含む）に付き、同名ならレスポンス側の値が勝ちます。
 
 ### 認可
 

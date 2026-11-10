@@ -24,10 +24,11 @@ interface RouteInterface
     public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void;
 
     /**
-     * callback の戻り値（またはエラーボディ）をレスポンスにする。
-     * RestaResponseInterface ならそのまま、それ以外はルートに宣言されたステータスとヘッダで包む
+     * ルートの既定ヘッダ。どのレスポンス（エラーを含む）にも付き、レスポンス自身の同名ヘッダが優先される
+     *
+     * @return array<string, string>
      */
-    public function respond(mixed $result, ?int $status = null): RestaResponseInterface;
+    public function getHeaders(): array;
 
     /**
      * URL パラメータの宣言。ROUTE、URL_PARAMS、callback のシグニチャから導出される

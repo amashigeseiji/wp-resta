@@ -6,8 +6,10 @@ use Wp\Resta\Auth\Principal;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\REST\Exception\HttpException;
+use Wp\Resta\REST\Http\Headers;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
+use Wp\Resta\REST\Http\SimpleRestaResponse;
 
 /**
  * HTTP 実行のパイプライン（spec「HTTP 実行のパイプライン」）。WordPress に依存しない。
@@ -35,10 +37,12 @@ final class RequestHandler
 
             $callback = $route->getCallback();
             $args = $callback->resolve($params, $request, Container::getInstance());
-            $response = $route->respond($callback->invoke($args));
+            $result = $callback->invoke($args);
+            // callback は body か RestaResponseInterface を返す（spec「レスポンス」）
+            $response = $result instanceof RestaResponseInterface ? $result : new SimpleRestaResponse($result, 200);
         } catch (HttpException $e) {
             // 入力不正・認可の拒否などクライアント起因のエラー。WP_Error と同じ形で返す
-            $response = $route->respond(
+            $response = new SimpleRestaResponse(
                 self::errorBody($e->getErrorCode(), $e->getMessage(), $e->getStatusCode(), $e->getData()),
                 $e->getStatusCode(),
             );
@@ -60,8 +64,11 @@ final class RequestHandler
                 $message = $e->getMessage();
                 $data['exception'] = $e::class;
             }
-            $response = $route->respond(self::errorBody('rest_internal_error', $message, 500, $data), 500);
+            $response = new SimpleRestaResponse(self::errorBody('rest_internal_error', $message, 500, $data), 500);
         }
+
+        // ルートの既定ヘッダはエラーを含むどのレスポンスにも付き、レスポンス自身の同名ヘッダが勝つ
+        $response = $response->withHeaders(Headers::merge($route->getHeaders(), $response->getHeaders()));
 
         $event = new RouteInvocationEvent($request, $route, $response);
         $this->dispatcher->dispatch($event);
