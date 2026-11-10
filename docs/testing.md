@@ -45,7 +45,7 @@ class MyRouteTest extends TestCase
 ```
 
 - `setNamespace()` を呼ばないと URL の namespace 部分が一致せずパラメータが取れない
-- `TestRestaRequest` はクエリ文字列を解釈しない。`'/myapi/myroute/123?name=test'` のように付けるとパス全体がルートの regex に一致せず、パスパラメータも取れなくなる（required なら 400）。クエリパラメータを渡したいテストは、`RestaRequestInterface` を無名クラスで実装して `getUrlParam()` から値を返す（`tests/Unit/REST/AbstractRouteTest.php` の `requestWith()` がその形）。`TestRestaRequest` のクエリ文字列対応は 0.12.0 で予定
+- クエリパラメータは `'/myapi/myroute/123?name=test'` のように URL に付ける。同名ならパスパラメータが優先される
 - 400 / 500 の検証は `getStatusCode()` と `getData()['code']` を見る（形は spec.md「エラーレスポンス」）
 - `TestRestaRequest` の値はすべて文字列。WP コアの型変換は走らない
 
