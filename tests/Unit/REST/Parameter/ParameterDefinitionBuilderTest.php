@@ -152,6 +152,17 @@ class ParameterDefinitionBuilderTest extends TestCase
         $this->assertSame('ids', $params->get('ids')->description, '説明が無ければ名前');
     }
 
+    public function testSingleLineDocblockIsRead(): void
+    {
+        $params = $this->build('x', [], new class {
+            /** @param string[] $tags タグ */
+            public function callback(array $tags = []): void {}
+        });
+
+        $this->assertSame(['type' => 'string'], $params->get('tags')->items);
+        $this->assertSame('タグ', $params->get('tags')->description);
+    }
+
     public function testParamAttributeSuppliesConstraints(): void
     {
         $params = $this->build('x', [], new class {

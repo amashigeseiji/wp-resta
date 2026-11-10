@@ -227,8 +227,10 @@ final class ParameterDefinitionBuilder
         if ($docComment === null) {
             return [];
         }
+        // /** @param string[] $tags */ のような 1 行形式も読めるよう、開始・終了記号を先に取り除く
+        $body = preg_replace('#^\s*/\*\*|\*/\s*$#', '', $docComment) ?? $docComment;
         // 型は array<string, float> のように山括弧の中に空白を含みうる
-        preg_match_all('/^\s*\*?\s*@param\s+((?:[^\s<]+|<[^>]*>)+)\s+\$(\w+)[ \t]*(.*)$/m', $docComment, $matches, PREG_SET_ORDER);
+        preg_match_all('/^\s*\*?\s*@param\s+((?:[^\s<]+|<[^>]*>)+)\s+\$(\w+)[ \t]*(.*)$/m', $body, $matches, PREG_SET_ORDER);
         $result = [];
         foreach ($matches as [, $type, $name, $description]) {
             $description = trim($description);
