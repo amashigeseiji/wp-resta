@@ -5,6 +5,8 @@ use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
+use ReflectionClass;
+use Wp\Resta\DI\Container;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Http\RestaRequestInterface;
@@ -28,6 +30,8 @@ class AbstractRouteTest extends TestCase
     {
         ini_set('error_log', $this->previousErrorLog === false ? '' : $this->previousErrorLog);
         @unlink($this->errorLog);
+        // callback 引数の DI を検証するテストが bind したものを次のテストに持ち越さない
+        (new ReflectionClass(Container::class))->getProperty('instance')->setValue(null, null);
         parent::tearDown();
     }
 
@@ -71,6 +75,64 @@ class AbstractRouteTest extends TestCase
         $this->assertIsArray($data);
         $this->assertEquals('ok', $data['status']);
         $this->assertEquals('test', $data['message']);
+    }
+
+    public function testInvokeInjectsCurrentRequestIntoCallbackByInterface()
+    {
+        // #83: RestaRequestInterface を callback 引数に書くと class_exists() の判定で 500 になっていた。
+        // Container に bind していなくても、invoke() に渡したリクエストそのものが渡る
+        $route = new class extends AbstractRoute {
+            public const URL_PARAMS = ['id' => 'integer'];
+            public function callback(int $id, RestaRequestInterface $request): array
+            {
+                return ['id' => $id, 'same' => $request->getUrlParam('id')];
+            }
+        };
+        $request = $this->requestWith(['id' => '7']);
+
+        $response = $route->invoke($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals(['id' => 7, 'same' => '7'], $response->getData());
+    }
+
+    public function testInvokeInjectsBoundInterfaceIntoCallback()
+    {
+        // #83: dependencies で bind したインターフェースも callback 引数で受け取れる
+        $service = new class implements AbstractRouteTestServiceInterface {
+            public function value(): string
+            {
+                return 'bound';
+            }
+        };
+        Container::getInstance()->bind(AbstractRouteTestServiceInterface::class, $service);
+        $route = new class extends AbstractRoute {
+            public function callback(AbstractRouteTestServiceInterface $service): array
+            {
+                return ['value' => $service->value()];
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals(['value' => 'bound'], $response->getData());
+    }
+
+    public function testInvokeReturns500WhenCallbackArgumentTypeDoesNotExist()
+    {
+        $route = new class extends AbstractRoute {
+            public function callback(\Test\Resta\Unit\REST\NoSuchClass $x): array
+            {
+                return [];
+            }
+        };
+
+        $response = $route->invoke($this->requestWith([]));
+
+        $this->assertEquals(500, $response->getStatusCode());
+        $this->assertEquals('rest_internal_error', $response->getData()['code']);
+        $this->assertStringContainsString('cannot resolve type', $this->loggedErrors());
     }
 
     public function testInvokeWithCustomHeaders()
@@ -792,4 +854,9 @@ class AbstractRouteTest extends TestCase
         // HTTP ヘッダ名は大文字小文字を区別しない。表記が違っても古い値が残らず、callback 側の値だけになる
         $this->assertSame(['cache-control' => 'no-store'], $response->getHeaders());
     }
+}
+
+interface AbstractRouteTestServiceInterface
+{
+    public function value(): string;
 }
