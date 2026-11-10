@@ -231,6 +231,10 @@ abstract class AbstractRoute implements RouteInterface
                 if ($define[$param->name]['required'] && $value === null) {
                     throw new MissingParameterException($param->name);
                 }
+                if ($value !== null && !is_scalar($value)) {
+                    // ?name[]=x のような配列は string / integer の宣言を満たさない。regex の有無によらず 400
+                    throw new InvalidParameterException($param->name);
+                }
 
                 $regex = $define[$param->name]['regex'] ?? null;
                 if ($value !== null && $regex !== null) {

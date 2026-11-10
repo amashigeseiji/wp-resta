@@ -66,6 +66,18 @@ if (!class_exists('WP_REST_Request')) {
         /** @var array<string, mixed> */
         private array $urlParams = [];
 
+        private string $route = '';
+
+        public function get_route(): string
+        {
+            return $this->route;
+        }
+
+        public function set_route(string $route): void
+        {
+            $this->route = $route;
+        }
+
         /** @return array<string, mixed> */
         public function get_url_params(): array
         {

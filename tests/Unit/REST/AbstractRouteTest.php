@@ -678,6 +678,27 @@ class AbstractRouteTest extends TestCase
         $this->assertSame(['name' => 'default', 'word' => 'default'], $response->getData());
     }
 
+    public function testInvokeReturns400WhenScalarParameterReceivesArray()
+    {
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'items';
+            protected const URL_PARAMS = ['name' => '?string', 'id' => '?integer'];
+
+            public function callback(string $name = 'default', int $id = 0): array
+            {
+                return ['name' => $name, 'id' => $id];
+            }
+        };
+        $route->setNamespace('myapi');
+
+        // 制約なしの 'string' でも配列は型の宣言を満たさない。TypeError の 500 ではなく 400
+        foreach (['/myapi/items?name[]=test', '/myapi/items?id[]=1'] as $url) {
+            $response = $route->invoke(new TestRestaRequest($url, $route));
+            $this->assertEquals(400, $response->getStatusCode(), $url);
+            $this->assertSame('rest_invalid_param', $response->getData()['code']);
+        }
+    }
+
     public function testStringPathParameterAcceptsAnyValueUpToNextSlash()
     {
         // #81: 'string' のパスパラメータは \w+ ではなく [^/]+。日本語や記号を含む値が WP コアのルート照合と

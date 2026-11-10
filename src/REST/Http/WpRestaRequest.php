@@ -20,10 +20,12 @@ class WpRestaRequest implements RestaRequestInterface
     /**
      * WP_REST_Request から WpRestaRequest を作成
      *
-     * パスパラメータが届く形は URL の形式で異なる。パーマリンク形式（/wp-json/...）では WordPress が
-     * rewrite の一致結果を urlencode() してから parse_str() するため、URL に書かれたとおりのパーセント
-     * エンコードのまま届く。?rest_route= 形式では rest_route が $_GET から取られるので PHP がデコード済み。
-     * 省略時は $_GET に rest_route があるかで判定する。
+     * パスパラメータが届く形はリクエストの由来で異なる。
+     * - パーマリンク形式（/wp-json/...）で HTTP から受けたリクエスト: WordPress が rewrite の一致結果を
+     *   urlencode() してから parse_str() するため、URL に書かれたとおりのパーセントエンコードのまま届く
+     * - ?rest_route= 形式: rest_route が $_GET から取られるので PHP がデコード済み
+     * - rest_do_request() などで PHP から組み立てたリクエスト: 開発者が書いた文字列がそのまま届く
+     * 省略時は、ルート文字列が HTTP リクエストの URL パスの末尾と一致するか（= 1 つ目の形）で判定する。
      *
      * @param WP_REST_Request $request WordPress の REST リクエスト
      * @param bool|null $pathParamsAreEncoded パスパラメータがパーセントエンコードのまま届いているか。null なら判定する
@@ -31,7 +33,20 @@ class WpRestaRequest implements RestaRequestInterface
      */
     public static function fromWpRequest(WP_REST_Request $request, ?bool $pathParamsAreEncoded = null): self
     {
-        return new self($request, $pathParamsAreEncoded ?? !isset($_GET['rest_route']));
+        return new self($request, $pathParamsAreEncoded ?? self::routeIsTakenFromRequestPath($request));
+    }
+
+    /**
+     * ルート文字列が、この HTTP リクエストの URL パスからそのまま切り出されたものか
+     */
+    private static function routeIsTakenFromRequestPath(WP_REST_Request $request): bool
+    {
+        $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+        $route = rtrim($request->get_route(), '/');
+        if (!is_string($uriPath) || $route === '') {
+            return false;
+        }
+        return str_ends_with(rtrim($uriPath, '/'), $route);
     }
 
     public function getUrlParam(string $name): mixed

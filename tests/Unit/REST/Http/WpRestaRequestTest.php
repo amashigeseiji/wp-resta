@@ -1,6 +1,7 @@
 <?php
 namespace Test\Resta\Unit\REST\Http;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use WP_REST_Request;
 use Wp\Resta\REST\Http\WpRestaRequest;
@@ -16,7 +17,7 @@ class WpRestaRequestTest extends TestCase
         $wp['id'] = 123; // コアの type: integer による変換後の値
         $wp['q'] = 'a%20b'; // クエリパラメータの値はそのまま
 
-        $request = WpRestaRequest::fromWpRequest($wp);
+        $request = WpRestaRequest::fromWpRequest($wp, pathParamsAreEncoded: true);
 
         $this->assertSame('日本語', $request->getUrlParam('name'));
         $this->assertSame(123, $request->getUrlParam('id'));
@@ -38,18 +39,46 @@ class WpRestaRequestTest extends TestCase
         $this->assertSame('%41', WpRestaRequest::fromWpRequest($wp, pathParamsAreEncoded: true)->getUrlParam('name'));
     }
 
-    public function testDetectsQueryFormByRestRouteInGet(): void
+    /**
+     * @return array<string, array{string|null, string, string}>
+     */
+    public static function requestOrigins(): array
     {
-        $wp = new WP_REST_Request();
-        $wp->set_url_params(['name' => '%41']);
-        $wp['name'] = '%41';
+        // [REQUEST_URI, ルート文字列, 期待値]。URL に %2541 と書いたときにパスパラメータとして届く値は %2541（パーマリンク形式）か %41（それ以外）
+        return [
+            'パーマリンク形式' => ['/wp-json/example/hello/%2541', '/example/hello/%2541', '%41'],
+            'パーマリンク形式・末尾スラッシュ' => ['/wp-json/example/hello/%2541/', '/example/hello/%2541', '%41'],
+            'サブディレクトリ設置' => ['/blog/wp-json/example/hello/%2541', '/example/hello/%2541', '%41'],
+            'index.php を含む形式' => ['/index.php/wp-json/example/hello/%2541', '/example/hello/%2541', '%41'],
+            '?rest_route= 形式（PHP がデコード済み）' => ['/?rest_route=/example/hello/%2541', '/example/hello/%41', '%41'],
+            '別ルートの処理中に rest_do_request() で組み立てた内部リクエスト' => ['/wp-json/example/other', '/example/hello/%41', '%41'],
+            'HTTP リクエストの外（CLI など）' => [null, '/example/hello/%41', '%41'],
+        ];
+    }
 
-        $_GET['rest_route'] = '/example/hello/%41';
-        try {
-            $this->assertSame('%41', WpRestaRequest::fromWpRequest($wp)->getUrlParam('name'));
-        } finally {
-            unset($_GET['rest_route']);
+    #[DataProvider('requestOrigins')]
+    public function testDecodesOnlyWhenRouteIsTakenFromRequestPath(?string $requestUri, string $route, string $expected): void
+    {
+        $previous = $_SERVER['REQUEST_URI'] ?? null;
+        if ($requestUri === null) {
+            unset($_SERVER['REQUEST_URI']);
+        } else {
+            $_SERVER['REQUEST_URI'] = $requestUri;
         }
-        $this->assertSame('A', WpRestaRequest::fromWpRequest($wp)->getUrlParam('name'));
+        try {
+            $wp = new WP_REST_Request();
+            $wp->set_route($route);
+            $value = substr($route, strlen('/example/hello/'));
+            $wp->set_url_params(['name' => $value]);
+            $wp['name'] = $value;
+
+            $this->assertSame($expected, WpRestaRequest::fromWpRequest($wp)->getUrlParam('name'));
+        } finally {
+            if ($previous === null) {
+                unset($_SERVER['REQUEST_URI']);
+            } else {
+                $_SERVER['REQUEST_URI'] = $previous;
+            }
+        }
     }
 }
