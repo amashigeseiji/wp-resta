@@ -30,7 +30,15 @@ class WpRestaRequest implements RestaRequestInterface
     public function getUrlParam(string $name): mixed
     {
         // WP_REST_Request は ArrayAccess を実装しているため、
-        // 配列アクセスで URL パラメータを取得できる
-        return $this->inner[$name] ?? null;
+        // 配列アクセスで URL パラメータを取得できる（パスパラメータ優先の順序はコアに任せる）
+        $value = $this->inner[$name] ?? null;
+
+        // パスパラメータは、パーマリンクが有効な環境では WordPress がパーセントエンコードのまま渡してくる
+        // （rewrite の一致結果を urlencode してから parse_str するため）。?rest_route= 形式ではデコード済みで届く。
+        // どちらの形式でも同じ値が callback に届くよう、ここでデコードして WP の差異を閉じる
+        if (is_string($value) && array_key_exists($name, $this->inner->get_url_params())) {
+            return rawurldecode($value);
+        }
+        return $value;
     }
 }

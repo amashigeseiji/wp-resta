@@ -8,8 +8,16 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 0.12.0 で予定している内容は [milestone 0.12.0](https://github.com/amashigeseiji/wp-resta/milestone/1) を参照。
 
+### 変更
+
+- `URL_PARAMS` の `'string'` が任意の文字列を受け取るようになった（#81）。これまでは `\w+` の省略形で、パスパラメータに置くと WordPress コアの照合（UTF-8 モード無し）で日本語などが 404 になり、クエリパラメータでは通るという食い違いがあった。パスパラメータは次の `/` までの任意の文字列、クエリパラメータは制約なしになる。英数字に絞りたいルートは `'\w+'` と明示する
+- 上記に伴い、`'string'` / `'?string'` のクエリパラメータに空文字を渡すと 400 ではなく空文字のまま callback に届く。非空を要求するなら `'.+'` のように正規表現を書く
+- `getArgs()` が返す `'string'` の定義は `regex` が `null` になり、`pattern` を含まない
+- パスパラメータの値がパーセントデコードされて callback に届くようになった。パーマリンクが有効な環境では WordPress がエンコードされたまま渡してくるため、`/hello/日本語` が `%E6%97%A5...` として届いていた。callback 側で `rawurldecode()` していたコードは二重デコードになるので外す
+
 ### 修正
 
+- `TestRestaRequest` がクエリ文字列を解釈するようになった（#84）。`'/myapi/items/123?name=test'` のように渡せる。同名はパスパラメータ優先
 - callback の引数にインターフェース型を書くと `cannot resolve type` で 500 になっていた（#83）。`RestaRequestInterface` は `invoke()` に渡したリクエストがそのまま渡り、`dependencies` で bind したインターフェースは DI コンテナから解決される
 
 ### ドキュメント

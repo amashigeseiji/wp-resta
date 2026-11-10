@@ -610,7 +610,7 @@ class AbstractRouteTest extends TestCase
     {
         $route = new class extends AbstractRoute {
             protected const URL_PARAMS = [
-                'name' => '?string',
+                'name' => ['type' => 'string', 'required' => false, 'regex' => '\w+', 'description' => 'name'],
                 'two' => ['type' => 'string', 'required' => false, 'regex' => '.{2}', 'description' => 'two chars'],
             ];
 
@@ -633,7 +633,7 @@ class AbstractRouteTest extends TestCase
     public function testInvokeReturns400WhenValueIsNotValidUtf8()
     {
         $route = new class extends AbstractRoute {
-            protected const URL_PARAMS = ['name' => 'string'];
+            protected const URL_PARAMS = ['name' => '\w+'];
 
             public function callback(string $name): array
             {
@@ -648,26 +648,128 @@ class AbstractRouteTest extends TestCase
         $this->assertSame('', $this->loggedErrors());
     }
 
-    public function testInvokeReturns400WhenOptionalStringParamIsEmpty()
+    public function testInvokeTreatsEmptyStringAsValueNotAsOmission()
     {
         $route = new class extends AbstractRoute {
-            protected const URL_PARAMS = ['name' => '?string'];
+            protected const URL_PARAMS = [
+                'name' => '?string',
+                'word' => ['type' => 'string', 'required' => false, 'regex' => '.+', 'description' => 'non-empty'],
+            ];
 
-            public function callback(string $name = 'default'): array
+            public function callback(string $name = 'default', string $word = 'default'): array
+            {
+                return ['name' => $name, 'word' => $word];
+            }
+        };
+
+        // ?name= のように空文字が渡された場合は省略（null）ではなく値。'string' は制約なしなので空文字のまま callback に渡る（#81）
+        $response = $route->invoke($this->requestWith(['name' => '']));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame('', $response->getData()['name']);
+
+        // 非空を要求したければ regex を明示する。空文字はデフォルト値に化けず 400
+        $response = $route->invoke($this->requestWith(['word' => '']));
+        $this->assertEquals(400, $response->getStatusCode());
+        $this->assertSame('rest_invalid_param', $response->getData()['code']);
+
+        // 省略時はデフォルト値
+        $response = $route->invoke($this->requestWith([]));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(['name' => 'default', 'word' => 'default'], $response->getData());
+    }
+
+    public function testStringPathParameterAcceptsAnyValueUpToNextSlash()
+    {
+        // #81: 'string' のパスパラメータは \w+ ではなく [^/]+。日本語や記号を含む値が WP コアのルート照合と
+        // wp-resta の両方で通る（TestRestaRequest は getRouteRegex() で照合するので、コアと同じ条件で確認できる）
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'user/[name]';
+            protected const URL_PARAMS = ['name' => 'string'];
+
+            public function callback(string $name): array
             {
                 return ['name' => $name];
             }
         };
+        $route->setNamespace('myapi');
 
-        // ?name= のように空文字が渡された場合、省略（null）とは区別して \w+ に不一致の 400 にする。
-        // 省略時はデフォルト値にフォールバックする
-        $response = $route->invoke($this->requestWith(['name' => '']));
+        $this->assertSame('user/(?P<name>[^/]+)', $route->getRouteRegex());
+        foreach (['日本語', 'foo-bar', 'a.b', 'tenjuu99'] as $name) {
+            $response = $route->invoke(new TestRestaRequest('/myapi/user/' . $name, $route));
+            $this->assertEquals(200, $response->getStatusCode(), $name);
+            $this->assertSame($name, $response->getData()['name']);
+        }
+
+        // / を含む値はルートに一致せず、パラメータが取れない
+        $response = $route->invoke(new TestRestaRequest('/myapi/user/a/b', $route));
         $this->assertEquals(400, $response->getStatusCode());
-        $this->assertSame('rest_invalid_param', $response->getData()['code']);
+        $this->assertSame('rest_missing_callback_param', $response->getData()['code']);
+    }
 
-        $response = $route->invoke($this->requestWith([]));
+    public function testExplicitWordRegexStillRestrictsPathParameter()
+    {
+        // \w+ に絞りたい利用者は明示する。従来の 'string' と同じ挙動になる
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'user/[name]';
+            protected const URL_PARAMS = ['name' => '\w+'];
+
+            public function callback(string $name): array
+            {
+                return ['name' => $name];
+            }
+        };
+        $route->setNamespace('myapi');
+
+        $this->assertSame('user/(?P<name>\w+)', $route->getRouteRegex());
+        $this->assertEquals(200, $route->invoke($this->requestWith(['name' => 'tenjuu99']))->getStatusCode());
+        $this->assertEquals(400, $route->invoke($this->requestWith(['name' => 'foo-bar']))->getStatusCode());
+    }
+
+    public function testArrayDefinitionWithoutRegexIsUnconstrained()
+    {
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'tag/[tag]';
+            protected const URL_PARAMS = [
+                'tag' => ['type' => 'string', 'required' => true, 'description' => 'tag'],
+                'q' => ['type' => 'string', 'required' => false, 'description' => 'query'],
+            ];
+
+            public function callback(string $tag, string $q = ''): array
+            {
+                return ['tag' => $tag, 'q' => $q];
+            }
+        };
+        $route->setNamespace('myapi');
+
+        $this->assertSame('tag/(?P<tag>[^/]+)', $route->getRouteRegex());
+        $this->assertArrayNotHasKey('pattern', $route->getArgs()['tag']);
+        $response = $route->invoke(new TestRestaRequest('/myapi/tag/a-b?q=x%20y', $route));
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertSame(['name' => 'default'], $response->getData());
+        $this->assertSame(['tag' => 'a-b', 'q' => 'x y'], $response->getData());
+    }
+
+    public function testTestRestaRequestParsesQueryString()
+    {
+        // #84: クエリ文字列を付けてもパスの照合が壊れず、クエリパラメータも取れる。同名はパスパラメータ優先
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'items/[id]';
+            protected const URL_PARAMS = ['id' => 'integer', 'name' => '?string'];
+
+            public function callback(int $id, ?string $name = null): array
+            {
+                return ['id' => $id, 'name' => $name];
+            }
+        };
+        $route->setNamespace('myapi');
+
+        $request = new TestRestaRequest('/myapi/items/123?name=test&id=999', $route);
+        $this->assertSame('123', $request->getUrlParam('id'));
+        $this->assertSame('test', $request->getUrlParam('name'));
+        $this->assertNull($request->getUrlParam('missing'));
+
+        $response = $route->invoke($request);
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(['id' => 123, 'name' => 'test'], $response->getData());
     }
 
     public function testGetArgsExpandsRegexToAnchoredPattern()
@@ -686,13 +788,15 @@ class AbstractRouteTest extends TestCase
         $args = $route->getArgs();
 
         // regex はコアの知らないキーなので、string 型は pattern にも展開する。コアは部分一致なのでアンカーを付ける
-        $this->assertSame('^(?:\w+)$', $args['name']['pattern']);
-        $this->assertSame('^(?:\w+)$', $args['nick']['pattern']);
         $this->assertSame('^(?:(a|b))$', $args['kind']['pattern']);
         $this->assertSame('^(?:[a-z]+)$', $args['first_name']['pattern']);
         // integer はコアが type で検証する。pattern は string 型にしか効かないので付けない
         $this->assertArrayNotHasKey('pattern', $args['id']);
         $this->assertArrayNotHasKey('pattern', $args['page']);
+        // 'string' は制約なし（regex null）なので pattern も出さない（#81）
+        $this->assertNull($args['name']['regex']);
+        $this->assertArrayNotHasKey('pattern', $args['name']);
+        $this->assertArrayNotHasKey('pattern', $args['nick']);
 
         // コアは type があれば sanitize_params() 経由で検証するので、validate_callback は付けない
         foreach ($args as $name => $arg) {
@@ -700,7 +804,8 @@ class AbstractRouteTest extends TestCase
         }
 
         // 既存のキーは変えない
-        $this->assertSame(['type' => 'string', 'required' => true, 'regex' => '\w+', 'description' => 'name'], array_intersect_key($args['name'], array_flip(['type', 'required', 'regex', 'description'])));
+        $this->assertSame(['type' => 'string', 'required' => true, 'regex' => null, 'description' => 'name'], array_intersect_key($args['name'], array_flip(['type', 'required', 'regex', 'description'])));
+        $this->assertSame(['type' => 'integer', 'required' => true, 'regex' => '\d+', 'description' => 'id'], array_intersect_key($args['id'], array_flip(['type', 'required', 'regex', 'description'])));
     }
 
     public function testGetArgsKeepsExplicitPattern()
@@ -770,10 +875,13 @@ class AbstractRouteTest extends TestCase
                 'path' => '[a-z/]+',
                 'kind' => '(a|b)',
                 'tag' => '[a-z#]+',
-                'name' => '?string',
+                'name' => ['type' => 'string', 'required' => false, 'regex' => '\w+', 'description' => 'name'],
+                'free' => '?string',
             ];
         };
         $args = $route->getArgs();
+        // 制約なしの 'string' には pattern を出さない（#81）
+        $this->assertArrayNotHasKey('pattern', $args['free']);
 
         // WP コアの rest_validate_json_schema_pattern() と同じ組み立てで照合する
         $core = fn (string $pattern, string $value): int => preg_match('#' . str_replace('#', '\\#', $pattern) . '#u', $value);

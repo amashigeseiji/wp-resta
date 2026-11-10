@@ -15,7 +15,7 @@ class TestRestaRequest implements RestaRequestInterface
     private array $urlParams = [];
 
     /**
-     * @param string $path リクエストパス（例: '/example/post/123'）
+     * @param string $path リクエストパス。クエリ文字列を含めてよい（例: '/example/post/123?name=foo'）
      * @param AbstractRoute $route ルートオブジェクト（パターンと namespace を取得するため）
      */
     public function __construct(
@@ -45,7 +45,14 @@ class TestRestaRequest implements RestaRequestInterface
      */
     private function parseUrlParams(string $routePattern, string $namespace): void
     {
+        // クエリ文字列を分離する。同名ならパスパラメータが優先なので先に入れておき、後でパスの値で上書きする
         $path = $this->path;
+        $queryPosition = strpos($path, '?');
+        if ($queryPosition !== false) {
+            parse_str(substr($path, $queryPosition + 1), $query);
+            $this->urlParams = $query;
+            $path = substr($path, 0, $queryPosition);
+        }
 
         // wp-json プレフィックスを削除（WordPress 本番環境の場合）
         $path = preg_replace('#^/?wp-json/?#', '/', $path);

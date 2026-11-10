@@ -46,6 +46,9 @@ abstract class AbstractRoute implements RouteInterface
         $this->namespace = $namespace;
     }
 
+    /** regex を宣言していないパスパラメータに使う regex。次の / までの任意の文字列 */
+    public const PATH_SEGMENT_REGEX = '[^/]+';
+
     public function getRouteRegex(): string
     {
         if (isset($this->routeRegex)) {
@@ -63,7 +66,10 @@ abstract class AbstractRoute implements RouteInterface
             $replace = [];
             foreach ($this->getArgs() as $paramName => $type) {
                 $key[] = '[' . $paramName . ']';
-                $replace[] = "(?P<{$paramName}>{$type['regex']})";
+                // regex が無い（制約なし）パスパラメータは次の / までの任意の文字列。
+                // Unicode に依存しないので、WP コアの照合（u なし）と wp-resta の照合（u あり）で結果が揃う
+                $regex = $type['regex'] ?? self::PATH_SEGMENT_REGEX;
+                $replace[] = "(?P<{$paramName}>{$regex})";
             }
             $route = str_replace($key, $replace, $this::ROUTE);
         }
@@ -226,8 +232,9 @@ abstract class AbstractRoute implements RouteInterface
                     throw new MissingParameterException($param->name);
                 }
 
-                if ($value !== null) {
-                    $matched = preg_match($this->compileRegex($define[$param->name]['regex']), (string)$value);
+                $regex = $define[$param->name]['regex'] ?? null;
+                if ($value !== null && $regex !== null) {
+                    $matched = preg_match($this->compileRegex($regex), (string)$value);
                     if ($matched === false && in_array(preg_last_error(), [PREG_BAD_UTF8_ERROR, PREG_BAD_UTF8_OFFSET_ERROR], true)) {
                         // 値が UTF-8 として不正。regex の誤りではなくクライアントの入力不正なので 400 にする
                         throw new InvalidParameterException($param->name);
@@ -238,13 +245,15 @@ abstract class AbstractRoute implements RouteInterface
                             '%s::URL_PARAMS[%s] has invalid regex "%s": %s',
                             static::class,
                             $param->name,
-                            $define[$param->name]['regex'],
+                            $regex,
                             preg_last_error_msg(),
                         ));
                     }
                     if ($matched === 0) {
                         throw new InvalidParameterException($param->name);
                     }
+                }
+                if ($value !== null) {
                     $args[$param->name] = $value;
                 } elseif ($param->isOptional()) {
                     $args[$param->name] = $param->getDefaultValue();
@@ -297,11 +306,12 @@ abstract class AbstractRoute implements RouteInterface
             switch($type) {
             case 'string':
             case '?string':
+                // 'string' は任意の文字列。regex による制約は付けない（#81）
                 $args[$param] = [
                     'type' => 'string',
                     'required' => $type === 'string',
-                    'regex' => '\w+',
-                    'description' => $type['description'] ?? $param,
+                    'regex' => null,
+                    'description' => $param,
                 ];
                 break;
             case 'integer':

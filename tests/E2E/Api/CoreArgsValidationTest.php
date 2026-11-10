@@ -50,13 +50,32 @@ class CoreArgsValidationTest extends AbstractE2ETestCase
         $this->assertArrayHasKey('order', $data['data']['params']);
     }
 
-    public function testEmptyStringDoesNotMatchDefaultStringPattern(): void
+    public function testEmptyStringIsAValueForUnconstrainedString(): void
     {
-        // ?keyword= は省略ではなく空文字。\w+ に一致しないので 400
+        // ?keyword= は省略ではなく空文字。'string' は制約なしなので空文字のまま届く（#81）
         $response = $this->get('/wp-json/example/search', ['keyword' => '']);
+
+        $this->assertResponseCode(200, $response);
+        $this->assertSame('', $this->getJsonResponse($response)['keyword']);
+    }
+
+    public function testEmptyStringIsRejectedByExplicitRegex(): void
+    {
+        // 非空を要求するのは regex の役目。order の (asc|desc) に空文字は一致しない
+        $response = $this->get('/wp-json/example/search', ['order' => '']);
 
         $this->assertResponseCode(400, $response);
         $this->assertSame('rest_invalid_param', $this->getJsonResponse($response)['code']);
+    }
+
+    public function testStringPathParameterAcceptsMultibyteAndSymbols(): void
+    {
+        // #81: 'string' のパスパラメータは [^/]+ で登録されるので、コアのルート照合（u なし）でも日本語が通る
+        foreach (['日本語', 'foo-bar', 'a.b'] as $name) {
+            $response = $this->get('/wp-json/example/hello/' . rawurlencode($name));
+            $this->assertResponseCode(200, $response, $name);
+            $this->assertSame("Hello, {$name}!", $this->getJsonResponse($response)['message']);
+        }
     }
 
     public function testMultibyteStringIsAcceptedBothByCoreAndByWpResta(): void
@@ -74,7 +93,8 @@ class CoreArgsValidationTest extends AbstractE2ETestCase
 
     public function testInvalidUtf8IsRejectedBothByCoreAndByWpResta(): void
     {
-        foreach (['/wp-json/example/search' => 'keyword', '/wp-json/example/sample/1' => 'name'] as $uri => $param) {
+        // regex を持つパラメータは、不正な UTF-8 をコアの pattern 検証と wp-resta の検証の両方で 400 にする
+        foreach (['/wp-json/example/search' => 'path', '/wp-json/example/sample/1' => 'a_or_b'] as $uri => $param) {
             $response = $this->get($uri, [$param => "\xff\xfe"]);
             $this->assertResponseCode(400, $response, $uri);
         }

@@ -11,8 +11,7 @@
 
 - `URL_PARAMS` のキー名と `callback` の引数名が一致しているか
 - パスパラメータは `ROUTE` の `[name]` と `URL_PARAMS` の両方に必要
-- `?name=` のような空文字は省略ではなく値。regex に一致しなければ 400
-- 日本語をパスパラメータで受けたい場合、`\w+`（`'string'`）は WP コアが UTF-8 モード無しで照合するため通らない。`'[^/]+'` を使う
+- `?name=` のような空文字は省略ではなく値。regex に一致しなければ 400、`'string'` ならそのまま届く
 
 ## DI で解決できない
 
@@ -23,7 +22,6 @@
 ## テストが失敗する
 
 - `TestRestaRequest` に渡す URL の namespace と `setNamespace()` が一致しているか
-- `TestRestaRequest` の URL にクエリ文字列を付けていないか。解釈されず、パス全体が一致しなくなる（[testing.md](testing.md)）
 - 前のテストで `Container` に bind したものが残っていないか（[testing.md](testing.md)「Container のリセット」）
 - WP 関数を呼ぶコードは Brain Monkey でモックしているか
 
