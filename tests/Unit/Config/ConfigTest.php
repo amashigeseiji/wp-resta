@@ -187,6 +187,16 @@ class ConfigTest extends TestCase
         $this->assertSame([\Wp\Resta\Kernel\WpKernelAdapter::class], $config->adapters);
     }
 
+    public function testExplicitEmptyAdaptersStaysEmpty(): void
+    {
+        // 既定が入るのはキーを省略したときだけ。空配列を明示すればアダプタは組み込まれない
+        $config = new Config([
+            'adapters' => [],
+        ]);
+
+        $this->assertSame([], $config->adapters);
+    }
+
     public function testAdaptersStoresClassNames(): void
     {
         $config = new Config([
