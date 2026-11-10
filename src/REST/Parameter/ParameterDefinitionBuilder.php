@@ -35,10 +35,15 @@ final class ParameterDefinitionBuilder
 
         $docParams = self::docParams($callback->getDocComment());
         foreach ($callback->getParameters() as $param) {
+            $isPath = in_array($param->name, $pathNames, true);
+            if ($isPath && $param->isDefaultValueAvailable()) {
+                // [id] のセグメントが無い URL はルートにマッチしないので、default が効く場面が無い。URL_PARAMS の有無によらず検査する
+                throw new LogicException(sprintf('%s::callback() argument $%s is a path parameter and cannot have a default value', $owner, $param->name));
+            }
             if (isset($definitions[$param->name])) {
                 continue;
             }
-            $definition = $this->fromSignature($param, in_array($param->name, $pathNames, true), $docParams[$param->name] ?? null, $owner);
+            $definition = $this->fromSignature($param, $isPath, $docParams[$param->name] ?? null, $owner);
             if ($definition !== null) {
                 $definitions[$param->name] = $definition;
             }
@@ -137,9 +142,6 @@ final class ParameterDefinitionBuilder
         }
 
         $hasDefault = $param->isDefaultValueAvailable();
-        if ($isPath && $hasDefault) {
-            throw new LogicException(sprintf('%s::callback() argument $%s is a path parameter and cannot have a default value', $owner, $name));
-        }
         $default = $hasDefault ? $param->getDefaultValue() : null;
         if ($default instanceof BackedEnum) {
             $default = $default->value;

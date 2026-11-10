@@ -216,6 +216,16 @@ class ParameterDefinitionBuilderTest extends TestCase
         });
     }
 
+    public function testPathParameterWithDefaultIsLogicExceptionEvenWhenUrlParamsDeclaresIt(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('path parameter and cannot have a default value');
+
+        $this->build('post/[id]', ['id' => 'integer'], new class {
+            public function callback(int $id = 0): void {}
+        });
+    }
+
     public function testUnionTypedArgumentIsLogicException(): void
     {
         $this->expectException(LogicException::class);
