@@ -179,12 +179,12 @@ class ConfigTest extends TestCase
 
     // --- adapters ---
 
-    public function testAdaptersDefaultsToEmptyArray(): void
+    public function testAdaptersDefaultsToWpKernelAdapter(): void
     {
+        // 省略時も WordPress との橋渡しは必要なので、WpKernelAdapter が既定で入る
         $config = new Config([]);
 
-        $this->assertIsArray($config->adapters);
-        $this->assertEmpty($config->adapters);
+        $this->assertSame([\Wp\Resta\Kernel\WpKernelAdapter::class], $config->adapters);
     }
 
     public function testAdaptersStoresClassNames(): void

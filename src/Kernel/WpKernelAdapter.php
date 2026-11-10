@@ -6,23 +6,27 @@ use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\EventDispatcher\Event;
 use Wp\Resta\Hooks\HookProviderInterface;
-use Wp\Resta\StateMachine\StateMachine;
 
 /**
  * WordPress ライフサイクルをフレームワークに橋渡しする唯一のクラス。
  *
  * WordPress のフック（add_action / add_filter）の呼び出しはここに集約する。
- * WP ライフサイクルイベントを Kernel の StateMachine 遷移または
- * Dispatcher イベントに変換することで、フレームワークコアを WP 非依存に保つ。
+ * WP のアクションを Dispatcher のイベントに変換するだけで、状態は持たない。
+ * プロセスの状態（REST サーバーの生成、フックの発火回数）は WP が所有していて
+ * wp-resta からは予測できないため、フックが何度発火しても同じことをする。
  *
  * ユーザーが config に登録した HookProvider もここで register() を呼ぶ。
  * HookProvider は移行レイヤーであり、新規実装では Dispatcher を推奨する。
  */
 class WpKernelAdapter
 {
+    /** WP の init アクションに対応するイベント名 */
+    public const INIT = 'wp.init';
+
+    /** WP の rest_api_init アクションに対応するイベント名。発火のたびに dispatch される */
+    public const REST_API_INIT = 'wp.rest_api_init';
+
     public function __construct(
-        private Kernel $kernel,
-        private StateMachine $sm,
         private DispatcherInterface $dispatcher,
         private Config $config,
     ) {}
@@ -33,14 +37,14 @@ class WpKernelAdapter
      */
     public function install(): void
     {
-        // WP の REST API 初期化 → ルート登録の SM 遷移
+        // WP の REST API 初期化 → wp.rest_api_init イベント（ルート登録はこのイベントのリスナーが行う）
         \add_action('rest_api_init', fn() =>
-            $this->sm->apply($this->kernel, 'registerRoutes')
+            $this->dispatcher->dispatch(new Event(self::REST_API_INIT))
         );
 
         // WP の init → フレームワーク内の wp.init イベントに変換
         \add_action('init', fn() =>
-            $this->dispatcher->dispatch(new Event('wp.init'))
+            $this->dispatcher->dispatch(new Event(self::INIT))
         );
 
         // URL パラメータをクエリパラメータより優先する

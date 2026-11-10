@@ -29,9 +29,9 @@ public function onRoute(RouteInvocationEvent $event): void
 }
 ```
 
-#### Event（文字列名・TransitionEvent など）
+#### Event（文字列名）
 
-`Event` を直接継承し、コンストラクタで文字列名を渡すイベントです。TransitionEvent（ステートマシン遷移イベント）や `'wp.init'` のような WP ライフサイクルイベントがこれにあたります。これらを購読するには `#[Listen]` アトリビュートが必要です。
+`Event` を直接継承し、コンストラクタで文字列名を渡すイベントです。`'wp.init'` や `'wp.rest_api_init'` のような WP ライフサイクルイベントがこれにあたります。これらを購読するには `#[Listen]` アトリビュートが必要です。
 
 ```php
 #[Listen('wp.init')]
@@ -116,69 +116,34 @@ class ResponseTransformer
 | `$event->route` | `RouteInterface` | 実行中のルート（読み取り専用） |
 | `$event->response` | `RestaResponseInterface` | レスポンス（書き換え可） |
 
-#### WP ライフサイクルイベント（`'wp.init'`）
+#### WP ライフサイクルイベント（`'wp.init'`、`'wp.rest_api_init'`）
 
-WordPress の `init` アクションに対応します。管理画面やフロントエンドの初期化処理に利用できます。
+WordPress のアクションを `WpKernelAdapter` が Dispatcher のイベントに変換したものです。WordPress が同じアクションを何度発火しても、そのたびに dispatch されます。
 
-```php
-#[Listen('wp.init')]
-public function onInit(Event $event): void
-{
-    // WordPress の init 相当のタイミングで実行される
-}
-```
-
----
-
-### ステートマシン遷移イベント（上級者向け）
-
-カーネルのライフサイクルは `KernelState` ステートマシンで管理されています。
-
-```
-Booting ──boot──▶ Bootstrapped ──registerRoutes──▶ RoutesRegistered
-```
-
-各遷移では **遷移前（guard）** と **遷移後（after）** の2種類のイベントが発火します。
+| イベント名 | 対応する WP アクション | 用途 |
+|---|---|---|
+| `'wp.init'` | `init` | 管理画面やフロントエンドの初期化処理 |
+| `'wp.rest_api_init'` | `rest_api_init` | REST API の初期化。wp-resta のルート登録はこのイベントのリスナーが行い、利用者のリスナーはその後に呼ばれるので、ルートは登録済みの状態 |
 
 ```php
 use Wp\Resta\EventDispatcher\Attributes\Listen;
-use Wp\Resta\Kernel\KernelState;
-use Wp\Resta\StateMachine\TransitionEvent;
+use Wp\Resta\EventDispatcher\Event;
 
 class LifecycleListener
 {
-    // 遷移後イベント: 'Wp\Resta\Kernel\KernelState::registerRoutes'
-    #[Listen('Wp\Resta\Kernel\KernelState::registerRoutes')]
-    public function onRoutesRegistered(TransitionEvent $event): void
+    #[Listen('wp.init')]
+    public function onInit(Event $event): void
     {
-        // ルート登録完了後に実行
+        // WordPress の init 相当のタイミングで実行される
     }
 
-    // 遷移前ガードイベント: $event->path を変えると遷移先を切り替えられる
-    // ※ stopPropagation() は後続リスナーを止めるだけで遷移自体はキャンセルされない
-    #[Listen('Wp\Resta\Kernel\KernelState::boot.guard')]
-    public function guardBoot(TransitionEvent $event): void
+    #[Listen('wp.rest_api_init')]
+    public function onRestApiInit(Event $event): void
     {
-        // 複数遷移先を持つ Transition なら $event->path = 'stop' のように切り替え可能
-        // 単一遷移先の場合は path を変えても例外になるため注意
+        // wp-resta のルート登録後に実行される。register_rest_route() を直接呼ぶルートを足すならここ
     }
 }
 ```
-
-イベント名を文字列で書くと typo のリスクがあるため、`TransitionEvent` のヘルパーメソッドを使うのが確実です。
-
-```php
-use Wp\Resta\StateMachine\TransitionEvent;
-use Wp\Resta\Kernel\KernelState;
-
-$eventName = TransitionEvent::afterEventName(KernelState::Bootstrapped, 'registerRoutes');
-// → 'Wp\Resta\Kernel\KernelState::registerRoutes'
-
-$guardName = TransitionEvent::guardEventName(KernelState::Booting, 'boot');
-// → 'Wp\Resta\Kernel\KernelState::boot.guard'
-```
-
-ただし、`#[Listen]` アトリビュートの引数はコンパイル時定数でなければならないため、ヘルパーメソッドはアトリビュートの中では使えません。文字列リテラルを使ってください。
 
 ---
 

@@ -5,10 +5,7 @@ use PHPUnit\Framework\TestCase;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\Dispatcher;
-use Wp\Resta\Kernel\Kernel;
 use Wp\Resta\Kernel\WpKernelAdapter;
-use Wp\Resta\StateMachine\StateMachine;
-use Wp\Resta\StateMachine\TransitionRegistry;
 
 /**
  * WpKernelAdapter のユニットテスト
@@ -23,12 +20,7 @@ class WpKernelAdapterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->adapter = new WpKernelAdapter(
-            new Kernel(),
-            new StateMachine(new TransitionRegistry()),
-            new Dispatcher(),
-            new Config([]),
-        );
+        $this->adapter = new WpKernelAdapter(new Dispatcher(), new Config([]));
     }
 
     // --- prioritizeUrlParameters ---

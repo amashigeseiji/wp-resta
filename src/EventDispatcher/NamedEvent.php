@@ -27,7 +27,7 @@ namespace Wp\Resta\EventDispatcher;
  * ## 文字列名イベントとの使い分け
  *
  * - NamedEvent: 型安全・addSubscriber() で自動推論
- * - Event('wp.init'): 同一クラスで複数の名前が必要なとき（TransitionEvent など）
+ * - Event('wp.init'): WP のアクションのように、名前だけが違う一連のイベント（'wp.init'、'wp.rest_api_init'）
  */
 abstract class NamedEvent extends Event
 {
