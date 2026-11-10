@@ -127,17 +127,29 @@ class ParameterDefinitionBuilderTest extends TestCase
     {
         $params = $this->build('x', [], new class {
             /**
+             * 一覧を返す
+             *
              * @param string[] $tags タグの一覧
              * @param array<int> $ids
+             * @param list<bool> $flags
+             * @param array<string, float> $weights
              * @param array $raw
+             * @param array{id: int}[] $shapes
+             * @param int $page ページ番号
+             * @return array<string, mixed>
              */
-            public function callback(array $tags = [], array $ids = [], array $raw = []): void {}
+            public function callback(array $tags = [], array $ids = [], array $flags = [], array $weights = [], array $raw = [], array $shapes = [], int $page = 1): void {}
         });
 
         $this->assertSame(['type' => 'string'], $params->get('tags')->items);
         $this->assertSame('タグの一覧', $params->get('tags')->description);
         $this->assertSame(['type' => 'integer'], $params->get('ids')->items);
+        $this->assertSame(['type' => 'boolean'], $params->get('flags')->items);
+        $this->assertSame(['type' => 'number'], $params->get('weights')->items, 'array<K, T> は T を読む');
         $this->assertSame([], $params->get('raw')->items, '要素型が読めなければ任意');
+        $this->assertSame([], $params->get('shapes')->items, 'array shape の要素は URL から来ないので任意');
+        $this->assertSame('ページ番号', $params->get('page')->description, '配列以外の引数も説明文は読む');
+        $this->assertSame('ids', $params->get('ids')->description, '説明が無ければ名前');
     }
 
     public function testParamAttributeSuppliesConstraints(): void

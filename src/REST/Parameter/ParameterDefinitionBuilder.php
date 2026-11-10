@@ -3,17 +3,6 @@ namespace Wp\Resta\REST\Parameter;
 
 use BackedEnum;
 use LogicException;
-use PHPStan\PhpDocParser\Ast\PhpDoc\ParamTagValueNode;
-use PHPStan\PhpDocParser\Ast\Type\ArrayTypeNode;
-use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
-use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
-use PHPStan\PhpDocParser\Ast\Type\TypeNode;
-use PHPStan\PhpDocParser\Lexer\Lexer;
-use PHPStan\PhpDocParser\Parser\ConstExprParser;
-use PHPStan\PhpDocParser\Parser\PhpDocParser;
-use PHPStan\PhpDocParser\Parser\TokenIterator;
-use PHPStan\PhpDocParser\Parser\TypeParser;
-use PHPStan\PhpDocParser\ParserConfig;
 use ReflectionEnum;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -31,18 +20,6 @@ use Wp\Resta\REST\Callback;
  */
 final class ParameterDefinitionBuilder
 {
-    private readonly Lexer $lexer;
-    private readonly PhpDocParser $phpDocParser;
-
-    public function __construct()
-    {
-        $config = new ParserConfig(usedAttributes: []);
-        $this->lexer = new Lexer($config);
-        $constExprParser = new ConstExprParser($config);
-        $typeParser = new TypeParser($config, $constExprParser);
-        $this->phpDocParser = new PhpDocParser($config, $typeParser, $constExprParser);
-    }
-
     /**
      * @param array<string, string|array<string, mixed>> $urlParams
      * @param string $owner エラーメッセージに出す宣言元（ルートのクラス名）
@@ -56,7 +33,7 @@ final class ParameterDefinitionBuilder
             $definitions[$name] = $this->fromUrlParam($name, $type, in_array($name, $pathNames, true), $owner);
         }
 
-        $docParams = $this->docParams($callback->getDocComment());
+        $docParams = self::docParams($callback->getDocComment());
         foreach ($callback->getParameters() as $param) {
             if (isset($definitions[$param->name])) {
                 continue;
@@ -234,24 +211,27 @@ final class ParameterDefinitionBuilder
     }
 
     /**
-     * docblock の @param から、配列の要素型と説明文を読む
+     * docblock の @param から、配列の要素型と説明文を読む。
+     *
+     * docblock 全体を phpdoc-parser にかけると @return の array shape まで解析して 1 ルート 50 〜 130 µs かかり、
+     * ルート登録のたびに全ルート分走るので、@param 行だけを正規表現で拾う。URL パラメータの配列は
+     * クエリ文字列で渡せるスカラーの列だけなので、要素型はプリミティブの 1 段だけ読めれば足りる。
+     * レスポンス側（@return）は SchemaInference が完全な文法で読む
      *
      * @return array<string, array{items: array<string, mixed>|null, description: string|null}>
      */
-    private function docParams(?string $docComment): array
+    private static function docParams(?string $docComment): array
     {
         if ($docComment === null) {
             return [];
         }
-        $tokens = new TokenIterator($this->lexer->tokenize($docComment));
-        $node = $this->phpDocParser->parse($tokens);
+        // 型は array<string, float> のように山括弧の中に空白を含みうる
+        preg_match_all('/^\s*\*?\s*@param\s+((?:[^\s<]+|<[^>]*>)+)\s+\$(\w+)[ \t]*(.*)$/m', $docComment, $matches, PREG_SET_ORDER);
         $result = [];
-        foreach ($node->getParamTagValues() as $tag) {
-            /** @var ParamTagValueNode $tag */
-            $name = ltrim($tag->parameterName, '$');
-            $description = trim($tag->description);
+        foreach ($matches as [, $type, $name, $description]) {
+            $description = trim($description);
             $result[$name] = [
-                'items' => self::itemsFromTypeNode($tag->type),
+                'items' => self::itemsFromDocType($type),
                 'description' => $description === '' ? null : $description,
             ];
         }
@@ -259,21 +239,17 @@ final class ParameterDefinitionBuilder
     }
 
     /**
-     * string[] / array<string> / list<string> の要素型。読めなければ null
+     * T[] / array<T> / list<T> / array<K, T> の要素型（T はプリミティブ）。それ以外は null（任意）
      *
      * @return array<string, mixed>|null
      */
-    private static function itemsFromTypeNode(TypeNode $type): ?array
+    private static function itemsFromDocType(string $type): ?array
     {
-        $element = null;
-        if ($type instanceof ArrayTypeNode) {
-            $element = $type->type;
-        } elseif ($type instanceof GenericTypeNode && in_array($type->type->name, ['array', 'list'], true) && $type->genericTypes !== []) {
-            $element = end($type->genericTypes);
+        if (preg_match('/^(\w+)\[\]$/', $type, $m) === 1
+            || preg_match('/^(?:array|list)<(?:\w+\s*,\s*)?(\w+)>$/', $type, $m) === 1
+        ) {
+            return PhpTypeToOpenApiSchema::primitiveToSchema($m[1]);
         }
-        if (!$element instanceof IdentifierTypeNode) {
-            return null;
-        }
-        return PhpTypeToOpenApiSchema::primitiveToSchema($element->name);
+        return null;
     }
 }
