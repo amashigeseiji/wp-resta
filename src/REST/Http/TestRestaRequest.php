@@ -1,7 +1,7 @@
 <?php
 namespace Wp\Resta\REST\Http;
 
-use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\RouteInterface;
 
 /**
  * テスト用の RestaRequestInterface 実装
@@ -16,13 +16,21 @@ class TestRestaRequest implements RestaRequestInterface
 
     /**
      * @param string $path リクエストパス。クエリ文字列を含めてよい（例: '/example/post/123?name=foo'）
-     * @param AbstractRoute $route ルートオブジェクト（パターンと namespace を取得するため）
+     * @param RouteInterface $route ルートオブジェクト（パターンと namespace を取得するため）
+     * @param string $method HTTP メソッド。省略すると GET
      */
     public function __construct(
         private string $path,
-        AbstractRoute $route
+        RouteInterface $route,
+        private string $method = 'GET',
     ) {
+        $this->method = strtoupper($method);
         $this->parseUrlParams($route->getRouteRegex(), $route->getNamespace());
+    }
+
+    public function getMethod(): string
+    {
+        return $this->method;
     }
 
     public function getUrlParam(string $name): mixed

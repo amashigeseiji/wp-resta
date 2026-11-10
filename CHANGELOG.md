@@ -19,7 +19,8 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 追加
 
-- callback のシグニチャからの URL パラメータ宣言（#79、#77）。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は `URL_PARAMS` に書かなくても宣言になり、値は宣言した型に変換されて届く。`#[Param(pattern:, min:, max:, description:)]` で制約を足せ、配列の要素型は `@param string[]` から読む。`RouteInterface::getParameters()` / `getCallback()` を追加
+- callback のシグニチャからの URL パラメータ宣言（#79、#77）。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は `URL_PARAMS` に書かなくても宣言になり、値は宣言した型に変換されて届く。`#[Param(pattern:, min:, max:, description:)]` で制約を足せ、配列の要素型は `@param string[]` から読む
+- 同じ URL で HTTP メソッドごとに処理を分けられるようになった（#92）。ルートクラスに `get()` / `post()` / `put()` / `patch()` / `delete()` を書くと、それぞれが 1 つの操作（`Operation`: メソッド、callback、そのシグニチャから導出したパラメータ）になる。`callback()` は `getMethods()` の全メソッドに対する 1 操作の省略形としてそのまま使え、両方書くと `LogicException`。宣言していないメソッドのリクエストは 404（`rest_no_route`）。`RouteInterface` に `getOperation(string $method): ?Operation` / `getOperations(): list<Operation>`、`RestaRequestInterface` に `getMethod(): string` を追加。`TestRestaRequest` は第 3 引数でメソッドを指定できる
 - `RestaResponseInterface::withHeaders(array): static`。ヘッダを上書きマージした複製を返す。`RouteInterface::getHeaders()` でルートの既定ヘッダを宣言し、エラーを含むどのレスポンスにも付く（レスポンス自身の同名が優先）。これまでは callback が `RestaResponseInterface` を直接返すと既定ヘッダが付かなかった
 - 手続き的な検証のフック `validate(BoundParameters $params)`（#79）。型と正規表現の検証の後、`authorize()` の前に呼ばれる
 - ルート単位の認可（#61）。`authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal)` をオーバーライドし、`UnauthorizedException`（401 `rest_not_logged_in`）か `ForbiddenException`（403 `rest_forbidden`）を投げて拒否する。順序はバリデーション → 認可 → callback で WordPress コアと同じ
@@ -27,17 +28,18 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 変更
 
+- `RouteInterface` から `getMethods()` / `getArgs()` が無くなり、`Operation` の `getMethods()` と `getParameters()->toCoreArgs()` になった（#92）。`AbstractRoute::getMethods()` は `callback()` の受け持つメソッドの宣言として残る。`register_rest_route()` には操作ごとのエンドポイントの配列を渡す。`SchemaInference::inferSchema()` は `RouteInterface` ではなく操作の `Callback` を受け取り、`SCHEMA` / `getSchema()` の優先は `ResponseSchema` が行う
 - callback の引数に書いたビルトイン型の引数が、`URL_PARAMS` に無くても URL パラメータの宣言として扱われるようになった（#79）。これまでは `LogicException` で 500 になっていた。同名の `URL_PARAMS` があればそちらが優先される
 - `ROUTE` の `[name]` に対応する宣言が無いと `LogicException` になる。これまでは `[name]` が文字どおりのパスとして登録されていた
 - 宣言されたパラメータは、callback の引数で受け取るかどうかに関係なくすべて wp-resta が検証するようになった（#79）。これまでは callback の引数にあるものだけ wp-resta が検証し、それ以外は WordPress コアの検証に頼っていた
-- `getArgs()` が `'sanitize_callback' => null` を出すようになり、WordPress コアの型変換を止めた。型変換は wp-resta が行い、`RestaRequestInterface::getUrlParam()` はクライアントが送った値をそのまま返す。`WP_REST_Request::get_param()` から直接読んでいたコードには文字列のまま届く
+- `register_rest_route()` に渡す args が `'sanitize_callback' => null` を含むようになり、WordPress コアの型変換を止めた。型変換は wp-resta が行い、`RestaRequestInterface::getUrlParam()` はクライアントが送った値をそのまま返す。`WP_REST_Request::get_param()` から直接読んでいたコードには文字列のまま届く
 - `callback` メソッドを持たないルート（`$body` だけを返す）は非推奨になった（`E_USER_DEPRECATED`）。0.13 で `LogicException` にする。`callback()` で body を返す形に書き換える
 - WordPress コアに渡す `permission_callback` は常に `__return_true` になった（#61）。認可は `invoke()` の中で行われるので、`RouteInvocationEvent` の購読者には 401 / 403 のレスポンスも渡る
 - `rest_api_init` が何度発火しても、そのたびにルートを登録し直すようになった（#60）。WordPress のテストフレームワーク（`WP_Test_REST_Controller_Testcase`）のように `$wp_rest_server` をテストごとに作り直す環境で、2 つ目以降のテストが致命的エラーになっていた
 - 設定の `adapters` を省略すると `WpKernelAdapter` が使われる。これまでは明示しないとルートが登録されなかった
 - `URL_PARAMS` の `'string'` が任意の文字列を受け取るようになった（#81）。これまでは `\w+` の省略形で、パスパラメータに置くと WordPress コアの照合（UTF-8 モード無し）で日本語などが 404 になり、クエリパラメータでは通るという食い違いがあった。パスパラメータは次の `/` までの任意の文字列、クエリパラメータは制約なしになる。英数字に絞りたいルートは `'\w+'` と明示する
 - 上記に伴い、`'string'` / `'?string'` のクエリパラメータに空文字を渡すと 400 ではなく空文字のまま callback に届く。非空を要求するなら `'.+'` のように正規表現を書く
-- `getArgs()` が返す `'string'` の定義は `regex` が `null` になり、`pattern` を含まない
+- `register_rest_route()` に渡す `'string'` の定義は `regex` が `null` になり、`pattern` を含まない
 - パスパラメータの値がパーセントデコードされて callback に届くようになった。パーマリンクが有効な環境では WordPress がエンコードされたまま渡してくるため、`/hello/日本語` が `%E6%97%A5...` として届いていた。callback 側で `rawurldecode()` していたコードは二重デコードになるので外す。`?rest_route=` 形式や `rest_do_request()` で組み立てたリクエストの値は元からデコード済み・文字どおりなので変わらない
 - `URL_PARAMS` に宣言したパラメータに `?name[]=x` のような配列が渡されたとき、`invoke()` が 400 を返す。これまでは callback の型宣言で `TypeError` になり 500 だった
 

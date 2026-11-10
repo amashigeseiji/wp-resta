@@ -68,9 +68,21 @@ if (!class_exists('WP_REST_Request')) {
 
         private string $route = '';
 
+        private string $method = 'GET';
+
         public function get_route(): string
         {
             return $this->route;
+        }
+
+        public function get_method(): string
+        {
+            return $this->method;
+        }
+
+        public function set_method(string $method): void
+        {
+            $this->method = strtoupper($method);
         }
 
         public function set_route(string $route): void

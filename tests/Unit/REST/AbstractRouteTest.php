@@ -49,6 +49,16 @@ class AbstractRouteTest extends TestCase
     }
 
     /**
+     * register_rest_route() に渡る args（GET 操作のもの）
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function args(AbstractRoute $route): array
+    {
+        return $route->getOperation('GET')->getParameters()->toCoreArgs();
+    }
+
+    /**
      * パイプラインを通す。invoke() の撤去後、ルートの実行は RequestHandler が担う
      */
     private function handle(AbstractRoute $route, RestaRequestInterface $request, ?Principal $principal = null): RestaResponseInterface
@@ -64,6 +74,10 @@ class AbstractRouteTest extends TestCase
         return new class($params) implements RestaRequestInterface {
             /** @param array<string, mixed> $params */
             public function __construct(private array $params) {}
+            public function getMethod(): string
+            {
+                return 'GET';
+            }
             public function getUrlParam(string $name): mixed
             {
                 return $this->params[$name] ?? null;
@@ -554,14 +568,17 @@ class AbstractRouteTest extends TestCase
         $route = new class($regex) extends AbstractRoute {
             public function __construct(private string $regex) {}
 
-            public function getParameters(): \Wp\Resta\REST\Parameter\RouteParameters
+            public function getOperations(): array
             {
-                return (new \Wp\Resta\REST\Parameter\ParameterDefinitionBuilder())->build(
+                // URL_PARAMS は定数なのでコンストラクタの regex を使えない。操作を直接組み立てる
+                $callback = \Wp\Resta\REST\Callback::fromMethod($this, 'callback');
+                $params = (new \Wp\Resta\REST\Parameter\ParameterDefinitionBuilder())->build(
                     '',
                     ['tag' => ['type' => 'string', 'required' => true, 'regex' => $this->regex, 'description' => 'tag']],
-                    $this->getCallback(),
+                    $callback,
                     static::class,
                 );
+                return [new \Wp\Resta\REST\Operation('GET', $callback, $params)];
             }
 
             public function callback(string $tag): array
@@ -813,7 +830,7 @@ class AbstractRouteTest extends TestCase
         $route->setNamespace('myapi');
 
         $this->assertSame('tag/(?P<tag>[^/]+)', $route->getRouteRegex());
-        $this->assertArrayNotHasKey('pattern', $route->getArgs()['tag']);
+        $this->assertArrayNotHasKey('pattern', $this->args($route)['tag']);
         $response = $this->handle($route, new TestRestaRequest('/myapi/tag/a%20b?q=x%20y', $route));
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertSame(['tag' => 'a b', 'q' => 'x y'], $response->getData());
@@ -872,7 +889,7 @@ class AbstractRouteTest extends TestCase
             public function callback(): array { return []; }
         };
 
-        $args = $route->getArgs();
+        $args = $this->args($route);
 
         // regex はコアの知らないキーなので、string 型は pattern にも展開する。コアは部分一致なのでアンカーを付ける
         $this->assertSame('^(?:(a|b))$', $args['kind']['pattern']);
@@ -905,7 +922,7 @@ class AbstractRouteTest extends TestCase
             public function callback(): array { return []; }
         };
 
-        $args = $route->getArgs();
+        $args = $this->args($route);
 
         // 利用側が明示した pattern はそのまま
         $this->assertSame('a|b', $args['kind']['pattern']);
@@ -928,7 +945,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
-        $args = $route->getArgs();
+        $args = $this->args($route);
 
         // コアに渡すと preg_match() の失敗が「不一致」として 400 になり、定義ミスが入力エラーに見えてしまう。
         // pattern を付けずに invokeCallback() の 500 + ログの経路に任せる
@@ -954,7 +971,7 @@ class AbstractRouteTest extends TestCase
         };
 
         // コアは '#' . pattern . '#u' と組み立てるので、先頭指示子は pattern の先頭にある必要がある
-        $this->assertSame('(*UTF)(*UCP)^(?:\w+)$', $route->getArgs()['name']['pattern']);
+        $this->assertSame('(*UTF)(*UCP)^(?:\w+)$', $this->args($route)['name']['pattern']);
     }
 
     public function testGetArgsPatternWorksWithCorePatternValidation()
@@ -969,7 +986,7 @@ class AbstractRouteTest extends TestCase
             ];
             public function callback(): array { return []; }
         };
-        $args = $route->getArgs();
+        $args = $this->args($route);
         // 制約なしの 'string' には pattern を出さない（#81）
         $this->assertArrayNotHasKey('pattern', $args['free']);
 
@@ -1068,7 +1085,7 @@ class AbstractRouteTest extends TestCase
         $this->assertSame(['page' => 1], $this->handle($route, $this->requestWith([]))->getData());
         $this->assertSame(['page' => 3], $this->handle($route, $this->requestWith(['page' => '3']))->getData());
         $this->assertSame(400, $this->handle($route, $this->requestWith(['page' => 'abc']))->getStatusCode());
-        $this->assertSame(['page' => ['type' => 'integer', 'required' => false, 'regex' => '\d+', 'description' => 'page', 'sanitize_callback' => null]], $route->getArgs());
+        $this->assertSame(['page' => ['type' => 'integer', 'required' => false, 'regex' => '\d+', 'description' => 'page', 'sanitize_callback' => null]], $this->args($route));
     }
 
     public function testRouteWithoutCallbackHasCallbackReturningDeclaredBody()
@@ -1079,8 +1096,8 @@ class AbstractRouteTest extends TestCase
         };
         $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
-        $this->assertSame([], $route->getCallback()->getParameters());
-        $this->assertCount(0, $route->getParameters());
+        $this->assertSame([], $route->getOperation('GET')->getCallback()->getParameters());
+        $this->assertCount(0, $route->getOperation('GET')->getParameters());
         $this->assertSame(['static' => true], $this->handle($route, $this->requestWith([]))->getData());
     }
 

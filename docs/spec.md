@@ -23,13 +23,20 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 - `AbstractRoute` を継承したクラス 1 つがエンドポイント 1 つ。設定で指定したディレクトリから自動で収集される
 - REST API のルートは `{namespace}/{route}`。`namespace` は設定の `routeDirectory` で決まる。`route` は `ROUTE` 定数で宣言し、省略するとクラス名から決まる。ルートの前に付く `/wp-json/` などのプレフィックスは WordPress が決める
-- HTTP メソッドは `getMethods()` で宣言する。既定は GET。複数のメソッドは `'GET,POST'` のようにカンマ区切りで宣言する
+
+### 操作
+
+- ルートは URL に属する宣言で、HTTP メソッドごとの処理は操作として分かれる。`get()` / `post()` / `put()` / `patch()` / `delete()` という名前のメソッドがそれぞれ 1 つの操作になり、同じ URL で GET と POST を分けられる
+- `callback()` は、`getMethods()` で宣言したメソッド全部に対する 1 つの操作の省略形。`getMethods()` の既定は GET で、複数のメソッドは `'GET,POST'` のようにカンマ区切りで宣言する
+- `callback()` と HTTP メソッド名のメソッドの両方を持つルートは `LogicException`
+- 宣言していないメソッドのリクエストは 404 になる。HEAD の操作が無ければ GET の操作で応える
+- URL パラメータの宣言は操作ごと。パスパラメータの宣言は操作をまたいで同じでなければならず、食い違えば `LogicException`
 
 ### URL パラメータ
 
 - `ROUTE` の `[name]` はパスパラメータ。それ以外の宣言済みパラメータはクエリパラメータ
 - `URL_PARAMS` では名前と型（string / integer）を宣言する。省略可能なパラメータは `?` を付けて宣言し、callback 引数のデフォルト値が使われる
-- callback の引数も宣言になる。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は、`URL_PARAMS` に無くてもその名前のパラメータの宣言で、デフォルト値があれば省略可能。クラス型の引数は DI で解決され、宣言にはならない。同名の `URL_PARAMS` があればそちらが優先される
+- 操作のメソッド（`callback()` や `get()` など。以下 callback）の引数も宣言になる。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は、`URL_PARAMS` に無くてもその名前のパラメータの宣言で、デフォルト値があれば省略可能。クラス型の引数は DI で解決され、宣言にはならない。同名の `URL_PARAMS` があればそちらが優先される
 - 型で表せない制約（正規表現、最小値、最大値、説明）は `#[Param]` で宣言する。配列の要素型は docblock の `@param string[]` のように宣言する
 - 値は宣言した型に変換されて callback に届く。`bool` は `true` / `false` / `1` / `0`、配列は `tags[]=a` の繰り返しとカンマ区切りの両方を受け取り、backed enum はそのインスタンスになる
 - `ROUTE` の `[name]` には対応する宣言が必要で、パスパラメータにデフォルト値は付けられない
@@ -41,18 +48,22 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ### 宣言から導出されるもの
 
 - ルートの登録と入力の検証。宣言していない制約は検証されない
-- OpenAPI 定義。レスポンスの形は callback の戻り値型かスキーマクラスから導出され、`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される
+- OpenAPI 定義。path の下に操作ごとの operation が出る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出され、`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される
 - TypeScript の型定義。OpenAPI と同じ宣言から生成される
 
 ## HTTP 実行のパイプライン
 
-リクエストは認証、バリデーション、認可、callback の順に段階を通る。バリデーションを通った入力だけが認可と callback に渡り、callback の結果がレスポンスになる。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
+リクエストは認証、操作の選択、バリデーション、認可、callback の順に段階を通る。バリデーションを通った入力だけが認可と callback に渡り、callback の結果がレスポンスになる。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
 
 パイプラインは WordPress 無しで実行できる。`RequestHandler::handle(RouteInterface, RestaRequestInterface)` がその入口で、`TestRestaRequest` が URL 文字列からリクエストを作る（[testing.md](testing.md)）。ルートは宣言だけを持ち、実行の順序は `RequestHandler` が持つ。
 
 ### 認証
 
 - 認証（cookie + nonce、Application Password など）は WordPress が行う。wp-resta は関与しない
+
+### 操作の選択
+
+- リクエストの HTTP メソッドに対応する操作が選ばれ、以降の段階はその操作の宣言で行われる。無ければ 404（`rest_no_route`）
 
 ### バリデーション
 
@@ -65,11 +76,12 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - 拒否は例外で表す。`UnauthorizedException` は 401、`ForbiddenException` は 403 になり、callback は呼ばれない
 - `Principal` は認証状態（`isAuthenticated()`）と capability（`can()`）を答える。WordPress 上では現在のユーザーに対応し、認証方式（cookie + nonce、Application Passwords など）には依存しない。設定の `dependencies` で差し替えられる
 - 認可はバリデーションの後に行われる。`authorize()` が受け取る `$params` は宣言した制約を満たし、型変換済みの値
+- `validate()` / `authorize()` はルート単位。操作ごとに分けるなら `$request->getMethod()` で分岐する
 
 ### callback
 
-- ルートの `callback` メソッドがリクエストごとに呼ばれる。`callback` を持たないルートは非推奨で、次の minor で許可されなくなる
-- callback の引数は、宣言済みの URL パラメータなら名前で型変換済みの値が、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決でき、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
+- 選ばれた操作の callback（`callback()` か `get()` などの HTTP メソッド名のメソッド）がリクエストごとに呼ばれる。どちらも持たないルートは非推奨で、次の minor で許可されなくなる
+- callback の引数は、宣言済みの URL パラメータなら名前で型変換済みの値が、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決でき、`getMethod()` は HTTP メソッド、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
 - WordPress の REST API から移行するコードのために、`WP_REST_Request` も callback 引数で受け取れる。新しく書くコードでは使わない
 - callback の戻り値がレスポンスボディになる
 

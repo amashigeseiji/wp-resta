@@ -22,7 +22,7 @@ final class ParameterDefinitionBuilder
 {
     /**
      * @param array<string, string|array<string, mixed>> $urlParams
-     * @param string $owner エラーメッセージに出す宣言元（ルートのクラス名）
+     * @param string $owner エラーメッセージに出す宣言元（`Route::method` の形）
      */
     public function build(string $route, array $urlParams, Callback $callback, string $owner): RouteParameters
     {
@@ -38,7 +38,7 @@ final class ParameterDefinitionBuilder
             $isPath = in_array($param->name, $pathNames, true);
             if ($isPath && $param->isDefaultValueAvailable()) {
                 // [id] のセグメントが無い URL はルートにマッチしないので、default が効く場面が無い。URL_PARAMS の有無によらず検査する
-                throw new LogicException(sprintf('%s::callback() argument $%s is a path parameter and cannot have a default value', $owner, $param->name));
+                throw new LogicException(sprintf('%s() argument $%s is a path parameter and cannot have a default value', $owner, $param->name));
             }
             if (isset($definitions[$param->name])) {
                 continue;
@@ -51,7 +51,7 @@ final class ParameterDefinitionBuilder
 
         foreach ($pathNames as $name) {
             if (!isset($definitions[$name])) {
-                throw new LogicException(sprintf('%s: ROUTE has [%s] but no parameter named "%s" is declared in URL_PARAMS or callback()', $owner, $name, $name));
+                throw new LogicException(sprintf('%s: ROUTE has [%s] but no parameter named "%s" is declared in URL_PARAMS or the method signature', $owner, $name, $name));
             }
         }
 
@@ -66,7 +66,7 @@ final class ParameterDefinitionBuilder
     }
 
     /**
-     * URL_PARAMS の 1 エントリから。register_rest_route() に渡す形は従来の getArgs() と同じに保つ
+     * URL_PARAMS の 1 エントリから。register_rest_route() に渡す形は 0.11 の getArgs() と同じに保つ
      *
      * @param string|array<string, mixed> $type
      */
@@ -107,10 +107,10 @@ final class ParameterDefinitionBuilder
         $name = $param->name;
         $type = $param->getType();
         if ($type === null || !($type instanceof ReflectionNamedType)) {
-            throw new LogicException(sprintf('%s::callback() argument $%s must have a single named type to be a URL parameter', $owner, $name));
+            throw new LogicException(sprintf('%s() argument $%s must have a single named type to be a URL parameter', $owner, $name));
         }
         if ($param->isVariadic()) {
-            throw new LogicException(sprintf('%s::callback() argument $%s: variadic parameters are not supported', $owner, $name));
+            throw new LogicException(sprintf('%s() argument $%s: variadic parameters are not supported', $owner, $name));
         }
 
         $enum = null;
@@ -119,7 +119,7 @@ final class ParameterDefinitionBuilder
         if ($type->isBuiltin()) {
             $openApiType = $type->getName() === 'array' ? 'array' : PhpTypeToOpenApiSchema::primitiveToOpenApiType($type->getName());
             if ($openApiType === null || $openApiType === 'null') {
-                throw new LogicException(sprintf('%s::callback() argument $%s: type %s cannot be a URL parameter', $owner, $name, $type->getName()));
+                throw new LogicException(sprintf('%s() argument $%s: type %s cannot be a URL parameter', $owner, $name, $type->getName()));
             }
             if ($openApiType === 'array') {
                 $items = $doc['items'] ?? [];

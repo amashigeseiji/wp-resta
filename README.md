@@ -246,6 +246,35 @@ public function callback(int $id): RestaResponseInterface
 
 クラスの `$headers` プロパティで宣言した既定ヘッダは、callback がどう返してもすべてのレスポンス（エラーを含む）に付き、同名ならレスポンス側の値が勝ちます。
 
+### 同じ URL で HTTP メソッドごとに処理を分ける
+
+`callback` の代わりに `get` / `post` / `put` / `patch` / `delete` という名前のメソッドを書くと、それぞれがその HTTP メソッドの処理になります。引数の宣言はメソッドごとに独立していて、`post` の引数は GET のリクエストでは要求されません。
+
+```php
+class Notes extends AbstractRoute
+{
+    protected const ROUTE = 'notes/[id]';
+
+    public function get(int $id): array
+    {
+        return ['id' => $id];
+    }
+
+    public function post(int $id, string $title): array
+    {
+        return ['id' => $id, 'title' => $title];
+    }
+}
+```
+
+```
+$ curl http://example.com/wp-json/myroute/notes/1
+$ curl -X POST http://example.com/wp-json/myroute/notes/1 -d title=hello
+$ curl -X DELETE http://example.com/wp-json/myroute/notes/1   # 404 rest_no_route
+```
+
+`callback` は、`getMethods()` で宣言したメソッド（既定は GET。`'GET,POST'` のようにカンマ区切りで複数）すべてを 1 つのメソッドで受ける書きかたです。`callback` と `get` などを同じクラスに書くことはできません。`[id]` のようなパスパラメータは、どのメソッドでも同じ型で宣言してください。
+
 ### 認可
 
 ログインしているか、特定の capability を持っているかで利用を制限したいルートは、`authorize()` をオーバーライドします。既定はすべてのリクエストを許可します。

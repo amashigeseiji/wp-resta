@@ -82,58 +82,52 @@ class ResponseSchema
         foreach ($this->routes->routes as $route) {
             $path = $route->getReadableRoute();
 
-            // パラメータを集めておく
-            $parameters = [];
-            foreach ($route->getParameters() as $definition) {
-                $parameters[] = $definition->toOpenApiParameter();
-            }
-
-            // attribute から meta 情報を取得
+            // attribute から meta 情報を取得（ルート単位。操作をまたいで共通）
             $reflection = new ReflectionClass($route::class);
             $meta = new RouteMeta(); // デフォルト
             foreach ($reflection->getAttributes(RouteMeta::class) as $attr) {
                 $meta = $attr->newInstance();
             }
-
-            // スキーマを取得（明示的定義がない場合は自動推論）
-            $schema = $route->getSchema();
-            if ($schema === null) {
-                $schema = $this->inference->inferSchema($route);
-            }
-            $schema = $schema ?? [];
-
-            // #[Envelope] 属性があればエンベロープ構造でラップ
             $hasEnvelope = count($reflection->getAttributes(Envelope::class)) > 0;
-            if ($hasEnvelope && !empty($schema)) {
-                $schema = $this->wrapSchemaInEnvelope($schema);
-            }
+            $explicitSchema = $route->getSchema();
 
-            $operation = [
-                'description' => $meta->description,
-                'tags' => $meta->tags,
-                'parameters' => $parameters,
-                'responses' => [
-                    '200' => [
-                        'description' => 'OK',
-                        'content' => [
-                            'application/json' => [
-                                'schema' => $schema
+            // OpenAPI の Path Item Object は path の下にメソッドごとの Operation Object を持つ。
+            // wp-resta の操作をそのまま写す。同一パスに複数ルート（GET と POST を別クラスで定義など）が
+            // ある場合も上書きせずメソッド単位でマージする
+            foreach ($route->getOperations() as $operation) {
+                $parameters = [];
+                foreach ($operation->getParameters() as $definition) {
+                    $parameters[] = $definition->toOpenApiParameter();
+                }
+
+                // スキーマは明示的定義（SCHEMA / getSchema()）が優先。無ければ操作の callback から推論
+                $schema = $explicitSchema ?? $this->inference->inferSchema($operation->getCallback()) ?? [];
+
+                // #[Envelope] 属性があればエンベロープ構造でラップ
+                if ($hasEnvelope && !empty($schema)) {
+                    $schema = $this->wrapSchemaInEnvelope($schema);
+                }
+
+                $operationObject = [
+                    'description' => $meta->description,
+                    'tags' => $meta->tags,
+                    'parameters' => $parameters,
+                    'responses' => [
+                        '200' => [
+                            'description' => 'OK',
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => $schema
+                                ]
                             ]
                         ]
                     ]
-                ]
-            ];
+                ];
 
-            // 同一パスに複数ルート（GET と POST を別クラスで定義など）がある場合に
-            // 上書きせずメソッド単位でマージする。
-            // getMethods() が 'GET,POST' のように複数返す場合は、OpenAPI の Path Item Object の
-            // キーは単一メソッドなので、メソッドごとに展開する。
-            foreach (explode(',', $route->getMethods()) as $method) {
-                $method = strtolower(trim($method));
-                if ($method === '') {
-                    continue;
+                // 'GET,POST' のように複数のメソッドを持つ操作は、メソッドごとに展開する
+                foreach ($operation->getMethodList() as $method) {
+                    $paths[$path][strtolower($method)] = $operationObject;
                 }
-                $paths[$path][$method] = $operation;
             }
         }
 
