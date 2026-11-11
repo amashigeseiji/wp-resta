@@ -207,7 +207,9 @@ class PhpTypeToOpenApiSchemaTest extends TestCase
     public function testFromReflectionTypeArray(): void
     {
         $type = $this->reflectType('array');
-        $this->assertSame(['type' => 'array', 'items' => []], PhpTypeToOpenApiSchema::fromReflectionType($type));
+        $schema = PhpTypeToOpenApiSchema::fromReflectionType($type);
+        $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $schema);
+        $this->assertSame('{"type":"array","items":{}}', json_encode($schema), 'OpenAPI 3.0 の items は Schema Object なので {} で出す');
     }
 
     // -------------------------------------------------------------------------
@@ -261,9 +263,9 @@ class PhpTypeToOpenApiSchemaTest extends TestCase
     public function testFromReflectionTypeNullableArray(): void
     {
         $type = $this->reflectType('nullableArray');
-        $this->assertSame([
+        $this->assertEquals([
             'anyOf' => [
-                ['type' => 'array', 'items' => []],
+                ['type' => 'array', 'items' => new \stdClass()],
                 ['type' => 'null'],
             ],
         ], PhpTypeToOpenApiSchema::fromReflectionType($type));

@@ -2,6 +2,7 @@
 namespace Wp\Resta\CodeGen\Generators;
 
 use Wp\Resta\CodeGen\OpenApiParser;
+use Wp\Resta\CodeGen\TypeScriptSyntax;
 
 /**
  * TypeScriptインターフェース生成
@@ -125,9 +126,8 @@ class InterfaceGenerator
         switch ($type) {
             case 'string':
                 // enum の場合
-                if (isset($schema['enum'])) {
-                    $enumValues = array_map(fn($v) => "'{$v}'", $schema['enum']);
-                    return implode(' | ', $enumValues);
+                if (isset($schema['enum']) && is_array($schema['enum'])) {
+                    return TypeScriptSyntax::literalUnion(array_values($schema['enum']));
                 }
                 return 'string';
 
@@ -139,9 +139,7 @@ class InterfaceGenerator
                 return 'boolean';
 
             case 'array':
-                $items = $schema['items'] ?? ['type' => 'unknown'];
-                $itemType = $this->convertType($items, $parser);
-                return "{$itemType}[]";
+                return TypeScriptSyntax::arrayOf($this->convertItems($schema, $parser));
 
             case 'object':
                 // インラインオブジェクトの場合
@@ -158,6 +156,20 @@ class InterfaceGenerator
             default:
                 return 'unknown';
         }
+    }
+
+    /**
+     * 配列スキーマの要素型。items が無いか {}（要素型が任意）なら unknown
+     *
+     * @param array<string, mixed> $schema
+     */
+    private function convertItems(array $schema, OpenApiParser $parser): string
+    {
+        $items = $schema['items'] ?? [];
+        if (!is_array($items) || $items === []) {
+            return 'unknown';
+        }
+        return $this->convertType($items, $parser);
     }
 
     /**
@@ -193,8 +205,7 @@ class InterfaceGenerator
     private function generateArrayType(string $name, array $schema, OpenApiParser $parser): string
     {
         $description = $schema['description'] ?? null;
-        $items = $schema['items'] ?? ['type' => 'unknown'];
-        $itemType = $this->convertType($items, $parser);
+        $itemType = $this->convertItems($schema, $parser);
 
         $output = '';
 
@@ -204,7 +215,7 @@ class InterfaceGenerator
             $output .= " */\n";
         }
 
-        $output .= "export type {$name} = {$itemType}[];\n";
+        $output .= 'export type ' . $name . ' = ' . TypeScriptSyntax::arrayOf($itemType) . ";\n";
 
         return $output;
     }

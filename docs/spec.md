@@ -48,8 +48,8 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ### 宣言から導出されるもの
 
 - ルートの登録と入力の検証。宣言していない制約は検証されない
-- OpenAPI 定義。path の下に操作ごとの operation が出る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出され、`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される
-- TypeScript の型定義。OpenAPI と同じ宣言から生成される
+- OpenAPI 定義。path の下に操作ごとの operation が出る。parameters には宣言した型、必須かどうか、enum、デフォルト値、最小値・最大値、配列の要素型が載る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出され、`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される
+- TypeScript の型定義。OpenAPI と同じ宣言から生成される。パラメータの enum はリテラルの union、配列は要素型の配列、デフォルト値があるものは optional になる
 
 ## HTTP 実行のパイプライン
 

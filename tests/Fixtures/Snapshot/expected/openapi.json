@@ -1,0 +1,310 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "WordPress REST API",
+        "description": ""
+    },
+    "tags": [],
+    "servers": [
+        {
+            "url": "http://localhost/wp-json/"
+        }
+    ],
+    "paths": {
+        "/snapshot/items/{id}": {
+            "get": {
+                "description": "Snapshot item route",
+                "tags": [
+                    "snapshot"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "description": "id",
+                        "in": "path",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "required": false,
+                        "description": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "asc"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "description": "Page size",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 20
+                        }
+                    },
+                    {
+                        "name": "tags",
+                        "required": false,
+                        "description": "tags",
+                        "in": "query",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": []
+                        }
+                    },
+                    {
+                        "name": "verbose",
+                        "required": false,
+                        "description": "verbose",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Item"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Snapshot item route",
+                "tags": [
+                    "snapshot"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "description": "id",
+                        "in": "path",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "name",
+                        "required": true,
+                        "description": "name",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "note",
+                        "required": false,
+                        "description": "note",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Item"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/snapshot/items": {
+            "get": {
+                "description": "Snapshot item list",
+                "tags": [
+                    "snapshot"
+                ],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "required": false,
+                        "description": "q",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "default": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$schema": "http://json-schema.org/draft-04/schema#",
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Items"
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "description": "Response metadata",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Snapshot item list",
+                "tags": [
+                    "snapshot"
+                ],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "required": false,
+                        "description": "q",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "default": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$schema": "http://json-schema.org/draft-04/schema#",
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Items"
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "description": "Response metadata",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/snapshot/raw": {
+            "get": {
+                "description": "",
+                "tags": [],
+                "parameters": [
+                    {
+                        "name": "raw",
+                        "required": false,
+                        "description": "raw",
+                        "in": "query",
+                        "schema": {
+                            "type": "array",
+                            "items": {},
+                            "default": []
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {},
+        "schemas": {
+            "Item": {
+                "type": "object",
+                "description": "Snapshot item",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Item ID"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "note": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "extra": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "tags",
+                    "extra"
+                ],
+                "$id": "#/components/schemas/Item"
+            },
+            "Items": {
+                "type": "array",
+                "description": "Snapshot item list",
+                "items": {
+                    "$ref": "#/components/schemas/Item"
+                },
+                "$id": "#/components/schemas/Items"
+            },
+            "Untyped": {
+                "type": "array",
+                "description": "",
+                "items": {},
+                "$id": "#/components/schemas/Untyped"
+            }
+        }
+    }
+}

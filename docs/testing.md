@@ -102,4 +102,4 @@ Functions\expect('register_rest_route')->once()->with('myapi', Mockery::type('st
 
 - `AbstractRoute` の挙動変更: `tests/Unit/REST/AbstractRouteTest.php` に加え、E2E で WP コア経由の結果も 1 ケース
 - 登録・ライフサイクル: `tests/Integration/RestaIntegrationTest.php`
-- OpenAPI / TypeScript 出力: `tests/Unit/OpenApi/`、`tests/Unit/CodeGen/` のスナップショット
+- OpenAPI / TypeScript 出力: `tests/Integration/OpenApi/SnapshotTest.php`。`tests/Fixtures/Snapshot/` のルートとスキーマから生成した OpenAPI JSON と TypeScript を `expected/` と突き合わせる。出力を意図して変えたら `UPDATE_SNAPSHOTS=1 composer test` で期待値を書き換え、差分をレビューする。変換規則そのものは `tests/Unit/OpenApi/`、`tests/Unit/CodeGen/`

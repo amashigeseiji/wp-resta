@@ -210,4 +210,57 @@ class InterfaceGeneratorTest extends TestCase
 
         $this->assertStringContainsString('metadata?: Record<string, string>;', $output);
     }
+
+    public function testArrayWithoutItemTypeIsUnknownArray(): void
+    {
+        // ResponseSchema は要素型のわからない配列の items を {}（stdClass）で出す
+        $spec = [
+            'openapi' => '3.0.0',
+            'paths' => [],
+            'components' => [
+                'schemas' => [
+                    'Post' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'tags' => ['type' => 'array', 'items' => new \stdClass()],
+                        ],
+                        'required' => ['tags'],
+                    ],
+                    'Posts' => ['type' => 'array', 'items' => new \stdClass()],
+                ],
+            ],
+        ];
+
+        $output = (new InterfaceGenerator())->generate(new OpenApiParser($spec));
+
+        $this->assertStringContainsString('tags: unknown[];', $output);
+        $this->assertStringContainsString('export type Posts = unknown[];', $output);
+    }
+
+    public function testEnumValuesAreEscapedAndArrayOfEnumIsParenthesized(): void
+    {
+        $spec = [
+            'openapi' => '3.0.0',
+            'paths' => [],
+            'components' => [
+                'schemas' => [
+                    'Post' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'label' => ['type' => 'string', 'enum' => ["can't", 'C:\\temp']],
+                            'statuses' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['draft', 'published']]],
+                        ],
+                        'required' => ['label', 'statuses'],
+                    ],
+                    'Statuses' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['draft', 'published']]],
+                ],
+            ],
+        ];
+
+        $output = (new InterfaceGenerator())->generate(new OpenApiParser($spec));
+
+        $this->assertStringContainsString("label: 'can\\'t' | 'C:\\\\temp';", $output);
+        $this->assertStringContainsString("statuses: ('draft' | 'published')[];", $output);
+        $this->assertStringContainsString("export type Statuses = ('draft' | 'published')[];", $output);
+    }
 }

@@ -89,6 +89,19 @@ final class ParameterDefinition
             // PHP の空配列は JSON で [] になるので、空のときは stdClass で {} にする
             $schema['items'] = $this->items ? $this->items : new \stdClass();
         }
+        if ($this->enum !== null) {
+            $schema['enum'] = $this->enum;
+        }
+        if ($this->minimum !== null) {
+            $schema['minimum'] = $this->minimum;
+        }
+        if ($this->maximum !== null) {
+            $schema['maximum'] = $this->maximum;
+        }
+        // null のデフォルトは「省略すると null」で、OpenAPI の default として意味を持たないので出さない
+        if ($this->hasDefault && $this->default !== null) {
+            $schema['default'] = $this->default;
+        }
         return [
             'name' => $this->name,
             'required' => $this->required,

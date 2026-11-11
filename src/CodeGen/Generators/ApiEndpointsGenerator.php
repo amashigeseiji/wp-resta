@@ -2,6 +2,7 @@
 namespace Wp\Resta\CodeGen\Generators;
 
 use Wp\Resta\CodeGen\OpenApiParser;
+use Wp\Resta\CodeGen\TypeScriptSyntax;
 
 /**
  * API Endpoints型マップ生成
@@ -38,7 +39,7 @@ class ApiEndpointsGenerator
     /**
      * 単一のエンドポイント型を生成
      *
-     * @param array{path: string, method: string, pathParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, queryParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, responseSchema: mixed, description: mixed, tags: mixed} $endpoint
+     * @param array{path: string, method: string, pathParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}>, queryParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}>, responseSchema: mixed, description: mixed, tags: mixed} $endpoint
      * @param OpenApiParser $parser
      * @return string
      */
@@ -74,8 +75,8 @@ class ApiEndpointsGenerator
     /**
      * パラメータ型を生成
      *
-     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}> $pathParams
-     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}> $queryParams
+     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}> $pathParams
+     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}> $queryParams
      * @param OpenApiParser $parser
      * @return string
      */
@@ -91,7 +92,8 @@ class ApiEndpointsGenerator
 
         foreach ($allParams as $param) {
             $name = $param['name'];
-            $type = $this->convertParamType($param['type']);
+            $type = $this->convertParamSchema($param['schema']);
+            // default を持つパラメータは required でないので optional になる
             $required = $param['required'] ?? false;
             $optional = $required ? '' : '?';
 
@@ -125,6 +127,25 @@ class ApiEndpointsGenerator
     }
 
     /**
+     * パラメータの schema を TypeScript 型に変換。
+     * enum はリテラルの union、array は要素型の配列（要素型が無ければ unknown[]）
+     *
+     * @param array<string, mixed> $schema
+     */
+    private function convertParamSchema(array $schema): string
+    {
+        if (isset($schema['enum']) && is_array($schema['enum'])) {
+            return TypeScriptSyntax::literalUnion(array_values($schema['enum']));
+        }
+        $type = $schema['type'] ?? 'string';
+        if ($type === 'array') {
+            $items = $schema['items'] ?? [];
+            return TypeScriptSyntax::arrayOf(is_array($items) && $items !== [] ? $this->convertParamSchema($items) : 'unknown');
+        }
+        return $this->convertParamType(is_string($type) ? $type : 'string');
+    }
+
+    /**
      * パラメータ型をTypeScript型に変換
      *
      * @param string $type
@@ -136,8 +157,8 @@ class ApiEndpointsGenerator
             'integer' => 'number',
             'number' => 'number',
             'boolean' => 'boolean',
-            'array' => 'any[]',
-            'object' => 'Record<string, any>',
+            'array' => 'unknown[]',
+            'object' => 'Record<string, unknown>',
             default => 'string',
         };
     }
@@ -172,6 +193,9 @@ class ApiEndpointsGenerator
 
         switch ($type) {
             case 'string':
+                if (isset($schema['enum']) && is_array($schema['enum'])) {
+                    return TypeScriptSyntax::literalUnion(array_values($schema['enum']));
+                }
                 return 'string';
             case 'integer':
             case 'number':
@@ -179,13 +203,16 @@ class ApiEndpointsGenerator
             case 'boolean':
                 return 'boolean';
             case 'array':
-                $items = $schema['items'] ?? ['type' => 'unknown'];
+                // items が {}（要素型が任意）なら unknown[]
+                $items = $schema['items'] ?? [];
+                if (!is_array($items) || $items === []) {
+                    return 'unknown[]';
+                }
                 if (isset($items['$ref'])) {
                     $schemaName = $parser->extractSchemaNameFromRef($items['$ref']);
                     return "Schema.{$schemaName}[]";
                 }
-                $itemType = $this->convertInlineSchema($items, $parser);
-                return "{$itemType}[]";
+                return TypeScriptSyntax::arrayOf($this->convertInlineSchema($items, $parser));
             case 'object':
                 if (isset($schema['properties'])) {
                     // InterfaceGenerator と同じ規則で required を見る。

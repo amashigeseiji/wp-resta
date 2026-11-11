@@ -10,7 +10,8 @@ abstract class ArrayType extends BaseSchema
         $description = [
             'type' => 'array',
             'description' => static::DESCRIPTION ?: '',
-            'items' => [],
+            // $items に #[Property] が無ければ要素型は任意（{}）。空配列は JSON で [] になり OpenAPI として不正
+            'items' => new \stdClass(),
         ];
         $reflection = self::getReflection();
         foreach ($reflection->getProperties() as $reflectionProperty) {
