@@ -5,6 +5,7 @@ use PHPUnit\Framework\TestCase;
 use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
@@ -103,6 +104,27 @@ class DeprecatedPropertiesTest extends TestCase
         $this->assertStringContainsString('callback() assigned $status', $messages[0]);
         $this->assertStringContainsString('return $this->response($body, $status, $headers) instead', $messages[0]);
         $this->assertSame(404, $response->getStatusCode(), '0.12 では動作は変えない');
+    }
+
+    public function testAssignmentBeforeExceptionIsDeprecatedAndExceptionWins(): void
+    {
+        // 例外で抜ける経路でも代入は移行対象なので警告する。レスポンスは例外のものになる
+        $route = new class extends AbstractRoute {
+            public function callback(): array
+            {
+                $this->status = 500;
+                throw new HttpException('gone', 410, 'rest_gone');
+            }
+        };
+
+        $messages = $this->collectDeprecations(function () use ($route, &$response) {
+            $response = $this->handle($route);
+        });
+
+        $this->assertCount(1, $messages);
+        $this->assertStringContainsString('callback() assigned $status', $messages[0]);
+        $this->assertSame(410, $response->getStatusCode());
+        $this->assertSame('rest_gone', $response->getData()['code']);
     }
 
     public function testBodyAndHeadersAssignmentsAreDeprecated(): void

@@ -6,6 +6,7 @@ use Wp\Resta\REST\Http\RestaRequestInterface;
 use ReflectionClass;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
+use Closure;
 use LogicException;
 use Wp\Resta\REST\Parameter\BoundParameters;
 use Wp\Resta\REST\Parameter\ParameterDefinitionBuilder;
@@ -181,8 +182,13 @@ abstract class AbstractRoute implements RouteInterface
         // プロパティへの代入は 0.12 で非推奨（#59）。0.13 でプロパティと一緒にこの橋も消す。
         // 実行者はルートのプロパティを知らず、callback が body か RestaResponseInterface を返すとだけ見る
         $defaults = self::$propertyDefaults[static::class] ??= (new ReflectionClass(static::class))->getDefaultProperties();
-        return Callback::fromMethod($this, $method)->withResult(function (mixed $result) use ($method, $defaults): mixed {
-            $this->warnIfPropertiesAssigned($method, $defaults);
+        return Callback::fromMethod($this, $method)->wrapInvoke(function (Closure $invoke) use ($method, $defaults): mixed {
+            try {
+                $result = $invoke();
+            } finally {
+                // 例外で抜けた場合も、代入そのものは移行対象なので警告する。例外とエラーレスポンスはそのまま
+                $this->warnIfPropertiesAssigned($method, $defaults);
+            }
             return $result instanceof RestaResponseInterface
                 ? $result
                 : new SimpleRestaResponse($result, $this->status);

@@ -5,6 +5,8 @@ use PHPStan\PhpDocParser\Ast\Type\ArrayShapeNode;
 use PHPStan\PhpDocParser\Ast\Type\ArrayTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\TypeNode;
+use PHPStan\PhpDocParser\Ast\Type\UnionTypeNode;
 use PHPStan\PhpDocParser\Lexer\Lexer;
 use PHPStan\PhpDocParser\ParserConfig;
 use PHPStan\PhpDocParser\Parser\ConstExprParser;
@@ -136,6 +138,7 @@ class SchemaInference
      * - array<Post>
      * - array<int, Post>
      * - array<string, Post>
+     * - 上記と null / RestaResponseInterface の union（Post[]|RestaResponseInterface）。戻り値型と同じ扱い
      *
      * @return array<string, mixed>|null
      */
@@ -154,6 +157,9 @@ class SchemaInference
         foreach ($phpDocNode->getTags() as $tag) {
             if ($tag->name === '@return' && $tag->value instanceof \PHPStan\PhpDocParser\Ast\PhpDoc\ReturnTagValueNode) {
                 $returnType = $tag->value->type;
+                if ($returnType instanceof UnionTypeNode) {
+                    $returnType = $this->bodyTypeNode($returnType);
+                }
 
                 // Post[] 形式
                 if ($returnType instanceof ArrayTypeNode) {
@@ -172,6 +178,28 @@ class SchemaInference
         }
 
         return null;
+    }
+
+    /**
+     * PHPDoc の union のうち、レスポンスボディの形を表す側の型。
+     * bodyType() と同じく null と RestaResponseInterface を除き、1 つに決まらなければ null
+     */
+    private function bodyTypeNode(UnionTypeNode $union): ?TypeNode
+    {
+        $candidates = [];
+        foreach ($union->types as $member) {
+            if ($member instanceof IdentifierTypeNode) {
+                if ($member->name === 'null') {
+                    continue;
+                }
+                $class = $this->resolveClassName($member->name);
+                if ($class !== null && is_a($class, RestaResponseInterface::class, true)) {
+                    continue;
+                }
+            }
+            $candidates[] = $member;
+        }
+        return count($candidates) === 1 ? $candidates[0] : null;
     }
 
     /**
@@ -299,11 +327,11 @@ class SchemaInference
         // 先頭に \ がある場合は完全修飾名
         if (str_starts_with($className, '\\')) {
             $fqcn = ltrim($className, '\\');
-            return class_exists($fqcn) ? $fqcn : null;
+            return (class_exists($fqcn) || interface_exists($fqcn)) ? $fqcn : null;
         }
 
         // 既にクラスが存在する（完全修飾名として）
-        if (class_exists($className)) {
+        if ((class_exists($className) || interface_exists($className))) {
             return $className;
         }
 
@@ -317,14 +345,14 @@ class SchemaInference
         // use 文にエイリアスがある場合
         if (isset($useStatements[$className])) {
             $fqcn = $useStatements[$className];
-            return class_exists($fqcn) ? $fqcn : null;
+            return (class_exists($fqcn) || interface_exists($fqcn)) ? $fqcn : null;
         }
 
         // 同じ名前空間内のクラスを試す
         $namespace = $declaringClass->getNamespaceName();
         if ($namespace) {
             $fqcn = $namespace . '\\' . $className;
-            if (class_exists($fqcn)) {
+            if ((class_exists($fqcn) || interface_exists($fqcn))) {
                 return $fqcn;
             }
         }

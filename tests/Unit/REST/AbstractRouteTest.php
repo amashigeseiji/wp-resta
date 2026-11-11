@@ -272,7 +272,7 @@ class AbstractRouteTest extends TestCase
 
     public function testInvokeDoesNotKeepStatusSetBeforeException()
     {
-        // callback が $this->status を書き換えたあとに例外を投げても、その値は使わない
+        // callback が $this->status を書き換えたあとに例外を投げても、その値は使わない。代入の警告は出る
         $route = new class extends AbstractRoute {
             public function callback(): array
             {
@@ -281,6 +281,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
+        $this->expectUserDeprecationMessageMatches('/callback\(\) assigned \$status/');
         $response = $this->handle($route, new TestRestaRequest('/test', $route));
 
         $this->assertEquals(500, $response->getStatusCode());
