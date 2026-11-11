@@ -18,6 +18,11 @@ interface RestaRequestInterface
     public function getMethod(): string;
 
     /**
+     * リクエストヘッダの値。無ければ null。名前の大文字小文字は区別しない
+     */
+    public function getHeader(string $name): ?string;
+
+    /**
      * 宣言された名前に対してクライアントが送った値を返す。無ければ null。
      *
      * パスとクエリの値は文字列で、パスパラメータはパーセントデコード済み。配列で送られた値（?tags[]=a）は配列。

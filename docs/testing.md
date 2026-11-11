@@ -51,10 +51,11 @@ class MyRouteTest extends TestCase
 - `setNamespace()` を呼ばないと URL の namespace 部分が一致せずパラメータが取れない
 - クエリパラメータは `'/myapi/myroute/123?name=test'` のように URL に付ける。同名ならパスパラメータが優先される
 - HTTP メソッドは第 3 引数。`new TestRestaRequest('/myapi/notes/1?title=t', $route, 'POST')` で `post()` の操作が選ばれる。省略すると GET
+- リクエストヘッダは第 4 引数。`new TestRestaRequest('/myapi/posts', $route, 'GET', ['If-None-Match' => '"abc"'])`。`getHeader()` は名前の大文字小文字を区別しない
 - 400 / 500 の検証は `getStatusCode()` と `getData()['code']` を見る（形は spec.md「エラーレスポンス」）
 - `TestRestaRequest` の値はクライアントが送った文字列のまま。宣言した型への変換は `RequestHandler` の中で行われるので、本番と同じ値が callback に届く
 - `authorize()` を持つルートは `new TestPrincipal(authenticated: true, capabilities: ['edit_posts'])` を `RequestHandler` に渡して主体を固定する。引数なしの `TestPrincipal` は未認証で、401 / 403 の検証に使える
-- `#[Envelope]` の包みや自作のリスナーまで含めて確認したいときは、`Dispatcher` に `addSubscriber(new EnvelopeHook())` などを足してから `RequestHandler` に渡す
+- `#[Envelope]` の包みや自作のリスナーまで含めて確認したいときは、`Dispatcher` に `addSubscriber(new EnvelopeHook())` などを足してから `RequestHandler` に渡す。`#[Cache]` は `addSubscriber(new CacheHook($principal))`
 
 ## DI のモック
 

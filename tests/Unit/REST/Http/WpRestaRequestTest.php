@@ -25,6 +25,17 @@ class WpRestaRequestTest extends TestCase
         $this->assertNull($request->getUrlParam('missing'));
     }
 
+    public function testGetHeaderDelegatesToWpRequest(): void
+    {
+        $wp = new WP_REST_Request();
+        $wp->set_header('If-None-Match', '"abc"');
+
+        $request = WpRestaRequest::fromWpRequest($wp, pathParamsAreEncoded: false);
+
+        $this->assertSame('"abc"', $request->getHeader('if-none-match'));
+        $this->assertNull($request->getHeader('X-Missing'));
+    }
+
     public function testDoesNotDecodeTwiceWhenPathParametersArriveDecoded(): void
     {
         // ?rest_route= 形式では WP がデコード済みで渡してくる。%2541 → %41 で届いた値を A にしてはいけない

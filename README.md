@@ -333,6 +333,24 @@ callback が例外を投げた場合は `error_log()` に記録したうえで 5
 throw new HttpException('Post not found', 404, 'rest_post_invalid_id');
 ```
 
+### キャッシュ
+
+読み取り専用のルートに `#[Cache]` を付けると、未認証の GET の 200 レスポンスに `Cache-Control` と `ETag` が付きます。クライアントが `If-None-Match` で同じ ETag を送ってきたら、ボディ無しの 304 を返します。
+
+```php
+use Wp\Resta\REST\Attributes\Cache;
+
+#[Cache(maxAge: 300)]
+class Posts extends AbstractRoute
+{
+    // ...
+}
+```
+
+`Cache-Control` は `public, max-age=300` になります。`public: false` で `private`、`sMaxAge:` で `s-maxage`、`staleWhileRevalidate:` で `stale-while-revalidate` を足せます。ETag はレスポンスボディから計算されるので、ボディが同じなら同じ値になります。
+
+ログイン中のリクエストには付きません。WordPress がログイン中の REST リクエストに no-cache ヘッダを送るので、それがそのまま使われます。エラーレスポンスと GET 以外にも付きません。
+
 ## DI
 
 簡易なDIを用意しています。

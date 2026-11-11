@@ -33,13 +33,15 @@ abstract class AbstractE2ETestCase extends TestCase
      *
      * @param string $uri URI path (e.g., '/wp-json/example/sample/1')
      * @param array<string, mixed> $query Query parameters
+     * @param array<string, string> $headers Additional headers
      * @return ResponseInterface
      */
-    protected function get(string $uri, array $query = []): ResponseInterface
+    protected function get(string $uri, array $query = [], array $headers = []): ResponseInterface
     {
         try {
             return $this->client->get($uri, [
                 'query' => $query,
+                'headers' => $headers,
             ]);
         } catch (GuzzleException $e) {
             $this->fail("HTTP request failed: {$e->getMessage()}");

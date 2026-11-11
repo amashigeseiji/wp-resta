@@ -54,6 +54,11 @@ class WpRestaRequest implements RestaRequestInterface
         return strtoupper($this->inner->get_method());
     }
 
+    public function getHeader(string $name): ?string
+    {
+        return $this->inner->get_header($name);
+    }
+
     public function getUrlParam(string $name): mixed
     {
         // WP_REST_Request は ArrayAccess を実装しているため、

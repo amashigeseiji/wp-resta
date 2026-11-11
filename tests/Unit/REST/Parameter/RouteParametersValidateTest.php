@@ -34,6 +34,10 @@ class RouteParametersValidateTest extends TestCase
             {
                 return 'GET';
             }
+            public function getHeader(string $name): ?string
+            {
+                return null;
+            }
             public function getUrlParam(string $name): mixed
             {
                 return $this->values[$name] ?? null;

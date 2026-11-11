@@ -19,6 +19,8 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 追加
 
+- `#[Cache(maxAge:, public:, sMaxAge:, staleWhileRevalidate:)]`（#78）。ルートクラスに付けると、未認証の GET / HEAD の 200 レスポンスに `Cache-Control` と `ETag` が付き、`If-None-Match` が一致すれば空ボディの 304 で応える。組み込みの `CacheHook` が `RouteInvocationEvent` を priority -100 で購読し、既定の priority の購読者が変えた後のボディから ETag を計算する。ログイン中のリクエストには付けず、WordPress の no-cache ヘッダをそのまま活かす
+- `RestaRequestInterface::getHeader(string $name): ?string`（#78）。リクエストヘッダを名前の大文字小文字を区別せずに返す。`WpRestaRequest` は `WP_REST_Request::get_header()` に委譲し、`TestRestaRequest` は第 4 引数でヘッダを受け取る。`RestaRequestInterface` を自前で実装しているコードはメソッドを足す必要がある
 - `HEADERS` 定数（#59）。ルートの既定ヘッダの宣言で、`getHeaders()` の既定実装が返す。`protected array $headers = [...]` の置き換え
 - OpenAPI の parameters に enum、default、minimum、maximum が載るようになった（#79）。backed enum の引数は `enum` と値の `default`、`#[Param(min:, max:)]` は `minimum` / `maximum`、デフォルト値を持つ引数は `default` になる（`null` のデフォルトは出さない）。TypeScript の `ApiEndpoints` では enum がリテラルの union（`'asc' | 'desc'`）、配列が要素型の配列（`string[]`）になる
 - callback のシグニチャからの URL パラメータ宣言（#79、#77）。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は `URL_PARAMS` に書かなくても宣言になり、値は宣言した型に変換されて届く。`#[Param(pattern:, min:, max:, description:)]` で制約を足せ、配列の要素型は `@param string[]` から読む
