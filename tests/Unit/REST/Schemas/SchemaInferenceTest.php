@@ -101,6 +101,43 @@ class SchemaInferenceTest extends TestCase
         $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $schema);
     }
 
+    /**
+     * 未対応の @return の形では不正確なスキーマを出さず、「型が無い」ことが分かる出力にする（#101）
+     *
+     * @return array<string, array{0: string, 1: array<string, mixed>}>
+     */
+    public static function unsupportedPhpDocReturnTypes(): array
+    {
+        $untypedArray = ['type' => 'array', 'items' => new \stdClass()];
+        $untypedObject = ['type' => 'object', 'additionalProperties' => new \stdClass()];
+        return [
+            'array shape は値が任意の object' => ['array{page: int, items: TestUserType[]}', $untypedObject],
+            '入れ子の list は要素型が任意' => ['TestUserType[][]', $untypedArray],
+            'list<T> は要素型が任意' => ['list<TestUserType>', $untypedArray],
+            'non-empty-list<T> は要素型が任意' => ['non-empty-list<TestUserType>', $untypedArray],
+            'array<string, T[]> は値が任意の object' => ['array<string, TestUserType[]>', $untypedObject],
+            'array<string, array{...}> は値が任意の object' => ['array<string, array{a: int}>', $untypedObject],
+            'array<int, T[]> は要素型が任意' => ['array<int, TestUserType[]>', $untypedArray],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $expected
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('unsupportedPhpDocReturnTypes')]
+    public function testUnsupportedPhpDocReturnTypeFallsBackToUntypedSchema(string $docType, array $expected): void
+    {
+        $route = eval(sprintf('return new class extends \Wp\Resta\REST\AbstractRoute {
+            /** @return %s */
+            public function callback(): array { return []; }
+        };', $docType));
+
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertEquals($expected, $schema);
+        $this->assertArrayNotHasKey('properties', $schema);
+    }
+
     public function testNullableUnionWithResponseInterfaceIsAnyOfWithNull()
     {
         $route = new class extends AbstractRoute {

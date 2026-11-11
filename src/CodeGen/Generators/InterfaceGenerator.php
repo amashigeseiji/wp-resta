@@ -146,9 +146,10 @@ class InterfaceGenerator
                 if (isset($schema['properties'])) {
                     return $this->generateInlineObject($schema, $parser);
                 }
-                // additionalPropertiesの場合
-                if (isset($schema['additionalProperties'])) {
-                    $valueType = $this->convertType($schema['additionalProperties'], $parser);
+                // additionalPropertiesの場合。{}（値が任意）なら unknown
+                $additional = $schema['additionalProperties'] ?? null;
+                if (is_array($additional) && $additional !== []) {
+                    $valueType = $this->convertType($additional, $parser);
                     return "Record<string, {$valueType}>";
                 }
                 return 'Record<string, unknown>';

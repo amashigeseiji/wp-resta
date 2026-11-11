@@ -45,4 +45,9 @@ export interface ApiEndpoints {
     response: unknown[];
   };
 
+  'GET /snapshot/shape': {
+    params: {};
+    response: Record<string, unknown>;
+  };
+
 }
