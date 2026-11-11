@@ -6,7 +6,9 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ## [Unreleased]
 
-0.12.0 で予定している内容は [milestone 0.12.0](https://github.com/amashigeseiji/wp-resta/milestone/1) を参照。
+## [0.12.0] - 2026-11-11
+
+ルートを「宣言」に寄せ、実行を WordPress 非依存の `RequestHandler` に移した破壊的リリース。callback のシグニチャから URL パラメータを宣言し、同じ URL で `get()` / `post()` を分け、`authorize()` で認可を宣言できる。ステートマシンと `AbstractRoute::invoke()` は無くなり、`$status` / `$body` / `$headers` への代入は非推奨になった。移行はこの節の「削除」「変更」の各項目に書いた代替のとおり。計画と判断の経緯は [milestone 0.12.0](https://github.com/amashigeseiji/wp-resta/milestone/1) の各 issue にある。
 
 ### 削除
 
@@ -41,14 +43,14 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 - 宣言されたパラメータは、callback の引数で受け取るかどうかに関係なくすべて wp-resta が検証するようになった（#79）。これまでは callback の引数にあるものだけ wp-resta が検証し、それ以外は WordPress コアの検証に頼っていた
 - `register_rest_route()` に渡す args が `'sanitize_callback' => null` を含むようになり、WordPress コアの型変換を止めた。型変換は wp-resta が行い、`RestaRequestInterface::getUrlParam()` はクライアントが送った値をそのまま返す。`WP_REST_Request::get_param()` から直接読んでいたコードには文字列のまま届く
 - `callback` メソッドを持たないルート（`$body` だけを返す）は非推奨になった（`E_USER_DEPRECATED`）。0.13 で `LogicException` にする。`callback()` で body を返す形に書き換える
-- WordPress コアに渡す `permission_callback` は常に `__return_true` になった（#61）。認可は `invoke()` の中で行われるので、`RouteInvocationEvent` の購読者には 401 / 403 のレスポンスも渡る
+- WordPress コアに渡す `permission_callback` は常に `__return_true` になった（#61）。認可は `RequestHandler` の中で行われるので、`RouteInvocationEvent` の購読者には 401 / 403 のレスポンスも渡る。WordPress の discovery（`OPTIONS`、`Allow` ヘッダ）には認可が反映されない
 - `rest_api_init` が何度発火しても、そのたびにルートを登録し直すようになった（#60）。WordPress のテストフレームワーク（`WP_Test_REST_Controller_Testcase`）のように `$wp_rest_server` をテストごとに作り直す環境で、2 つ目以降のテストが致命的エラーになっていた
 - 設定の `adapters` を省略すると `WpKernelAdapter` が使われる。これまでは明示しないとルートが登録されなかった
 - `URL_PARAMS` の `'string'` が任意の文字列を受け取るようになった（#81）。これまでは `\w+` の省略形で、パスパラメータに置くと WordPress コアの照合（UTF-8 モード無し）で日本語などが 404 になり、クエリパラメータでは通るという食い違いがあった。パスパラメータは次の `/` までの任意の文字列、クエリパラメータは制約なしになる。英数字に絞りたいルートは `'\w+'` と明示する
 - 上記に伴い、`'string'` / `'?string'` のクエリパラメータに空文字を渡すと 400 ではなく空文字のまま callback に届く。非空を要求するなら `'.+'` のように正規表現を書く
 - `register_rest_route()` に渡す `'string'` の定義は `regex` が `null` になり、`pattern` を含まない
 - パスパラメータの値がパーセントデコードされて callback に届くようになった。パーマリンクが有効な環境では WordPress がエンコードされたまま渡してくるため、`/hello/日本語` が `%E6%97%A5...` として届いていた。callback 側で `rawurldecode()` していたコードは二重デコードになるので外す。`?rest_route=` 形式や `rest_do_request()` で組み立てたリクエストの値は元からデコード済み・文字どおりなので変わらない
-- `URL_PARAMS` に宣言したパラメータに `?name[]=x` のような配列が渡されたとき、`invoke()` が 400 を返す。これまでは callback の型宣言で `TypeError` になり 500 だった
+- `URL_PARAMS` に宣言したパラメータに `?name[]=x` のような配列が渡されたとき、`RequestHandler` が 400 を返す。これまでは callback の型宣言で `TypeError` になり 500 だった
 
 ### 修正
 
@@ -56,7 +58,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 - 要素型のわからない配列のスキーマが `items: []` で出ていて OpenAPI 3.0 として不正だった（#79）。`callback(): array`、`ObjectType` の `array` プロパティ、`$items` を宣言しない `ArrayType` のいずれも `items: {}` になる。`components.securitySchemes` も `[]` から `{}` に直した。TypeScript では要素型のわからない配列が `string[]` / `Record<string, unknown>[]` ではなく `unknown[]` になる
 - サンプルの `SampleHook::addMetaToResponse()` が、配列を返す WordPress コアのルート（`/wp/v2/settings` など）で TypeError になっていた（#94）。`rest_request_after_callbacks` には callback の生の戻り値が渡るので、`WP_REST_Response` 以外はそのまま返す。ブロックエディタが `/wp/v2/settings` をプリロードするため、`SampleHook` を登録していると投稿編集画面が開けなかった
 - `TestRestaRequest` がクエリ文字列を解釈するようになった（#84）。`'/myapi/items/123?name=test'` のように渡せる。同名はパスパラメータ優先
-- callback の引数にインターフェース型を書くと `cannot resolve type` で 500 になっていた（#83）。`RestaRequestInterface` は `invoke()` に渡したリクエストがそのまま渡り、`dependencies` で bind したインターフェースは DI コンテナから解決される
+- callback の引数にインターフェース型を書くと `cannot resolve type` で 500 になっていた（#83）。`RestaRequestInterface` は `RequestHandler::handle()` に渡したリクエストがそのまま渡り、`dependencies` で bind したインターフェースは DI コンテナから解決される
 
 ### ドキュメント
 
@@ -130,7 +132,8 @@ URL 変数の検証まわりの不具合修正と、エラーレスポンスの�
 - `RegisterRestRoutes` の routes オブジェクトを一階層にする（#39）
 - ライセンスを AGPL にする（#41）
 
-[Unreleased]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.3...HEAD
+[Unreleased]: https://github.com/amashigeseiji/wp-resta/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.3...v0.12.0
 [0.11.3]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.0...v0.11.1
