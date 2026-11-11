@@ -33,6 +33,11 @@ if (!class_exists('WP_HTTP_Response')) {
             return $this->data;
         }
 
+        public function set_data(mixed $data): void
+        {
+            $this->data = $data;
+        }
+
         public function get_status(): int
         {
             return $this->status;
@@ -55,6 +60,18 @@ if (!class_exists('WP_HTTP_Response')) {
 
 if (!class_exists('WP_REST_Response')) {
     class WP_REST_Response extends WP_HTTP_Response {}
+}
+
+if (!class_exists('WP_Error')) {
+    class WP_Error
+    {
+        public function __construct(
+            public readonly string $code = '',
+            public readonly string $message = '',
+            public readonly mixed $data = ''
+        ) {
+        }
+    }
 }
 
 if (!class_exists('WP_REST_Request')) {

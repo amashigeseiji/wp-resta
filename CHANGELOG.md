@@ -45,6 +45,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 修正
 
+- サンプルの `SampleHook::addMetaToResponse()` が、配列を返す WordPress コアのルート（`/wp/v2/settings` など）で TypeError になっていた（#94）。`rest_request_after_callbacks` には callback の生の戻り値が渡るので、`WP_REST_Response` 以外はそのまま返す。ブロックエディタが `/wp/v2/settings` をプリロードするため、`SampleHook` を登録していると投稿編集画面が開けなかった
 - `TestRestaRequest` がクエリ文字列を解釈するようになった（#84）。`'/myapi/items/123?name=test'` のように渡せる。同名はパスパラメータ優先
 - callback の引数にインターフェース型を書くと `cannot resolve type` で 500 になっていた（#83）。`RestaRequestInterface` は `invoke()` に渡したリクエストがそのまま渡り、`dependencies` で bind したインターフェースは DI コンテナから解決される
 

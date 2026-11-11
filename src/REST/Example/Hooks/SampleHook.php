@@ -32,14 +32,18 @@ class SampleHook extends HookProvider
      * REST API レスポンスの後処理
      * エンベロープパターンのメタ情報を追加
      *
+     * rest_request_after_callbacks の第 1 引数は callback の生の戻り値で、
+     * WP コアのルート（/wp/v2/settings など）は配列を返すこともある。
+     * WP_REST_Response 以外はそのまま返す。
+     *
      * @param array<string, mixed> $handler
      */
     #[AddFilter(RestApiHook::REQUEST_AFTER_CALLBACKS, priority: 10, acceptedArgs: 3)]
     public function addMetaToResponse(
-        WP_HTTP_Response|WP_Error $response,
+        mixed $response,
         array $handler,
         WP_REST_Request $request
-    ): WP_HTTP_Response|WP_Error {
+    ): mixed {
         if ($response instanceof WP_REST_Response) {
             $data = $response->get_data();
 
