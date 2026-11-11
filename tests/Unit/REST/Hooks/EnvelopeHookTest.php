@@ -172,25 +172,54 @@ class EnvelopeHookTest extends TestCase
         $this->assertNull($event->response->getData()['data']);
     }
 
-    public function testWrapInEnvelopeWithErrorResponse(): void
+    /**
+     * @return list<array{int}>
+     */
+    public static function nonSuccessStatuses(): array
+    {
+        return [[304], [400], [401], [403], [404], [500]];
+    }
+
+    /**
+     * エラーは包まない。WP コアが dispatch 前に返すエラーと同じ WP_Error の形のまま返す（#85）
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('nonSuccessStatuses')]
+    public function testDoesNotWrapNonSuccessResponse(int $status): void
     {
         $route = new #[Envelope] class extends AbstractRoute {
             public function callback(): array
             {
-                return ['error' => 'Something went wrong'];
+                return [];
+            }
+        };
+        $body = ['code' => 'rest_error', 'message' => 'Something went wrong', 'data' => ['status' => $status]];
+        $original = new SimpleRestaResponse($body, $status, ['X-Custom' => 'value']);
+
+        $hook = new EnvelopeHook();
+        $event = $this->makeEvent($route, $original);
+
+        $hook->handle($event);
+
+        $this->assertSame($original, $event->response);
+        $this->assertSame($body, $event->response->getData());
+    }
+
+    public function testWrapsEverySuccessStatus(): void
+    {
+        $route = new #[Envelope] class extends AbstractRoute {
+            public function callback(): array
+            {
+                return [];
             }
         };
 
         $hook = new EnvelopeHook();
-        $event = $this->makeEvent($route, new SimpleRestaResponse(
-            ['error' => 'Something went wrong'],
-            500
-        ));
+        $event = $this->makeEvent($route, new SimpleRestaResponse(['id' => 1], 201));
 
         $hook->handle($event);
 
         $this->assertInstanceOf(EnvelopeResponse::class, $event->response);
-        $this->assertEquals(500, $event->response->getStatusCode());
-        $this->assertEquals('Something went wrong', $event->response->getData()['data']['error']);
+        $this->assertSame(201, $event->response->getStatusCode());
+        $this->assertSame(['id' => 1], $event->response->getData()['data']);
     }
 }

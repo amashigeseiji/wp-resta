@@ -89,18 +89,4 @@ class EnvelopeResponse implements RestaResponseInterface
     {
         return new self($data, $meta, $status);
     }
-
-    /**
-     * ファクトリーメソッド：エラーレスポンス
-     *
-     * @param array<string, mixed> $meta
-     */
-    public static function error(string $message, int $code = 500, array $meta = []): self
-    {
-        return new self(
-            ['error' => $message, 'code' => $code],
-            array_merge($meta, ['status' => 'error']),
-            $code
-        );
-    }
 }

@@ -92,13 +92,13 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - `HEADERS` 定数で宣言したルートの既定ヘッダは、エラーを含むどのレスポンスにも付く。レスポンス自身が同名のヘッダを持てばそちらが優先される
 - `$status` / `$body` / `$headers` プロパティへの代入は非推奨（`E_USER_DEPRECATED`）で、次の minor で許可されなくなる。`$this->response()` と `HEADERS` を使う
 - `RestaResponseInterface::withHeaders()` でヘッダを足した複製を作れる。購読者がレスポンスにヘッダを付けるときに使う
-- `#[Envelope]` を付けたルートは、ボディが `{ "data": ..., "meta": ... }` に包まれる
+- `#[Envelope]` を付けたルートは、成功（2xx）のボディが `{ "data": ..., "meta": ... }` に包まれる。エラーレスポンスは包まれず、「エラーレスポンス」の形のまま
 - `#[Cache(maxAge:)]` を付けたルートは、未認証の GET / HEAD の 200 レスポンスに `Cache-Control` と `ETag` が付く。`If-None-Match` が一致すれば空ボディの 304 になる。認証済みのリクエスト、エラー、GET / HEAD 以外、レスポンスがすでに `Cache-Control` を持つ場合には付かない
 - `RouteInvocationEvent` の購読者はレスポンスを差し替えられる（「イベント」）
 
 ### エラーレスポンス
 
-- ボディは WordPress コアの `WP_Error` と同じ形（`code` / `message` / `data.status`）
+- ボディは WordPress コアの `WP_Error` と同じ形（`code` / `message` / `data.status`）。`#[Envelope]` のルートでも包まれない
 - 入力の不正は 400。callback から `HttpException` を投げると、そのステータスとコードで返る
 - callback が投げたその他の例外は 500 になり、内容は握り潰さずログに残る。`WP_DEBUG` 有効時はボディにも載る
 

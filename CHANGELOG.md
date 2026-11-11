@@ -16,6 +16,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   - コンストラクタ変更: `RequestHandler(DispatcherInterface)`、`WpKernelAdapter(DispatcherInterface, Config)`。`WpKernelAdapter` を継承している場合は影響する
 - `AbstractRoute::invoke()` を削除した（#79）。ルートは宣言だけを持ち、検証・認可・callback・`RouteInvocationEvent` の順序は WP 非依存の `RequestHandler::handle(RouteInterface, RestaRequestInterface)` が持つ。テストは `(new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request)` に書き換える。`Wp\Resta\Lifecycle\RequestHandler` は `Wp\Resta\REST\RequestHandler` に移り、コンストラクタは `(Principal, DispatcherInterface)` になった。`Lifecycle` 名前空間は無くなった
 - `RouteInterface::permissionCallback()` と `AbstractRoute::permissionCallback()` を削除した（#61）。戻り値型が `string` 固定で、WordPress の `permission_callback` として呼ばれても拒否を表せず、オーバーライドしても常に許可になっていた。代替は `authorize()`。オーバーライドしていたルートは呼ばれなくなるだけでエラーにはならないので、`authorize()` に書き換える
+- `EnvelopeResponse::error()` を削除した（#85）。エラーは包まない方針になったので役割が無く、使われてもいなかった
 
 ### 追加
 
@@ -32,6 +33,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 変更
 
+- `#[Envelope]` が包むのは成功（2xx）のレスポンスだけになった（#85）。これまでは `HttpException` や未捕捉例外による 400 / 500 も `{data: {code, message, data}, meta}` に包んでいたが、WordPress コアが dispatch 前に返すエラー（認証、`rest_no_route`、`required` 欠落）は包めないため、同じルートでエラーの形が揃わなかった。エラーは常に `WP_Error` の形（`code` / `message` / `data.status`）で返る。`data.code` を見ていたクライアントは `code` に書き換える
 - `$status` / `$body` / `$headers` プロパティへの代入が非推奨になった（#59、`E_USER_DEPRECATED`）。0.13 でプロパティと `clone` ごと削除する。ルートインスタンスはプロセス内で共有されるので、代入した値は次のリクエストに持ち越されうる。移行: `$this->status = 404; return null;` は `return $this->response(null, 404);` に、`protected array $headers = [...]` は `protected const HEADERS = [...]` に書き換える。404 のようなエラーは `HttpException` を投げると戻り値型を body の型のまま保てる
 - `RouteInterface` から `getMethods()` / `getArgs()` が無くなり、`Operation` の `getMethods()` と `getParameters()->toCoreArgs()` になった（#92）。`AbstractRoute::getMethods()` は `callback()` の受け持つメソッドの宣言として残る。`register_rest_route()` には操作ごとのエンドポイントの配列を渡す。`SchemaInference::inferSchema()` は `RouteInterface` ではなく操作の `Callback` を受け取り、`SCHEMA` / `getSchema()` の優先は `ResponseSchema` が行う
 - callback の引数に書いたビルトイン型の引数が、`URL_PARAMS` に無くても URL パラメータの宣言として扱われるようになった（#79）。これまでは `LogicException` で 500 になっていた。同名の `URL_PARAMS` があればそちらが優先される
