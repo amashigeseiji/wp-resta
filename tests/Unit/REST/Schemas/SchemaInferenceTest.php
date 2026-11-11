@@ -53,7 +53,7 @@ class SchemaInferenceTest extends TestCase
 
         $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
-        $this->assertEquals(['type' => 'array'], $schema);
+        $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $schema, 'OpenAPI 3.0 の array には items が必須。要素型が無ければ {}');
     }
 
     public function testInferSchemaReturnsNullWhenNoCallbackMethod()

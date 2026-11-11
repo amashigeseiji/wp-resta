@@ -304,9 +304,55 @@ class ParameterDefinitionBuilderTest extends TestCase
             public function callback(array $tags = [], array $raw = []): void {}
         });
 
-        $this->assertSame(['type' => 'array', 'items' => ['type' => 'string']], $params->get('tags')->toOpenApiParameter()['schema']);
+        $this->assertSame(['type' => 'array', 'items' => ['type' => 'string'], 'default' => []], $params->get('tags')->toOpenApiParameter()['schema']);
         $rawSchema = $params->get('raw')->toOpenApiParameter()['schema'];
-        $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $rawSchema, '要素型が読めなくても items は出す');
-        $this->assertSame('{"type":"array","items":{}}', json_encode($rawSchema), 'JSON では空の items が {} になる');
+        $this->assertEquals(['type' => 'array', 'items' => new \stdClass(), 'default' => []], $rawSchema, '要素型が読めなくても items は出す');
+        $this->assertSame('{"type":"array","items":{},"default":[]}', json_encode($rawSchema), 'JSON では空の items が {} になる');
+    }
+
+    public function testToOpenApiParameterIncludesEnumDefaultMinimumMaximum(): void
+    {
+        $params = $this->build('x', [], new class {
+            public function callback(
+                Sort $sort = Sort::Asc,
+                #[Param(min: 1, max: 100)] int $limit = 20,
+                string $q = '',
+                int $page = 1,
+            ): void {}
+        });
+
+        $this->assertSame(
+            ['type' => 'string', 'enum' => ['asc', 'desc'], 'default' => 'asc'],
+            $params->get('sort')->toOpenApiParameter()['schema'],
+            'backed enum は enum と default（値）になる'
+        );
+        $this->assertSame(
+            ['type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 20],
+            $params->get('limit')->toOpenApiParameter()['schema']
+        );
+        $this->assertSame(['type' => 'string', 'default' => ''], $params->get('q')->toOpenApiParameter()['schema']);
+        $this->assertFalse($params->get('page')->toOpenApiParameter()['required'], 'default があれば required でない');
+    }
+
+    public function testToOpenApiParameterOmitsDefaultWhenRequired(): void
+    {
+        $params = $this->build('item/[id]', [], new class {
+            public function callback(int $id, Sort $sort): void {}
+        });
+
+        $this->assertArrayNotHasKey('default', $params->get('id')->toOpenApiParameter()['schema']);
+        $this->assertSame(['type' => 'string', 'enum' => ['asc', 'desc']], $params->get('sort')->toOpenApiParameter()['schema']);
+    }
+
+    public function testToOpenApiParameterOmitsNullDefault(): void
+    {
+        $params = $this->build('x', [], new class {
+            public function callback(?string $note = null): void {}
+        });
+
+        $parameter = $params->get('note')->toOpenApiParameter();
+
+        $this->assertFalse($parameter['required']);
+        $this->assertSame(['type' => 'string'], $parameter['schema']);
     }
 }

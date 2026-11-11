@@ -66,7 +66,7 @@ class SchemaInference
                 // 2. 戻り値が array の場合、PHPDoc から要素型を推論
                 $schema = $this->inferFromPhpDoc();
                 if ($schema === null) {
-                    $schema = ['type' => 'array'];
+                    $schema = PhpTypeToOpenApiSchema::untypedArray();
                 }
             } else {
                 // 3. プリミティブ型（string, int, bool, float など）

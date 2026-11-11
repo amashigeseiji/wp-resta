@@ -54,6 +54,18 @@ class PhpTypeToOpenApiSchema
     }
 
     /**
+     * 要素型のわからない配列のスキーマ。
+     * OpenAPI 3.0 では array の items（Schema Object）が必須で、任意の要素は {}。
+     * PHP の空配列は JSON で [] になり不正なので stdClass にする
+     *
+     * @return array{type: 'array', items: \stdClass}
+     */
+    public static function untypedArray(): array
+    {
+        return ['type' => 'array', 'items' => new \stdClass()];
+    }
+
+    /**
      * ReflectionType から OpenAPI スキーマを生成
      *
      * - ビルトインのプリミティブ型と array を処理する
@@ -77,7 +89,7 @@ class PhpTypeToOpenApiSchema
         $typeName = $type->getName();
 
         $schema = $typeName === 'array'
-            ? ['type' => 'array', 'items' => []]
+            ? self::untypedArray()
             : self::primitiveToSchema($typeName);
 
         if ($schema === null) {

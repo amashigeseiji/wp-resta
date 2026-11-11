@@ -139,9 +139,7 @@ class InterfaceGenerator
                 return 'boolean';
 
             case 'array':
-                $items = $schema['items'] ?? ['type' => 'unknown'];
-                $itemType = $this->convertType($items, $parser);
-                return "{$itemType}[]";
+                return $this->convertItems($schema, $parser) . '[]';
 
             case 'object':
                 // インラインオブジェクトの場合
@@ -158,6 +156,20 @@ class InterfaceGenerator
             default:
                 return 'unknown';
         }
+    }
+
+    /**
+     * 配列スキーマの要素型。items が無いか {}（要素型が任意）なら unknown
+     *
+     * @param array<string, mixed> $schema
+     */
+    private function convertItems(array $schema, OpenApiParser $parser): string
+    {
+        $items = $schema['items'] ?? [];
+        if (!is_array($items) || $items === []) {
+            return 'unknown';
+        }
+        return $this->convertType($items, $parser);
     }
 
     /**
@@ -193,8 +205,7 @@ class InterfaceGenerator
     private function generateArrayType(string $name, array $schema, OpenApiParser $parser): string
     {
         $description = $schema['description'] ?? null;
-        $items = $schema['items'] ?? ['type' => 'unknown'];
-        $itemType = $this->convertType($items, $parser);
+        $itemType = $this->convertItems($schema, $parser);
 
         $output = '';
 

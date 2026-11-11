@@ -255,6 +255,36 @@ class ApiEndpointsGeneratorTest extends TestCase
         $this->assertStringContainsString('x: string', $output);
     }
 
+    public function testGenerateParamEnumBecomesUnionOfLiterals(): void
+    {
+        $parser = $this->makeParser($this->makeEndpoint('/posts', 'get', [
+            'parameters' => [
+                ['name' => 'sort', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'enum' => ['asc', 'desc'], 'default' => 'asc']],
+                ['name' => 'level', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'integer', 'enum' => [1, 2, 3]]],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString("sort?: 'asc' | 'desc'", $output, 'default があるので optional');
+        $this->assertStringContainsString('level: 1 | 2 | 3', $output);
+    }
+
+    public function testGenerateParamArrayUsesItemType(): void
+    {
+        $parser = $this->makeParser($this->makeEndpoint('/posts', 'get', [
+            'parameters' => [
+                ['name' => 'tags', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'array', 'items' => ['type' => 'string']]],
+                ['name' => 'ids', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'array', 'items' => ['type' => 'integer']]],
+                ['name' => 'raw', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'array', 'items' => new \stdClass()]],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString('tags?: string[]', $output);
+        $this->assertStringContainsString('ids?: number[]', $output);
+        $this->assertStringContainsString('raw?: unknown[]', $output, '要素型が {} なら unknown[]');
+    }
+
     // -------------------------------------------------------------------------
     // response 型生成
     // -------------------------------------------------------------------------
@@ -501,5 +531,17 @@ class ApiEndpointsGeneratorTest extends TestCase
         $this->assertStringContainsString("'GET /posts':", $output);
         $this->assertStringContainsString("'POST /posts':", $output);
         $this->assertStringContainsString("'DELETE /posts/{id}':", $output);
+    }
+
+    public function testGenerateResponseArrayWithoutItemTypeIsUnknownArray(): void
+    {
+        $parser = $this->makeParser($this->makeEndpoint('/posts', 'get', [
+            'responses' => [
+                '200' => ['content' => ['application/json' => ['schema' => ['type' => 'array', 'items' => new \stdClass()]]]],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString('response: unknown[];', $output);
     }
 }

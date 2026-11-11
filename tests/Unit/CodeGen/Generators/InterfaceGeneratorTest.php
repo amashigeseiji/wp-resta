@@ -210,4 +210,30 @@ class InterfaceGeneratorTest extends TestCase
 
         $this->assertStringContainsString('metadata?: Record<string, string>;', $output);
     }
+
+    public function testArrayWithoutItemTypeIsUnknownArray(): void
+    {
+        // ResponseSchema は要素型のわからない配列の items を {}（stdClass）で出す
+        $spec = [
+            'openapi' => '3.0.0',
+            'paths' => [],
+            'components' => [
+                'schemas' => [
+                    'Post' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'tags' => ['type' => 'array', 'items' => new \stdClass()],
+                        ],
+                        'required' => ['tags'],
+                    ],
+                    'Posts' => ['type' => 'array', 'items' => new \stdClass()],
+                ],
+            ],
+        ];
+
+        $output = (new InterfaceGenerator())->generate(new OpenApiParser($spec));
+
+        $this->assertStringContainsString('tags: unknown[];', $output);
+        $this->assertStringContainsString('export type Posts = unknown[];', $output);
+    }
 }

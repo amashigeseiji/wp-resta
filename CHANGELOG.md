@@ -19,6 +19,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 追加
 
+- OpenAPI の parameters に enum、default、minimum、maximum が載るようになった（#79）。backed enum の引数は `enum` と値の `default`、`#[Param(min:, max:)]` は `minimum` / `maximum`、デフォルト値を持つ引数は `default` になる（`null` のデフォルトは出さない）。TypeScript の `ApiEndpoints` では enum がリテラルの union（`'asc' | 'desc'`）、配列が要素型の配列（`string[]`）になる
 - callback のシグニチャからの URL パラメータ宣言（#79、#77）。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は `URL_PARAMS` に書かなくても宣言になり、値は宣言した型に変換されて届く。`#[Param(pattern:, min:, max:, description:)]` で制約を足せ、配列の要素型は `@param string[]` から読む
 - 同じ URL で HTTP メソッドごとに処理を分けられるようになった（#92）。ルートクラスに `get()` / `post()` / `put()` / `patch()` / `delete()` を書くと、それぞれが 1 つの操作（`Operation`: メソッド、callback、そのシグニチャから導出したパラメータ）になる。`callback()` は `getMethods()` の全メソッドに対する 1 操作の省略形としてそのまま使え、両方書くと `LogicException`。宣言していないメソッドのリクエストは 404（`rest_no_route`）。`RouteInterface` に `getOperation(string $method): ?Operation` / `getOperations(): list<Operation>`、`RestaRequestInterface` に `getMethod(): string` を追加。`TestRestaRequest` は第 3 引数でメソッドを指定できる
 - `RestaResponseInterface::withHeaders(array): static`。ヘッダを上書きマージした複製を返す。`RouteInterface::getHeaders()` でルートの既定ヘッダを宣言し、エラーを含むどのレスポンスにも付く（レスポンス自身の同名が優先）。これまでは callback が `RestaResponseInterface` を直接返すと既定ヘッダが付かなかった
@@ -45,6 +46,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 修正
 
+- 要素型のわからない配列のスキーマが `items: []` で出ていて OpenAPI 3.0 として不正だった（#79）。`callback(): array`、`ObjectType` の `array` プロパティ、`$items` を宣言しない `ArrayType` のいずれも `items: {}` になる。`components.securitySchemes` も `[]` から `{}` に直した。TypeScript では要素型のわからない配列が `string[]` / `Record<string, unknown>[]` ではなく `unknown[]` になる
 - サンプルの `SampleHook::addMetaToResponse()` が、配列を返す WordPress コアのルート（`/wp/v2/settings` など）で TypeError になっていた（#94）。`rest_request_after_callbacks` には callback の生の戻り値が渡るので、`WP_REST_Response` 以外はそのまま返す。ブロックエディタが `/wp/v2/settings` をプリロードするため、`SampleHook` を登録していると投稿編集画面が開けなかった
 - `TestRestaRequest` がクエリ文字列を解釈するようになった（#84）。`'/myapi/items/123?name=test'` のように渡せる。同名はパスパラメータ優先
 - callback の引数にインターフェース型を書くと `cannot resolve type` で 500 になっていた（#83）。`RestaRequestInterface` は `invoke()` に渡したリクエストがそのまま渡り、`dependencies` で bind したインターフェースは DI コンテナから解決される

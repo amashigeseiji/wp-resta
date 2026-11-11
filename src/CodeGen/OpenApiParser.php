@@ -14,7 +14,9 @@ class OpenApiParser
      */
     public function __construct(array $openApiSpec)
     {
-        $this->spec = $openApiSpec;
+        // JSON として出力されるものと同じ形で読む。ResponseSchema は要素型のわからない配列の items を
+        // stdClass（JSON の {}）で表すので、往復させて配列（[]）にそろえる
+        $this->spec = json_decode(json_encode($openApiSpec, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
         $this->validate();
     }
 
@@ -75,7 +77,7 @@ class OpenApiParser
     /**
      * パスから型安全なEndpoint構造を抽出
      *
-     * @return array<array{path: string, method: string, pathParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, queryParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, responseSchema: mixed, description: mixed, tags: mixed}>
+     * @return array<array{path: string, method: string, pathParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}>, queryParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}>, responseSchema: mixed, description: mixed, tags: mixed}>
      */
     public function extractEndpoints(): array
     {
@@ -93,6 +95,7 @@ class OpenApiParser
                         'type' => $param['schema']['type'] ?? 'string',
                         'required' => $param['required'] ?? false,
                         'description' => $param['description'] ?? '',
+                        'schema' => $param['schema'] ?? ['type' => 'string'],
                     ];
 
                     if ($param['in'] === 'path') {

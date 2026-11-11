@@ -90,7 +90,7 @@ abstract class ObjectType extends BaseSchema
             }
 
             if ($typeName === 'array') {
-                return ['type' => 'array', 'items' => []];
+                return PhpTypeToOpenApiSchema::untypedArray();
             }
 
             // BaseSchema のサブクラスのみ $ref で参照する

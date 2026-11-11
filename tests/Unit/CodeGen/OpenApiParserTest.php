@@ -179,4 +179,38 @@ class OpenApiParserTest extends TestCase
         $name = $parser->extractSchemaNameFromRef('invalid-ref');
         $this->assertNull($name);
     }
+
+    public function testSpecIsReadAsItWouldBeSerializedToJson(): void
+    {
+        // stdClass（JSON の {}）は配列になり、ジェネレータは Swagger UI と同じ文書を読む
+        $parser = new OpenApiParser([
+            'openapi' => '3.0.0',
+            'paths' => [
+                '/posts' => ['get' => ['parameters' => [
+                    ['name' => 'raw', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'array', 'items' => new \stdClass()]],
+                ]]],
+            ],
+        ]);
+
+        $endpoints = $parser->extractEndpoints();
+
+        $this->assertSame(['type' => 'array', 'items' => []], $endpoints[0]['queryParams'][0]['schema']);
+    }
+
+    public function testExtractEndpointsKeepsParameterSchema(): void
+    {
+        $parser = new OpenApiParser([
+            'openapi' => '3.0.0',
+            'paths' => [
+                '/posts' => ['get' => ['parameters' => [
+                    ['name' => 'sort', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'enum' => ['asc', 'desc'], 'default' => 'asc']],
+                ]]],
+            ],
+        ]);
+
+        $param = $parser->extractEndpoints()[0]['queryParams'][0];
+
+        $this->assertSame('string', $param['type']);
+        $this->assertSame(['type' => 'string', 'enum' => ['asc', 'desc'], 'default' => 'asc'], $param['schema']);
+    }
 }

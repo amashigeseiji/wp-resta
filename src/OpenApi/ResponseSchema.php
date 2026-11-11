@@ -154,7 +154,7 @@ class ResponseSchema
             ],
             'paths' => $this->getPaths(),
             'components' => [
-                'securitySchemes' => [],
+                'securitySchemes' => new \stdClass(), // Map なので空でも {} で出す
                 'schemas' => $this->schemas->schemas,
             ],
         ];

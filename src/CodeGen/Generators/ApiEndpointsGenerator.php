@@ -38,7 +38,7 @@ class ApiEndpointsGenerator
     /**
      * 単一のエンドポイント型を生成
      *
-     * @param array{path: string, method: string, pathParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, queryParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}>, responseSchema: mixed, description: mixed, tags: mixed} $endpoint
+     * @param array{path: string, method: string, pathParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}>, queryParams: array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}>, responseSchema: mixed, description: mixed, tags: mixed} $endpoint
      * @param OpenApiParser $parser
      * @return string
      */
@@ -74,8 +74,8 @@ class ApiEndpointsGenerator
     /**
      * パラメータ型を生成
      *
-     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}> $pathParams
-     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed}> $queryParams
+     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}> $pathParams
+     * @param array<int, array{name: mixed, type: mixed, required: mixed, description: mixed, schema: array<string, mixed>}> $queryParams
      * @param OpenApiParser $parser
      * @return string
      */
@@ -91,7 +91,8 @@ class ApiEndpointsGenerator
 
         foreach ($allParams as $param) {
             $name = $param['name'];
-            $type = $this->convertParamType($param['type']);
+            $type = $this->convertParamSchema($param['schema']);
+            // default を持つパラメータは required でないので optional になる
             $required = $param['required'] ?? false;
             $optional = $required ? '' : '?';
 
@@ -125,6 +126,28 @@ class ApiEndpointsGenerator
     }
 
     /**
+     * パラメータの schema を TypeScript 型に変換。
+     * enum はリテラルの union、array は要素型の配列（要素型が無ければ unknown[]）
+     *
+     * @param array<string, mixed> $schema
+     */
+    private function convertParamSchema(array $schema): string
+    {
+        if (isset($schema['enum']) && is_array($schema['enum'])) {
+            return implode(' | ', array_map(
+                fn(mixed $value): string => is_string($value) ? "'{$value}'" : (string) $value,
+                $schema['enum'],
+            ));
+        }
+        $type = $schema['type'] ?? 'string';
+        if ($type === 'array') {
+            $items = $schema['items'] ?? [];
+            return (is_array($items) && $items !== [] ? $this->convertParamSchema($items) : 'unknown') . '[]';
+        }
+        return $this->convertParamType(is_string($type) ? $type : 'string');
+    }
+
+    /**
      * パラメータ型をTypeScript型に変換
      *
      * @param string $type
@@ -136,8 +159,8 @@ class ApiEndpointsGenerator
             'integer' => 'number',
             'number' => 'number',
             'boolean' => 'boolean',
-            'array' => 'any[]',
-            'object' => 'Record<string, any>',
+            'array' => 'unknown[]',
+            'object' => 'Record<string, unknown>',
             default => 'string',
         };
     }
@@ -179,7 +202,11 @@ class ApiEndpointsGenerator
             case 'boolean':
                 return 'boolean';
             case 'array':
-                $items = $schema['items'] ?? ['type' => 'unknown'];
+                // items が {}（要素型が任意）なら unknown[]
+                $items = $schema['items'] ?? [];
+                if (!is_array($items) || $items === []) {
+                    return 'unknown[]';
+                }
                 if (isset($items['$ref'])) {
                     $schemaName = $parser->extractSchemaNameFromRef($items['$ref']);
                     return "Schema.{$schemaName}[]";
