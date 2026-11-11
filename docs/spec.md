@@ -48,7 +48,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ### 宣言から導出されるもの
 
 - ルートの登録と入力の検証。宣言していない制約は検証されない
-- OpenAPI 定義。path の下に操作ごとの operation が出る。parameters には宣言した型、必須かどうか、enum、デフォルト値、最小値・最大値、配列の要素型が載る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出され、`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される
+- OpenAPI 定義。path の下に操作ごとの operation が出る。parameters には宣言した型、必須かどうか、enum、デフォルト値、最小値・最大値、配列の要素型が載る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出され、戻り値型が `RestaResponseInterface` との union（`Post|RestaResponseInterface`）ならもう一方の型から導出される。`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される
 - TypeScript の型定義。OpenAPI と同じ宣言から生成される。パラメータの enum はリテラルの union、配列は要素型の配列、デフォルト値があるものは optional になる
 
 ## HTTP 実行のパイプライン
@@ -89,7 +89,8 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 - `RestaResponseInterface` を返せばステータスとヘッダも含めてそのまま使われる
 - `$this->response($data, $status, $headers)` でステータスとヘッダを指定したレスポンスを作れる
-- ルートに宣言した既定ヘッダは、エラーを含むどのレスポンスにも付く。レスポンス自身が同名のヘッダを持てばそちらが優先される
+- `HEADERS` 定数で宣言したルートの既定ヘッダは、エラーを含むどのレスポンスにも付く。レスポンス自身が同名のヘッダを持てばそちらが優先される
+- `$status` / `$body` / `$headers` プロパティへの代入は非推奨（`E_USER_DEPRECATED`）で、次の minor で許可されなくなる。`$this->response()` と `HEADERS` を使う
 - `RestaResponseInterface::withHeaders()` でヘッダを足した複製を作れる。購読者がレスポンスにヘッダを付けるときに使う
 - `#[Envelope]` を付けたルートは、ボディが `{ "data": ..., "meta": ... }` に包まれる
 - `RouteInvocationEvent` の購読者はレスポンスを差し替えられる（「イベント」）

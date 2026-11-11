@@ -14,7 +14,7 @@ class CustomizeHeaderTest extends TestCase
     public function testCustomizeHeader()
     {
         $route = new class extends AbstractRoute {
-            protected array $headers = [
+            protected const HEADERS = [
                 'Cache-Control' => 'max-age=36400',
                 'Access-Control-Allow-Origins' => 'http://example.com',
             ];

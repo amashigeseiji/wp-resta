@@ -110,6 +110,8 @@ class RegisterRestRoutesTest extends TestCase
 
     public function testStatusSetInPreviousRequestDoesNotCarryOverToNextRequest(): void
     {
+        // TestStatefulRoute は $this->status に代入する（非推奨）
+        $this->expectUserDeprecationMessageMatches('/assigned \$status/');
         $notFound = $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
         $this->assertSame(404, $notFound->get_status());
 
@@ -152,6 +154,8 @@ class RegisterRestRoutesTest extends TestCase
 
     public function testCallbackRunsOnTheClonedInstanceNotTheRegisteredOne(): void
     {
+        // TestStatefulRoute は $this->status に代入する（非推奨）
+        $this->expectUserDeprecationMessageMatches('/assigned \$status/');
         // 操作の callback はインスタンスに束縛される。登録時に導出した操作を clone が使い回すと、
         // callback は元のインスタンスで走り、状態が次のリクエストに持ち越される
         $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
@@ -162,6 +166,8 @@ class RegisterRestRoutesTest extends TestCase
 
     public function testBoundInstanceInContainerIsNotMutatedByRequest(): void
     {
+        // TestStatefulRoute は $this->status に代入する（非推奨）
+        $this->expectUserDeprecationMessageMatches('/assigned \$status/');
         $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
 
         // OpenAPI スキーマ生成や CodeGen が参照する元のインスタンスは変わらない

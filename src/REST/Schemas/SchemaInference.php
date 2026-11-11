@@ -13,6 +13,9 @@ use PHPStan\PhpDocParser\Parser\TokenIterator;
 use PHPStan\PhpDocParser\Parser\TypeParser;
 use ReflectionClass;
 use ReflectionNamedType;
+use ReflectionType;
+use ReflectionUnionType;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\OpenApi\PhpTypeToOpenApiSchema;
 use Wp\Resta\REST\Callback;
 
@@ -52,8 +55,8 @@ class SchemaInference
         $this->target = $callback;
 
         // 1. 戻り値の型が DTO クラスか？
-        $returnType = $this->target->getReturnType();
-        if ($returnType && $returnType instanceof ReflectionNamedType) {
+        [$returnType, $nullable] = self::bodyType($this->target->getReturnType());
+        if ($returnType !== null) {
             $schema = null;
             if (!$returnType->isBuiltin()) {
                 $typeName = $returnType->getName();
@@ -76,7 +79,7 @@ class SchemaInference
                 }
             }
             // nullable型の場合
-            if ($returnType->allowsNull() && $schema) {
+            if ($nullable && $schema) {
                 return [
                     'anyOf' => [
                         $schema,
@@ -90,6 +93,39 @@ class SchemaInference
 
         // 4. フォールバック：推論できない
         return null;
+    }
+
+    /**
+     * 戻り値型のうち、レスポンスボディの形を表す側の型と nullable かどうか。
+     *
+     * `Post|RestaResponseInterface` のように RestaResponseInterface との union で宣言された callback
+     * （`$this->response(null, 404)` を返す分岐があるルート）は、もう一方の型からスキーマを推論する。
+     * RestaResponseInterface を除いて 1 つに決まらない union は推論しない
+     *
+     * @return array{0: ReflectionNamedType|null, 1: bool}
+     */
+    private static function bodyType(?ReflectionType $type): array
+    {
+        if ($type instanceof ReflectionNamedType) {
+            return [$type, $type->allowsNull()];
+        }
+        if (!$type instanceof ReflectionUnionType) {
+            return [null, false];
+        }
+        $nullable = false;
+        $candidates = [];
+        foreach ($type->getTypes() as $member) {
+            if (!$member instanceof ReflectionNamedType) {
+                return [null, false];
+            }
+            $name = $member->getName();
+            if ($name === 'null') {
+                $nullable = true;
+            } elseif ($member->isBuiltin() || !is_a($name, RestaResponseInterface::class, true)) {
+                $candidates[] = $member;
+            }
+        }
+        return count($candidates) === 1 ? [$candidates[0], $nullable] : [null, false];
     }
 
     /**

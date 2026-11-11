@@ -3,6 +3,7 @@ namespace Wp\Resta\REST;
 
 use Wp\Resta\Auth\Principal;
 use Wp\Resta\REST\Http\RestaRequestInterface;
+use ReflectionClass;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
 use LogicException;
@@ -18,14 +19,36 @@ abstract class AbstractRoute implements RouteInterface
     /** HTTP メソッド名のメソッドが操作の宣言になる */
     private const OPERATION_METHODS = ['get', 'post', 'put', 'patch', 'delete'];
 
-    /** @var array<string, string> */
+    /**
+     * ルートの既定ヘッダ。エラーを含むどのレスポンスにも付き、同名ならレスポンス側が勝つ
+     *
+     * @var array<string, string>
+     */
+    protected const HEADERS = [];
+
+    /**
+     * @deprecated 0.12。HEADERS 定数で宣言する。0.13 で削除
+     * @var array<string, string>
+     */
     protected array $headers = [];
 
     /**
+     * @deprecated 0.12。callback の戻り値が body になる。0.13 で削除
      * @var mixed
      */
     protected $body = '';
+
+    /**
+     * @deprecated 0.12。`return $this->response($body, $status)` で指定する。0.13 で削除
+     */
     protected int $status = 200;
+
+    /**
+     * クラスごとのプロパティの初期値。callback の後に代入を検知する（非推奨の警告）ための比較対象
+     *
+     * @var array<class-string, array<string, mixed>>
+     */
+    private static array $propertyDefaults = [];
 
     /** @var list<Operation>|null */
     private ?array $operations = null;
@@ -155,13 +178,39 @@ abstract class AbstractRoute implements RouteInterface
     private function callbackFor(string $method): Callback
     {
         // 0.12 の橋: callback 内で $this->status に代入された値を、戻り値の包みに変換する。
-        // プロパティへの代入は非推奨化の方向（#59）で、プロパティを削除するときにこの橋も消す。
+        // プロパティへの代入は 0.12 で非推奨（#59）。0.13 でプロパティと一緒にこの橋も消す。
         // 実行者はルートのプロパティを知らず、callback が body か RestaResponseInterface を返すとだけ見る
-        return Callback::fromMethod($this, $method)->withResult(
-            fn(mixed $result): mixed => $result instanceof RestaResponseInterface
+        $defaults = self::$propertyDefaults[static::class] ??= (new ReflectionClass(static::class))->getDefaultProperties();
+        return Callback::fromMethod($this, $method)->withResult(function (mixed $result) use ($method, $defaults): mixed {
+            $this->warnIfPropertiesAssigned($method, $defaults);
+            return $result instanceof RestaResponseInterface
                 ? $result
-                : new SimpleRestaResponse($result, $this->status)
-        );
+                : new SimpleRestaResponse($result, $this->status);
+        });
+    }
+
+    /**
+     * callback の中で $status / $body / $headers が宣言時の初期値から変わっていたら非推奨の警告
+     *
+     * @param array<string, mixed> $defaults
+     */
+    private function warnIfPropertiesAssigned(string $method, array $defaults): void
+    {
+        $assigned = [];
+        foreach (['status', 'body', 'headers'] as $property) {
+            if ($this->{$property} !== ($defaults[$property] ?? null)) {
+                $assigned[] = '$' . $property;
+            }
+        }
+        if ($assigned === []) {
+            return;
+        }
+        trigger_error(sprintf(
+            '%s::%s() assigned %s. Assigning $status / $body / $headers is deprecated and will be removed in 0.13; return $this->response($body, $status, $headers) instead',
+            static::class,
+            $method,
+            implode(' / ', $assigned),
+        ), E_USER_DEPRECATED);
     }
 
     /**
@@ -193,16 +242,27 @@ abstract class AbstractRoute implements RouteInterface
     {
     }
 
+    /**
+     * ルートの既定ヘッダ。既定実装は HEADERS 定数を返す。
+     * $headers プロパティに値があれば（0.11 までの宣言方法）非推奨の警告を出しつつ、そちらを優先する
+     */
     public function getHeaders(): array
     {
-        return $this->headers;
+        if ($this->headers !== []) {
+            trigger_error(
+                static::class . ': the $headers property is deprecated and will be removed in 0.13; declare default headers in the HEADERS constant instead',
+                E_USER_DEPRECATED
+            );
+            return array_merge(static::HEADERS, $this->headers);
+        }
+        return static::HEADERS;
     }
 
     /**
      * callback からステータスやヘッダを指定してレスポンスを返すためのヘルパ。
      *
-     * `return $this->response(null, 404);` のように使う。$status / $body / $headers プロパティへの
-     * 代入と違い、ルートに状態を持たせずに済む。ルートの既定ヘッダ（getHeaders()）は実行者が合成するので、
+     * `return $this->response(null, 404);` のように使う。ルートに状態を持たせずに済む
+     * （$status / $body / $headers プロパティへの代入は非推奨）。ルートの既定ヘッダ（HEADERS）は実行者が合成するので、
      * ここで渡すのはこのレスポンス固有のヘッダだけでよい。同名なら渡したほうが勝つ
      *
      * @param array<string, string> $headers

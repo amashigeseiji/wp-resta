@@ -14,6 +14,7 @@ use Test\Resta\Fixtures\Routes\TestIntReturnRoute;
 use Test\Resta\Fixtures\Routes\TestBoolReturnRoute;
 use Test\Resta\Fixtures\Routes\TestNullableStringReturnRoute;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Schemas\ObjectType;
 use Wp\Resta\REST\Schemas\SchemaInference;
 
@@ -39,6 +40,52 @@ class SchemaInferenceTest extends TestCase
         // type や properties は含まれない（$ref のみ）
         $this->assertArrayNotHasKey('type', $schema);
         $this->assertArrayNotHasKey('properties', $schema);
+    }
+
+    public function testUnionWithResponseInterfaceInfersFromTheOtherType()
+    {
+        // $this->response(null, 404) を返す分岐があるルートは Post|RestaResponseInterface と書く
+        $route = new class extends AbstractRoute {
+            public function callback(): TestUserType|RestaResponseInterface
+            {
+                return $this->response(null, 404);
+            }
+        };
+
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertSame(['$ref' => TestUserType::getSchemaId()], $schema);
+    }
+
+    public function testNullableUnionWithResponseInterfaceIsAnyOfWithNull()
+    {
+        $route = new class extends AbstractRoute {
+            public function callback(): TestUserType|RestaResponseInterface|null
+            {
+                return null;
+            }
+        };
+
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertSame([
+            'anyOf' => [
+                ['$ref' => TestUserType::getSchemaId()],
+                ['type' => 'null'],
+            ],
+        ], $schema);
+    }
+
+    public function testUnionOfTwoBodyTypesIsNotInferred()
+    {
+        $route = new class extends AbstractRoute {
+            public function callback(): TestUserType|string
+            {
+                return 'x';
+            }
+        };
+
+        $this->assertNull($this->inference->inferSchema($route->getOperation('GET')->getCallback()));
     }
 
     public function testInferSchemaReturnsSimpleArrayTypeWhenNoSchemaAvailable()

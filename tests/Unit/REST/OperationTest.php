@@ -217,7 +217,7 @@ class OperationTest extends TestCase
 
     public function testStatusAssignedInHttpMethodOperationGoesThroughBridge(): void
     {
-        // 0.12 の橋は get() / post() にも効く（#59 で消すまで）
+        // 0.12 の橋は get() / post() にも効く（#59 で消すまで）。警告はどのメソッドで代入したかを言う
         $route = new class extends AbstractRoute {
             public function get(): ?array
             {
@@ -225,6 +225,7 @@ class OperationTest extends TestCase
                 return null;
             }
         };
+        $this->expectUserDeprecationMessageMatches('/get\(\) assigned \$status/');
 
         $this->assertSame(404, $this->handle($route, '/x')->getStatusCode());
     }

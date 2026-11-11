@@ -5,6 +5,7 @@ use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Schemas\Post as SchemasPost;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 
 #[RouteMeta(
     description: "サンプルです",
@@ -18,12 +19,14 @@ class Post extends AbstractRoute
         'id' => 'integer',
     ];
 
-    public function callback(int $id): ?SchemasPost
+    /**
+     * 戻り値型を RestaResponseInterface との union にしておくと、スキーマは SchemasPost から推論される
+     */
+    public function callback(int $id): SchemasPost|RestaResponseInterface
     {
         $post = get_post($id);
         if ($post === null) {
-            $this->status = 404;
-            return null;
+            return $this->response(null, 404);
         }
 
         return new SchemasPost(

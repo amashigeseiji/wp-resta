@@ -190,7 +190,7 @@ class RequestHandlerTest extends TestCase
     {
         // ルートの既定ヘッダは、callback が直接返したレスポンスにもエラーにも付く。同名はレスポンス側が勝つ
         $route = new class extends AbstractRoute {
-            protected array $headers = ['Cache-Control' => 'no-store', 'X-Route' => 'r'];
+            protected const HEADERS = ['Cache-Control' => 'no-store', 'X-Route' => 'r'];
             public function callback(string $mode = 'data'): mixed
             {
                 return match ($mode) {
@@ -214,7 +214,7 @@ class RequestHandlerTest extends TestCase
 
     public function testStatusAssignedInCallbackStillWorksThroughBridge(): void
     {
-        // 0.12 の橋: callback 内の $this->status への代入は、AbstractRoute::getCallback() が戻り値の包みに変換する
+        // 0.12 の橋: callback 内の $this->status への代入は非推奨の警告付きで戻り値の包みに変換される
         $route = new class extends AbstractRoute {
             public function callback(): ?array
             {
@@ -222,6 +222,7 @@ class RequestHandlerTest extends TestCase
                 return null;
             }
         };
+        $this->expectUserDeprecationMessageMatches('/callback\(\) assigned \$status/');
 
         $response = $this->handler()->handle($route, new TestRestaRequest('/x', $route));
 
