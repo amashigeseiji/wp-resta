@@ -130,20 +130,23 @@ abstract class AbstractRoute implements RouteInterface
             );
         }
 
-        // ルートの正規表現は 1 つなので、パスパラメータの宣言は操作をまたいで一致していなければならない
-        $pathRegex = null;
-        foreach ($operations as $operation) {
-            $regex = $operation->getParameters()->pathRegex($this::ROUTE);
-            if ($pathRegex !== null && $regex !== $pathRegex) {
-                throw new LogicException(sprintf(
-                    '%s: path parameters of ROUTE "%s" must be declared the same way in every operation (%s vs %s)',
-                    static::class,
-                    $this::ROUTE,
-                    $pathRegex,
-                    $regex,
-                ));
+        // ルートの正規表現は 1 つなので、パスパラメータの宣言は操作をまたいで一致していなければならない。
+        // 正規表現が同じでも型や制約が違えば（float と string など）検証結果が変わるので、宣言そのものを比べる
+        $first = $operations[0];
+        foreach (array_slice($operations, 1) as $operation) {
+            foreach ($first->getParameters()->path() as $name => $definition) {
+                $other = $operation->getParameters()->get($name);
+                if ($other === null || !$definition->sameConstraintsAs($other)) {
+                    throw new LogicException(sprintf(
+                        '%s: path parameter [%s] of ROUTE "%s" must be declared the same way in every operation (%s vs %s)',
+                        static::class,
+                        $name,
+                        $this::ROUTE,
+                        $first->getMethods(),
+                        $operation->getMethods(),
+                    ));
+                }
             }
-            $pathRegex = $regex;
         }
 
         return $operations;

@@ -41,6 +41,25 @@ final class ParameterDefinition
         return $this->location === self::PATH;
     }
 
+    /**
+     * 検証と束縛に効く宣言（型、位置、必須、正規表現、enum、最小・最大、要素型、束縛先、デフォルト値）が同じか。
+     * description は検証に関係しないので比べない
+     */
+    public function sameConstraintsAs(self $other): bool
+    {
+        return $this->type === $other->type
+            && $this->location === $other->location
+            && $this->required === $other->required
+            && $this->regex === $other->regex
+            && $this->hasDefault === $other->hasDefault
+            && $this->default === $other->default
+            && $this->enum === $other->enum
+            && $this->minimum === $other->minimum
+            && $this->maximum === $other->maximum
+            && $this->items === $other->items
+            && $this->bindType === $other->bindType;
+    }
+
     /** ルート正規表現に埋め込む名前付きキャプチャ */
     public function pathCapture(): string
     {

@@ -6,6 +6,7 @@ use PHPUnit\Framework\TestCase;
 use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Param;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
@@ -147,8 +148,71 @@ class OperationTest extends TestCase
         };
 
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('path parameters of ROUTE "notes/[id]" must be declared the same way in every operation');
+        $this->expectExceptionMessage('path parameter [id] of ROUTE "notes/[id]" must be declared the same way in every operation (GET vs DELETE)');
         $route->getRouteRegex();
+    }
+
+    public function testPathParameterTypeMustAgreeEvenWhenRegexIsTheSame(): void
+    {
+        // float と string はどちらも正規表現が [^/]+ だが、型が違えば束縛結果が変わる
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'notes/[id]';
+
+            public function get(float $id): array
+            {
+                return [];
+            }
+
+            public function post(string $id): array
+            {
+                return [];
+            }
+        };
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('path parameter [id] of ROUTE "notes/[id]" must be declared the same way in every operation (GET vs POST)');
+        $route->getOperations();
+    }
+
+    public function testPathParameterConstraintMustAgreeAcrossOperations(): void
+    {
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'notes/[id]';
+
+            public function get(#[Param(min: 1)] int $id): array
+            {
+                return [];
+            }
+
+            public function post(int $id): array
+            {
+                return [];
+            }
+        };
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('path parameter [id] of ROUTE "notes/[id]" must be declared the same way in every operation (GET vs POST)');
+        $route->getOperations();
+    }
+
+    public function testPathParameterDescriptionMayDifferAcrossOperations(): void
+    {
+        $route = new class extends AbstractRoute {
+            protected const ROUTE = 'notes/[id]';
+
+            public function get(#[Param(description: 'Note to read')] int $id): array
+            {
+                return [];
+            }
+
+            public function post(#[Param(description: 'Note to update')] int $id): array
+            {
+                return [];
+            }
+        };
+
+        $this->assertCount(2, $route->getOperations());
+        $this->assertSame('notes/(?P<id>\\d+)', $route->getRouteRegex());
     }
 
     public function testStatusAssignedInHttpMethodOperationGoesThroughBridge(): void
