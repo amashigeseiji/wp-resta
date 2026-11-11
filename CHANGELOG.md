@@ -20,7 +20,6 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 ### 追加
 
 - `HEADERS` 定数（#59）。ルートの既定ヘッダの宣言で、`getHeaders()` の既定実装が返す。`protected array $headers = [...]` の置き換え
-- 戻り値型が `RestaResponseInterface` との union（`Post|RestaResponseInterface`）の callback でも、もう一方の型からレスポンスのスキーマを推論する（#59）。`$this->response(null, 404)` を返す分岐があるルートでスキーマが失われない
 - OpenAPI の parameters に enum、default、minimum、maximum が載るようになった（#79）。backed enum の引数は `enum` と値の `default`、`#[Param(min:, max:)]` は `minimum` / `maximum`、デフォルト値を持つ引数は `default` になる（`null` のデフォルトは出さない）。TypeScript の `ApiEndpoints` では enum がリテラルの union（`'asc' | 'desc'`）、配列が要素型の配列（`string[]`）になる
 - callback のシグニチャからの URL パラメータ宣言（#79、#77）。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は `URL_PARAMS` に書かなくても宣言になり、値は宣言した型に変換されて届く。`#[Param(pattern:, min:, max:, description:)]` で制約を足せ、配列の要素型は `@param string[]` から読む
 - 同じ URL で HTTP メソッドごとに処理を分けられるようになった（#92）。ルートクラスに `get()` / `post()` / `put()` / `patch()` / `delete()` を書くと、それぞれが 1 つの操作（`Operation`: メソッド、callback、そのシグニチャから導出したパラメータ）になる。`callback()` は `getMethods()` の全メソッドに対する 1 操作の省略形としてそのまま使え、両方書くと `LogicException`。宣言していないメソッドのリクエストは 404（`rest_no_route`）。`RouteInterface` に `getOperation(string $method): ?Operation` / `getOperations(): list<Operation>`、`RestaRequestInterface` に `getMethod(): string` を追加。`TestRestaRequest` は第 3 引数でメソッドを指定できる
@@ -31,7 +30,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 変更
 
-- `$status` / `$body` / `$headers` プロパティへの代入が非推奨になった（#59、`E_USER_DEPRECATED`）。0.13 でプロパティと `clone` ごと削除する。ルートインスタンスはプロセス内で共有されるので、代入した値は次のリクエストに持ち越されうる。移行: `$this->status = 404; return null;` は `return $this->response(null, 404);` に、`protected array $headers = [...]` は `protected const HEADERS = [...]` に書き換える。戻り値型は `Post|RestaResponseInterface` のように書く
+- `$status` / `$body` / `$headers` プロパティへの代入が非推奨になった（#59、`E_USER_DEPRECATED`）。0.13 でプロパティと `clone` ごと削除する。ルートインスタンスはプロセス内で共有されるので、代入した値は次のリクエストに持ち越されうる。移行: `$this->status = 404; return null;` は `return $this->response(null, 404);` に、`protected array $headers = [...]` は `protected const HEADERS = [...]` に書き換える。404 のようなエラーは `HttpException` を投げると戻り値型を body の型のまま保てる
 - `RouteInterface` から `getMethods()` / `getArgs()` が無くなり、`Operation` の `getMethods()` と `getParameters()->toCoreArgs()` になった（#92）。`AbstractRoute::getMethods()` は `callback()` の受け持つメソッドの宣言として残る。`register_rest_route()` には操作ごとのエンドポイントの配列を渡す。`SchemaInference::inferSchema()` は `RouteInterface` ではなく操作の `Callback` を受け取り、`SCHEMA` / `getSchema()` の優先は `ResponseSchema` が行う
 - callback の引数に書いたビルトイン型の引数が、`URL_PARAMS` に無くても URL パラメータの宣言として扱われるようになった（#79）。これまでは `LogicException` で 500 になっていた。同名の `URL_PARAMS` があればそちらが優先される
 - `ROUTE` の `[name]` に対応する宣言が無いと `LogicException` になる。これまでは `[name]` が文字どおりのパスとして登録されていた

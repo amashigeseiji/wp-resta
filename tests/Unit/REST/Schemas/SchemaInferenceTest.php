@@ -44,7 +44,7 @@ class SchemaInferenceTest extends TestCase
 
     public function testUnionWithResponseInterfaceInfersFromTheOtherType()
     {
-        // $this->response(null, 404) を返す分岐があるルートは Post|RestaResponseInterface と書く
+        // $this->response() を返す分岐のあるルートが戻り値型に RestaResponseInterface を含めても、もう一方の型から推論できる
         $route = new class extends AbstractRoute {
             public function callback(): TestUserType|RestaResponseInterface
             {

@@ -250,8 +250,6 @@ public function callback(int $id): RestaResponseInterface
 protected const HEADERS = ['Cache-Control' => 'no-store'];
 ```
 
-`$this->response()` を返す分岐があるルートで戻り値型を `Post|RestaResponseInterface` のように書くと、OpenAPI のスキーマは `Post` から推論されます（`src/REST/Example/Routes/Post.php`）。
-
 ### 同じ URL で HTTP メソッドごとに処理を分ける
 
 `callback` の代わりに `get` / `post` / `put` / `patch` / `delete` という名前のメソッドを書くと、それぞれがその HTTP メソッドの処理になります。引数の宣言はメソッドごとに独立していて、`post` の引数は GET のリクエストでは要求されません。

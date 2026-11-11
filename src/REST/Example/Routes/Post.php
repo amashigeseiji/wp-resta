@@ -5,7 +5,7 @@ use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Schemas\Post as SchemasPost;
-use Wp\Resta\REST\Http\RestaResponseInterface;
+use Wp\Resta\REST\Exception\HttpException;
 
 #[RouteMeta(
     description: "サンプルです",
@@ -20,13 +20,13 @@ class Post extends AbstractRoute
     ];
 
     /**
-     * 戻り値型を RestaResponseInterface との union にしておくと、スキーマは SchemasPost から推論される
+     * 戻り値が body で、戻り値型がレスポンスのスキーマになる。見つからないときは例外で 404 を返す
      */
-    public function callback(int $id): SchemasPost|RestaResponseInterface
+    public function callback(int $id): SchemasPost
     {
         $post = get_post($id);
         if ($post === null) {
-            return $this->response(null, 404);
+            throw new HttpException('Post not found', 404, 'rest_post_invalid_id');
         }
 
         return new SchemasPost(
