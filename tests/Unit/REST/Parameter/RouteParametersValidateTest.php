@@ -30,6 +30,10 @@ class RouteParametersValidateTest extends TestCase
         return new class($values) implements RestaRequestInterface {
             /** @param array<string, mixed> $values */
             public function __construct(private array $values) {}
+            public function getMethod(): string
+            {
+                return 'GET';
+            }
             public function getUrlParam(string $name): mixed
             {
                 return $this->values[$name] ?? null;

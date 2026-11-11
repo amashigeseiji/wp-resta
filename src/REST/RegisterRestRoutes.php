@@ -62,29 +62,33 @@ class RegisterRestRoutes
     {
         $handler = $this->container->get(RequestHandler::class);
         foreach ($this->routes as $route) {
-            register_rest_route(
-                $route->getNamespace(),
-                $route->getRouteRegex(),
-                [
-                    'methods' => $route->getMethods(),
-                    // ルートはプロセス内でシングルトンなので、callback 内で $this->status などに
-                    // 代入した値が次のリクエスト（/batch/v1、rest_preload_api_request、
-                    // rest_do_request() の内部呼び出し）に持ち越されないよう、リクエストごとに clone する。
-                    // 浅いコピーなのでコンストラクタ注入されたサービスは共有され、クラス宣言の初期値や
-                    // setNamespace() の名前空間はそのまま引き継がれる。
-                    'callback' => function (WP_REST_Request $wpRequest) use ($route, $handler): WP_REST_Response {
-                        // WordPress から移行するコードが callback 引数で WP_REST_Request を受け取れるように bind する
-                        $this->container->bind(WP_REST_Request::class, $wpRequest);
-                        $response = $handler->handle(clone $route, WpRestaRequest::fromWpRequest($wpRequest));
-                        return WpRestaResponse::toWp($response);
-                    },
+            // ルートはプロセス内でシングルトンなので、callback 内で $this->status などに
+            // 代入した値が次のリクエスト（/batch/v1、rest_preload_api_request、
+            // rest_do_request() の内部呼び出し）に持ち越されないよう、リクエストごとに clone する。
+            // 浅いコピーなのでコンストラクタ注入されたサービスは共有され、クラス宣言の初期値や
+            // setNamespace() の名前空間はそのまま引き継がれる。
+            // 操作の選択は RequestHandler がリクエストのメソッドで行うので、callback はどの操作でも同じ
+            $callback = function (WP_REST_Request $wpRequest) use ($route, $handler): WP_REST_Response {
+                // WordPress から移行するコードが callback 引数で WP_REST_Request を受け取れるように bind する
+                $this->container->bind(WP_REST_Request::class, $wpRequest);
+                $response = $handler->handle(clone $route, WpRestaRequest::fromWpRequest($wpRequest));
+                return WpRestaResponse::toWp($response);
+            };
+
+            // 1 ルートに操作ごとのエンドポイント（WP コアの register_rest_route() と同じ構造）。
+            // 数値でないキーはルートのオプション
+            $endpoints = ['schema' => [$route, 'getSchema']];
+            foreach ($route->getOperations() as $operation) {
+                $endpoints[] = [
+                    'methods' => $operation->getMethods(),
+                    'callback' => $callback,
                     // 認可は RequestHandler の中で authorize() が行う（spec「HTTP 実行のパイプライン」）。
                     // WP コアに渡す permission_callback は常に許可で、WP 5.5 以降の必須引数を満たすためだけにある
                     'permission_callback' => '__return_true',
-                    'args' => $route->getArgs(),
-                    'schema' => [$route, 'getSchema'],
-                ],
-            );
+                    'args' => $operation->getParameters()->toCoreArgs(),
+                ];
+            }
+            register_rest_route($route->getNamespace(), $route->getRouteRegex(), $endpoints);
         }
     }
 }

@@ -11,7 +11,7 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 ## 読む順
 
 1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する
-2. `src/REST/RequestHandler.php`: パイプライン（`validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getParameters()`、`getCallback()`、フック）だけを持つ
+2. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → `validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
 3. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
 4. 目的別: [docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
 
@@ -23,7 +23,8 @@ src/
   Config.php                init() の設定キー
   DI/Container.php          シングルトンの DI コンテナ（autowiring）
   REST/
-    AbstractRoute.php       ルート基底。宣言のみ: getParameters()、getCallback()、validate() / authorize() フック、respond()、response()
+    AbstractRoute.php       ルート基底。宣言のみ: getOperations()（get()/post()… か callback() から導出）、validate() / authorize() フック、response()
+    Operation.php           1 操作 = HTTP メソッド + Callback + RouteParameters。内部の値オブジェクト
     RequestHandler.php      パイプライン。WP 非依存。テストもこれを通す
     Callback.php            callback の定義。シグニチャを読む、resolve()（引数の束縛 + DI）、invoke()
     Parameter/              ParameterDefinition、RouteParameters（宣言。validate() で検証・型変換）、BoundParameters（値）、ParameterDefinitionBuilder
@@ -77,4 +78,5 @@ composer generate:types  # TypeScript 型の生成
 - `Container` はシングルトン。bind したテストは `tearDown()` でリセットする
 - ルートインスタンスはプロセス内で共有される。`$this->status` などへの代入は非推奨化の方向（#59）で、`$this->response()` を使う。callback の無いルート（`$body` だけ）は 0.12 で非推奨、0.13 で `LogicException`
 - `callback` の引数のビルトイン型は `URL_PARAMS` に無くても URL パラメータの宣言になる。`ROUTE` の `[name]` に対応する宣言が無いと `LogicException`
+- 同じ URL で GET / POST を分けるなら `get()` / `post()`。`callback()` と両方書くと `LogicException`。操作の `Callback` はインスタンスに束縛されるので、`clone` したルートでは導出し直す（`getOperations()` の owner チェック）
 - WP のパーマリンク設定が「基本」だと `/wp-json/` が動かない

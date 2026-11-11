@@ -6,6 +6,7 @@ use Wp\Resta\Auth\Principal;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\REST\Exception\HttpException;
+use Wp\Resta\REST\Exception\RouteNotFoundException;
 use Wp\Resta\REST\Http\Headers;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
@@ -14,8 +15,8 @@ use Wp\Resta\REST\Http\SimpleRestaResponse;
 /**
  * HTTP 実行のパイプライン（spec「HTTP 実行のパイプライン」）。WordPress に依存しない。
  *
- * ルートは宣言（パラメータ、callback、認可フック）を提供するだけで、実行の順序はここが持つ。
- * バリデーション → 認可 → callback → RouteInvocationEvent の順で、どの段階で止まっても
+ * ルートは宣言（操作、パラメータ、callback、認可フック）を提供するだけで、実行の順序はここが持つ。
+ * 操作の選択 → バリデーション → 認可 → callback → RouteInvocationEvent の順で、どの段階で止まっても
  * エラーレスポンスの形は同じ。WordPress からは RegisterRestRoutes が WP_REST_Request を変換して呼び、
  * テストからは TestRestaRequest を渡して直接呼ぶ。
  */
@@ -29,13 +30,15 @@ final class RequestHandler
     public function handle(RouteInterface $route, RestaRequestInterface $request): RestaResponseInterface
     {
         try {
+            // リクエストのメソッドで操作を選ぶ。宣言されていないメソッドは WP コアと同じ 404
+            $operation = $route->getOperation($request->getMethod()) ?? throw new RouteNotFoundException();
             // 宣言されたパラメータすべてを検証する。callback の引数にあるかどうかは関係ない
-            $params = $route->getParameters()->validate($request);
+            $params = $operation->getParameters()->validate($request);
             $route->validate($params);
             // バリデーションの後に認可するので、authorize() が見る値は制約を通った後の値
             $route->authorize($request, $params, $this->principal);
 
-            $callback = $route->getCallback();
+            $callback = $operation->getCallback();
             $args = $callback->resolve($params, $request, Container::getInstance());
             $result = $callback->invoke($args);
             // callback は body か RestaResponseInterface を返す（spec「レスポンス」）

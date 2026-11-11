@@ -12,20 +12,19 @@ use PHPStan\PhpDocParser\Parser\PhpDocParser;
 use PHPStan\PhpDocParser\Parser\TokenIterator;
 use PHPStan\PhpDocParser\Parser\TypeParser;
 use ReflectionClass;
-use ReflectionMethod;
 use ReflectionNamedType;
 use Wp\Resta\OpenApi\PhpTypeToOpenApiSchema;
-use Wp\Resta\REST\RouteInterface;
+use Wp\Resta\REST\Callback;
 
 /**
- * Route の callback メソッドからスキーマを自動推論
+ * 操作の callback の戻り値型と docblock からレスポンスのスキーマを推論する
  */
 class SchemaInference
 {
     private readonly Lexer $lexer;
     private readonly PhpDocParser $phpDocParser;
     private readonly TypeParser $typeParser;
-    private ReflectionMethod $target;
+    private Callback $target;
 
     public function __construct()
     {
@@ -37,33 +36,22 @@ class SchemaInference
     }
 
     /**
-     * Route からスキーマを推論
+     * callback の定義からスキーマを推論
+     *
+     * 明示的な定義（ルートの SCHEMA / getSchema()）の優先は呼び出し側（ResponseSchema）が行う。
      *
      * 優先順位：
-     * 1. getSchema() メソッド（明示的定義）
-     * 2. callback の戻り値の型（DTO クラス / プリミティブ型 / array など）
-     * 3. callback の PHPDoc @return アノテーション（配列型・array shape など）
-     * 4. 上記いずれからもスキーマを決定できない場合のみ null（プリミティブ型 / array の戻り値型は type 情報としてフォールバック推論される）
+     * 1. callback の戻り値の型（DTO クラス / プリミティブ型 / array など）
+     * 2. callback の PHPDoc @return アノテーション（配列型・array shape など）
+     * 3. 上記いずれからもスキーマを決定できない場合のみ null（プリミティブ型 / array の戻り値型は type 情報としてフォールバック推論される）
      *
-     * @param RouteInterface $route
      * @return array<string, mixed>|null
      */
-    public function inferSchema(RouteInterface $route): ?array
+    public function inferSchema(Callback $callback): ?array
     {
-        // 1. getSchema() が定義されていれば、それを使う（最優先・後方互換性）
-        $schema = $route->getSchema();
-        if ($schema !== null) {
-            return $schema;
-        }
+        $this->target = $callback;
 
-        // callback メソッドが存在するかチェック
-        if (!method_exists($route, 'callback')) {
-            return null;
-        }
-
-        $this->target = new ReflectionMethod($route, 'callback');
-
-        // 2. 戻り値の型が DTO クラスか？
+        // 1. 戻り値の型が DTO クラスか？
         $returnType = $this->target->getReturnType();
         if ($returnType && $returnType instanceof ReflectionNamedType) {
             $schema = null;
@@ -75,13 +63,13 @@ class SchemaInference
                     $schema = ['$ref' => $typeName::getSchemaId()];
                 }
             } elseif ($returnType->getName() === 'array') {
-                // 3. 戻り値が array の場合、PHPDoc から要素型を推論
+                // 2. 戻り値が array の場合、PHPDoc から要素型を推論
                 $schema = $this->inferFromPhpDoc();
                 if ($schema === null) {
                     $schema = ['type' => 'array'];
                 }
             } else {
-                // 4. プリミティブ型（string, int, bool, float など）
+                // 3. プリミティブ型（string, int, bool, float など）
                 $primitiveType = $this->mapPrimitiveType($returnType->getName());
                 if ($primitiveType !== null) {
                     $schema = ['type' => $primitiveType];
@@ -100,7 +88,7 @@ class SchemaInference
             return $schema;
         }
 
-        // 5. フォールバック：推論できない
+        // 4. フォールバック：推論できない
         return null;
     }
 
@@ -118,7 +106,7 @@ class SchemaInference
     private function inferFromPhpDoc(): ?array
     {
         $docComment = $this->target->getDocComment();
-        if ($docComment === false) {
+        if ($docComment === null) {
             return null;
         }
 
@@ -283,10 +271,11 @@ class SchemaInference
             return $className;
         }
 
-        $context = $this->target;
-
         // use 文を解析して完全修飾名に変換
-        $declaringClass = $context->getDeclaringClass();
+        $declaringClass = $this->target->getDeclaringClass();
+        if ($declaringClass === null) {
+            return null;
+        }
         $useStatements = $this->parseUseStatements($declaringClass);
 
         // use 文にエイリアスがある場合

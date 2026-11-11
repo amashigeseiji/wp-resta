@@ -6,10 +6,11 @@
 - `routeDirectory` のディレクトリと名前空間プレフィックスが PSR-4 と一致しているか。`composer dump-autoload` を実行する
 - ルートクラスが `AbstractRoute` を継承しているか
 - ルート追加後に 404 のままなら `flush_rewrite_rules()`（プラグインの再有効化で実行される）
+- `code` が `rest_no_route` で URL は合っているなら、その HTTP メソッドの操作が宣言されていない。`get()` だけのルートに POST している、`callback()` のルートで `getMethods()` に POST が無い、など
 
 ## URL パラメータが取れない
 
-- `URL_PARAMS` のキー名と `callback` の引数名が一致しているか
+- `URL_PARAMS` のキー名と `callback`（`get()` / `post()` で分けているならそのメソッド）の引数名が一致しているか。クエリパラメータの宣言は操作ごとで、`get()` の引数は `post()` では宣言にならない
 - パスパラメータは `ROUTE` の `[name]` と `URL_PARAMS` の両方に必要
 - `?name=` のような空文字は省略ではなく値。regex に一致しなければ 400、`'string'` ならそのまま届く
 

@@ -2,6 +2,7 @@
 namespace Wp\Resta\REST;
 
 use Closure;
+use ReflectionClass;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -69,6 +70,18 @@ final class Callback
     {
         $doc = $this->reflection->getDocComment();
         return $doc === false ? null : $doc;
+    }
+
+    /**
+     * callback を宣言しているクラス。docblock の型名を use 文で解決するときに使う。
+     * fromMethod() で作った callback ならそのメソッドのクラス、returning() なら null
+     *
+     * @return ReflectionClass<object>|null
+     */
+    public function getDeclaringClass(): ?ReflectionClass
+    {
+        $scope = $this->reflection->getClosureScopeClass();
+        return $scope === null || $scope->getName() === self::class ? null : $scope;
     }
 
     /**

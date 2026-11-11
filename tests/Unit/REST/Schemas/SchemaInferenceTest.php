@@ -26,38 +26,12 @@ class SchemaInferenceTest extends TestCase
         $this->inference = new SchemaInference();
     }
 
-    public function testInferSchemaFromConstant()
-    {
-        // SCHEMA 定数が定義されている場合
-        $route = new class extends AbstractRoute {
-            public const SCHEMA = [
-                'type' => 'object',
-                'properties' => [
-                    'id' => ['type' => 'integer'],
-                    'name' => ['type' => 'string'],
-                ],
-            ];
-
-            public function callback(): array
-            {
-                return [];
-            }
-        };
-
-        $schema = $this->inference->inferSchema($route);
-
-        $this->assertNotNull($schema);
-        $this->assertEquals('object', $schema['type']);
-        $this->assertArrayHasKey('id', $schema['properties']);
-        $this->assertArrayHasKey('name', $schema['properties']);
-    }
-
     public function testInferSchemaFromObjectTypeReturnType()
     {
         // ObjectType を返す場合、$ref で参照される
         $route = new TestUserRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertArrayHasKey('$ref', $schema);
@@ -77,7 +51,7 @@ class SchemaInferenceTest extends TestCase
             }
         };
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertEquals(['type' => 'array'], $schema);
     }
@@ -89,35 +63,9 @@ class SchemaInferenceTest extends TestCase
             // callback メソッドなし
         };
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNull($schema);
-    }
-
-    public function testSchemaConstantHasPriorityOverReturnType()
-    {
-        // SCHEMA 定数と戻り値の型の両方がある場合、SCHEMA が優先される
-        $route = new class extends AbstractRoute {
-            public const SCHEMA = [
-                'type' => 'object',
-                'properties' => [
-                    'fromConstant' => ['type' => 'string'],
-                ],
-            ];
-
-            public function callback(): object
-            {
-                return new class extends ObjectType {
-                    public int $id;
-                };
-            }
-        };
-
-        $schema = $this->inference->inferSchema($route);
-
-        $this->assertNotNull($schema);
-        $this->assertArrayHasKey('fromConstant', $schema['properties']);
-        $this->assertArrayNotHasKey('id', $schema['properties'] ?? []);
     }
 
     public function testInferSchemaFromPhpDocArrayAnnotation()
@@ -125,7 +73,7 @@ class SchemaInferenceTest extends TestCase
         // @return TestUser[] 形式のPHPDocからスキーマを推論
         $route = new TestPhpDocArrayRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
@@ -140,7 +88,7 @@ class SchemaInferenceTest extends TestCase
         // @return array<TestUser> 形式のPHPDocからスキーマを推論
         $route = new TestPhpDocGenericRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
@@ -155,7 +103,7 @@ class SchemaInferenceTest extends TestCase
         // @return array<string, TestUser> 形式のPHPDocからスキーマを推論
         $route = new TestPhpDocAssociativeRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('object', $schema['type']);
@@ -170,7 +118,7 @@ class SchemaInferenceTest extends TestCase
         // @return string[] 形式のPHPDocからスキーマを推論
         $route = new TestPrimitiveArrayRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
@@ -184,7 +132,7 @@ class SchemaInferenceTest extends TestCase
         // @return int[] 形式のPHPDocからスキーマを推論
         $route = new TestIntegerArrayRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
@@ -197,7 +145,7 @@ class SchemaInferenceTest extends TestCase
         // @return array<string> 形式のPHPDocからスキーマを推論
         $route = new TestGenericPrimitiveRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
@@ -210,7 +158,7 @@ class SchemaInferenceTest extends TestCase
         // @return array<int, string> 形式のPHPDocからスキーマを推論
         $route = new TestAssociativePrimitiveRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('array', $schema['type']);
@@ -223,7 +171,7 @@ class SchemaInferenceTest extends TestCase
         // callback(): string からスキーマを推論
         $route = new TestStringReturnRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('string', $schema['type']);
@@ -234,7 +182,7 @@ class SchemaInferenceTest extends TestCase
         // callback(): int からスキーマを推論
         $route = new TestIntReturnRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('integer', $schema['type']);
@@ -245,7 +193,7 @@ class SchemaInferenceTest extends TestCase
         // callback(): bool からスキーマを推論
         $route = new TestBoolReturnRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertEquals('boolean', $schema['type']);
@@ -256,7 +204,7 @@ class SchemaInferenceTest extends TestCase
         // callback(): ?string からスキーマを推論
         $route = new TestNullableStringReturnRoute();
 
-        $schema = $this->inference->inferSchema($route);
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
         $this->assertNotNull($schema);
         $this->assertArrayHasKey('anyOf', $schema);

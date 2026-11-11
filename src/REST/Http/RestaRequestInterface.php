@@ -13,6 +13,11 @@ namespace Wp\Resta\REST\Http;
 interface RestaRequestInterface
 {
     /**
+     * HTTP メソッド。大文字（'GET'、'POST' など）
+     */
+    public function getMethod(): string;
+
+    /**
      * 宣言された名前に対してクライアントが送った値を返す。無ければ null。
      *
      * パスとクエリの値は文字列で、パスパラメータはパーセントデコード済み。配列で送られた値（?tags[]=a）は配列。

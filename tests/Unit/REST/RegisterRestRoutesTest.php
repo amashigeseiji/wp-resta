@@ -26,7 +26,7 @@ class RegisterRestRoutesTest extends TestCase
 {
     private Dispatcher $dispatcher;
 
-    /** @var array<string, array<string, mixed>> ルート正規表現 => register_rest_route() に渡された引数 */
+    /** @var array<string, array<int|string, mixed>> ルート正規表現 => register_rest_route() に渡された引数（操作ごとのエンドポイントの配列） */
     private array $registered = [];
 
     protected function setUp(): void
@@ -77,7 +77,7 @@ class RegisterRestRoutesTest extends TestCase
         foreach ($params as $name => $value) {
             $request[$name] = $value;
         }
-        return $this->registered[$routeRegex]['callback']($request);
+        return $this->registered[$routeRegex][0]['callback']($request);
     }
 
     public function testCallbackConvertsWpRequestAndResponseAndBindsWpRequest(): void
@@ -88,7 +88,7 @@ class RegisterRestRoutesTest extends TestCase
         $request['id'] = '2';
         $regex = array_key_first(array_filter($this->registered, fn($args, $route) => str_contains($route, 'stateful'), ARRAY_FILTER_USE_BOTH));
 
-        $response = $this->registered[$regex]['callback']($request);
+        $response = $this->registered[$regex][0]['callback']($request);
 
         $this->assertInstanceOf(\WP_REST_Response::class, $response);
         $this->assertSame(['id' => 2], $response->get_data(), '型変換は wp-resta 側で行われ、int で届く');
@@ -99,8 +99,12 @@ class RegisterRestRoutesTest extends TestCase
     {
         // 認可は invoke() の authorize() が行う（#61）。WP コアに渡す permission_callback は常に許可
         $this->assertNotEmpty($this->registered);
-        foreach ($this->registered as $route => $args) {
-            $this->assertSame('__return_true', $args['permission_callback'], $route);
+        foreach ($this->registered as $route => $endpoints) {
+            foreach ($endpoints as $key => $endpoint) {
+                if (is_int($key)) {
+                    $this->assertSame('__return_true', $endpoint['permission_callback'], $route);
+                }
+            }
         }
     }
 
@@ -144,6 +148,16 @@ class RegisterRestRoutesTest extends TestCase
         $this->assertNotSame($seen[0], $seen[1]);
         $this->assertSame('test', $seen[0]->getNamespace());
         $this->assertSame('test', $seen[1]->getNamespace());
+    }
+
+    public function testCallbackRunsOnTheClonedInstanceNotTheRegisteredOne(): void
+    {
+        // 操作の callback はインスタンスに束縛される。登録時に導出した操作を clone が使い回すと、
+        // callback は元のインスタンスで走り、状態が次のリクエストに持ち越される
+        $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
+        $original = Container::getInstance()->get(TestStatefulRoute::class);
+
+        $this->assertSame(200, (new ReflectionClass($original))->getProperty('status')->getValue($original));
     }
 
     public function testBoundInstanceInContainerIsNotMutatedByRequest(): void
