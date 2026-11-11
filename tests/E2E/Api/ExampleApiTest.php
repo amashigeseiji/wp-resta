@@ -120,9 +120,10 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // Post route returns null for non-existent post, wrapped in envelope
+        // Post route throws HttpException for non-existent post; the error body is wrapped in envelope
         $this->assertArrayHasKey('data', $data);
-        $this->assertNull($data['data']);
+        $this->assertSame('rest_post_invalid_id', $data['data']['code']);
+        $this->assertSame(404, $data['data']['data']['status']);
     }
 
     public function testSampleStaticApiReturnsStaticValue(): void

@@ -244,7 +244,11 @@ public function callback(int $id): RestaResponseInterface
 }
 ```
 
-クラスの `$headers` プロパティで宣言した既定ヘッダは、callback がどう返してもすべてのレスポンス（エラーを含む）に付き、同名ならレスポンス側の値が勝ちます。
+ルートの既定ヘッダは `HEADERS` 定数で宣言します。callback がどう返してもすべてのレスポンス（エラーを含む）に付き、同名ならレスポンス側の値が勝ちます。
+
+```php
+protected const HEADERS = ['Cache-Control' => 'no-store'];
+```
 
 ### 同じ URL で HTTP メソッドごとに処理を分ける
 

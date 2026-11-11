@@ -22,7 +22,7 @@ use Wp\Resta\REST\Parameter\BoundParameters;
 final class Callback
 {
     private readonly ReflectionFunction $reflection;
-    private ?Closure $decorateResult = null;
+    private ?Closure $wrapInvoke = null;
 
     private function __construct(Closure $closure)
     {
@@ -30,15 +30,16 @@ final class Callback
     }
 
     /**
-     * invoke() の戻り値に処理を噛ませた複製を返す。シグニチャは元の callback のまま
+     * invoke() の呼び出しを包んだ複製を返す。シグニチャは元の callback のまま。
+     * $wrap は callback を実行する closure を受け取り、その戻り値（または例外）をどう扱うかを決める
      *
      * @internal AbstractRoute が非推奨プロパティ（$status）を戻り値の包みに変換するための橋。#59 で消す
-     * @param Closure(mixed): mixed $decorate
+     * @param Closure(Closure(): mixed): mixed $wrap
      */
-    public function withResult(Closure $decorate): self
+    public function wrapInvoke(Closure $wrap): self
     {
         $clone = clone $this;
-        $clone->decorateResult = $decorate;
+        $clone->wrapInvoke = $wrap;
         return $clone;
     }
 
@@ -124,7 +125,7 @@ final class Callback
      */
     public function invoke(array $args): mixed
     {
-        $result = $this->reflection->invokeArgs($args);
-        return $this->decorateResult === null ? $result : ($this->decorateResult)($result);
+        $invoke = fn(): mixed => $this->reflection->invokeArgs($args);
+        return $this->wrapInvoke === null ? $invoke() : ($this->wrapInvoke)($invoke);
     }
 }

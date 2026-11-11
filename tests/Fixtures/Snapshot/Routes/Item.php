@@ -6,6 +6,7 @@ use Test\Resta\Fixtures\Snapshot\Schemas\Item as ItemSchema;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Param;
 use Wp\Resta\REST\Attributes\RouteMeta;
+use Wp\Resta\REST\Http\RestaResponseInterface;
 
 /**
  * パスパラメータ、enum、default、min / max、配列の宣言を 1 つずつ持つルート。
@@ -29,8 +30,12 @@ class Item extends AbstractRoute
         return new ItemSchema();
     }
 
-    public function post(int $id, string $name, ?string $note = null): ItemSchema
+    /** RestaResponseInterface との union でもスキーマは ItemSchema から推論される */
+    public function post(int $id, string $name, ?string $note = null): ItemSchema|RestaResponseInterface
     {
+        if ($id === 0) {
+            return $this->response(null, 404);
+        }
         return new ItemSchema();
     }
 }

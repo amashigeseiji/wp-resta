@@ -76,7 +76,7 @@ composer generate:types  # TypeScript 型の生成
 ## 落とし穴
 
 - `Container` はシングルトン。bind したテストは `tearDown()` でリセットする
-- ルートインスタンスはプロセス内で共有される。`$this->status` などへの代入は非推奨化の方向（#59）で、`$this->response()` を使う。callback の無いルート（`$body` だけ）は 0.12 で非推奨、0.13 で `LogicException`
+- ルートインスタンスはプロセス内で共有される。`$status` / `$body` / `$headers` への代入は 0.12 で非推奨（`E_USER_DEPRECATED`）、0.13 でプロパティごと削除（#59）。`$this->response()` と `HEADERS` 定数を使う。callback の無いルート（`$body` だけ）は 0.12 で非推奨、0.13 で `LogicException`
 - `callback` の引数のビルトイン型は `URL_PARAMS` に無くても URL パラメータの宣言になる。`ROUTE` の `[name]` に対応する宣言が無いと `LogicException`
 - 同じ URL で GET / POST を分けるなら `get()` / `post()`。`callback()` と両方書くと `LogicException`。操作の `Callback` はインスタンスに束縛されるので、`clone` したルートでは導出し直す（`getOperations()` の owner チェック）
 - WP のパーマリンク設定が「基本」だと `/wp-json/` が動かない

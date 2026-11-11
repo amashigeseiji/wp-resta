@@ -168,7 +168,7 @@ class AbstractRouteTest extends TestCase
     public function testInvokeWithCustomHeaders()
     {
         $route = new class extends AbstractRoute {
-            protected array $headers = [
+            protected const HEADERS = [
                 'X-Custom-Header' => 'custom-value',
             ];
 
@@ -272,7 +272,7 @@ class AbstractRouteTest extends TestCase
 
     public function testInvokeDoesNotKeepStatusSetBeforeException()
     {
-        // callback が $this->status を書き換えたあとに例外を投げても、その値は使わない
+        // callback が $this->status を書き換えたあとに例外を投げても、その値は使わない。代入の警告は出る
         $route = new class extends AbstractRoute {
             public function callback(): array
             {
@@ -281,6 +281,7 @@ class AbstractRouteTest extends TestCase
             }
         };
 
+        $this->expectUserDeprecationMessageMatches('/callback\(\) assigned \$status/');
         $response = $this->handle($route, new TestRestaRequest('/test', $route));
 
         $this->assertEquals(500, $response->getStatusCode());
@@ -289,7 +290,7 @@ class AbstractRouteTest extends TestCase
     public function testInvokeKeepsHeadersOnErrorResponse()
     {
         $route = new class extends AbstractRoute {
-            protected array $headers = ['X-Custom' => 'kept'];
+            protected const HEADERS = ['X-Custom' => 'kept'];
             public function callback(): array
             {
                 throw new \RuntimeException('boom');
@@ -1036,7 +1037,7 @@ class AbstractRouteTest extends TestCase
     public function testResponseHelperMergesDeclaredHeaders()
     {
         $route = new class extends AbstractRoute {
-            protected array $headers = ['Cache-Control' => 'no-store', 'X-Route' => 'declared'];
+            protected const HEADERS = ['Cache-Control' => 'no-store', 'X-Route' => 'declared'];
 
             public function callback(): RestaResponseInterface
             {
@@ -1057,7 +1058,7 @@ class AbstractRouteTest extends TestCase
     public function testResponseHelperReplacesHeadersCaseInsensitively()
     {
         $route = new class extends AbstractRoute {
-            protected array $headers = ['Cache-Control' => 'public, max-age=3600'];
+            protected const HEADERS = ['Cache-Control' => 'public, max-age=3600'];
 
             public function callback(): RestaResponseInterface
             {
