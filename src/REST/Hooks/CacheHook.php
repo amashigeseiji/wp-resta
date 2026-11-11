@@ -43,6 +43,11 @@ final class CacheHook
         if ($this->principal->isAuthenticated()) {
             return;
         }
+        // callback や先に走った購読者が Cache-Control を明示していれば、そのレスポンスの判断を尊重して何もしない。
+        // no-store / private を public に緩めないため、ETag と 304 も付けない
+        if (self::hasCacheControl($event->response->getHeaders())) {
+            return;
+        }
 
         $etag = self::etagOf($event->response->getData());
         if ($etag === null) {
@@ -56,6 +61,19 @@ final class CacheHook
             return;
         }
         $event->response = $event->response->withHeaders($headers);
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private static function hasCacheControl(array $headers): bool
+    {
+        foreach (array_keys($headers) as $name) {
+            if (strcasecmp((string)$name, 'Cache-Control') === 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static function cacheOf(RouteInterface $route): ?Cache
@@ -78,17 +96,20 @@ final class CacheHook
 
     /**
      * If-None-Match の値（複数可、W/ 付き可、*）に ETag が含まれるか。弱い比較
+     *
+     * * はヘッダ全体がそれだけのときに限る。ETag は引用符で囲まれ中にカンマや * を含みうるので、
+     * カンマで分割せず引用符つきのトークンを取り出して比べる
      */
     private static function matches(?string $ifNoneMatch, string $etag): bool
     {
         if ($ifNoneMatch === null) {
             return false;
         }
-        foreach (explode(',', $ifNoneMatch) as $candidate) {
-            $candidate = trim($candidate);
-            if ($candidate === '*') {
-                return true;
-            }
+        if (trim($ifNoneMatch) === '*') {
+            return true;
+        }
+        preg_match_all('/(?:W\/)?"[^"]*"/', $ifNoneMatch, $found);
+        foreach ($found[0] as $candidate) {
             if (str_starts_with($candidate, 'W/')) {
                 $candidate = substr($candidate, 2);
             }

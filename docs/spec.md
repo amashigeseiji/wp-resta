@@ -93,7 +93,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - `$status` / `$body` / `$headers` プロパティへの代入は非推奨（`E_USER_DEPRECATED`）で、次の minor で許可されなくなる。`$this->response()` と `HEADERS` を使う
 - `RestaResponseInterface::withHeaders()` でヘッダを足した複製を作れる。購読者がレスポンスにヘッダを付けるときに使う
 - `#[Envelope]` を付けたルートは、ボディが `{ "data": ..., "meta": ... }` に包まれる
-- `#[Cache(maxAge:)]` を付けたルートは、未認証の GET / HEAD の 200 レスポンスに `Cache-Control` と `ETag` が付く。`If-None-Match` が一致すれば空ボディの 304 になる。認証済みのリクエスト、エラー、GET / HEAD 以外には付かない
+- `#[Cache(maxAge:)]` を付けたルートは、未認証の GET / HEAD の 200 レスポンスに `Cache-Control` と `ETag` が付く。`If-None-Match` が一致すれば空ボディの 304 になる。認証済みのリクエスト、エラー、GET / HEAD 以外、レスポンスがすでに `Cache-Control` を持つ場合には付かない
 - `RouteInvocationEvent` の購読者はレスポンスを差し替えられる（「イベント」）
 
 ### エラーレスポンス

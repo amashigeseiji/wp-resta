@@ -117,6 +117,39 @@ class CacheHookTest extends TestCase
         $this->assertSame(304, $this->handle($route, ['if-none-match' => 'W/' . $etag])->getStatusCode(), 'ヘッダ名は大文字小文字を区別しない');
         $this->assertSame(304, $this->handle($route, ['If-None-Match' => '*'])->getStatusCode());
         $this->assertSame(200, $this->handle($route, ['If-None-Match' => '"other"'])->getStatusCode());
+        // * はヘッダ全体がそれだけのとき。引用符の中のカンマや * は ETag の一部
+        $this->assertSame(200, $this->handle($route, ['If-None-Match' => '"unrelated,*,tag"'])->getStatusCode());
+        $this->assertSame(200, $this->handle($route, ['If-None-Match' => '"a", *'])->getStatusCode());
+        $this->assertSame(200, $this->handle($route, ['If-None-Match' => trim($etag, '"')])->getStatusCode(), '引用符の無い値は ETag ではない');
+    }
+
+    public function testExplicitCacheControlIsRespected(): void
+    {
+        // callback が no-store を明示したレスポンスは public に緩めない。ETag も 304 も付けない
+        $route = new #[Cache(maxAge: 300)] class extends AbstractRoute {
+            public function callback(): RestaResponseInterface
+            {
+                return $this->response(['id' => 1], 200, ['cache-control' => 'no-store']);
+            }
+        };
+
+        $response = $this->handle($route, ['If-None-Match' => '*']);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(['cache-control' => 'no-store'], $response->getHeaders());
+    }
+
+    public function testExplicitCacheControlFromDefaultPriorityListenerIsRespected(): void
+    {
+        $listener = function (RouteInvocationEvent $event): void {
+            $event->response = $event->response->withHeaders(['Cache-Control' => 'private, max-age=0']);
+        };
+
+        $response = $this->handle($this->cachedRoute(), ['If-None-Match' => '*'], null, 'GET', $listener);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('private, max-age=0', $response->getHeaders()['Cache-Control']);
+        $this->assertArrayNotHasKey('ETag', $response->getHeaders());
     }
 
     public function testRouteWithoutCacheAttributeIsUntouched(): void
