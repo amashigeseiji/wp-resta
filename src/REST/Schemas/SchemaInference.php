@@ -170,9 +170,10 @@ class SchemaInference
                 if ($returnType instanceof GenericTypeNode) {
                     return $this->inferFromGenericTypeNode($returnType);
                 }
-                // todo `array{keys: string[], posts: Post[]}` のような記述(ArrayShapeNode) 未対応
+                // array shape（array{page: int, items: Post[]}）はキーが文字列の object。プロパティの解決は未対応（#102）なので、
+                // 値が任意の object として出す。{type: object} だけだと「キーを持たない object」と読まれる（#101）
                 if ($returnType instanceof ArrayShapeNode) {
-                    return $this->inferFromArrayShapeNode($returnType);
+                    return PhpTypeToOpenApiSchema::untypedObject();
                 }
             }
         }
@@ -250,24 +251,13 @@ class SchemaInference
         default: // 未対応、実質的にはない
             return null;
         }
-        if ($type instanceof IdentifierTypeNode) {
-            return $this->resolveIdentifierTypeNode($type, $isObject);
+        $schema = $type instanceof IdentifierTypeNode ? $this->resolveIdentifierTypeNode($type, $isObject) : null;
+        if ($schema === null && $isObject) {
+            // array<string, Post[]> や array<string, array{...}> のように値の型を解決できなくても、
+            // キーが文字列なら object であることは分かる。呼び出し元の配列のフォールバックに乗せない（#101）
+            return PhpTypeToOpenApiSchema::untypedObject();
         }
-
-        return null;
-    }
-
-    /**
-     * todo `array{keys: string[], posts: Post[]}` のような記述(ArrayShapeNode)
-     * 未対応
-     *
-     * @return array{type: "object"}
-     */
-    private function inferFromArrayShapeNode(ArrayShapeNode $typeNode): array
-    {
-        return [
-            'type' => 'object'
-        ];
+        return $schema;
     }
 
     /**

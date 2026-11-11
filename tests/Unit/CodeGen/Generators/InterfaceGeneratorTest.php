@@ -211,6 +211,31 @@ class InterfaceGeneratorTest extends TestCase
         $this->assertStringContainsString('metadata?: Record<string, string>;', $output);
     }
 
+    public function testObjectWithUntypedAdditionalPropertiesIsRecordOfUnknown(): void
+    {
+        // SchemaInference は値の型のわからない連想配列を additionalProperties: {}（stdClass）で出す（#101）。
+        // {} を型として読むと string 扱いになってしまうので、unknown にする
+        $spec = [
+            'openapi' => '3.0.0',
+            'paths' => [],
+            'components' => [
+                'schemas' => [
+                    'Config' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'metadata' => ['type' => 'object', 'additionalProperties' => new \stdClass()],
+                        ],
+                        'required' => ['metadata'],
+                    ]
+                ]
+            ]
+        ];
+
+        $output = (new InterfaceGenerator())->generate(new OpenApiParser($spec));
+
+        $this->assertStringContainsString('metadata: Record<string, unknown>;', $output);
+    }
+
     public function testArrayWithoutItemTypeIsUnknownArray(): void
     {
         // ResponseSchema は要素型のわからない配列の items を {}（stdClass）で出す

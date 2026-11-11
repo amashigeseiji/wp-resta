@@ -397,6 +397,8 @@ class GetPosts extends AbstractRoute {
 - `additionalProperties`などの高度な機能
 - 詳細な制約（`minItems`, `maxItems`, `pattern`, `format`など）
 
+対応していない `@return` の形（`array{page: int, items: Post[]}` のような array shape、`Post[][]` や `array<string, Post[]>` のような入れ子、`list<Post>`）では、不正確なスキーマを出すのではなく「型が無い」ことが分かる出力になります。キーが文字列の形（array shape、`array<string, ...>`）は `{type: object, additionalProperties: {}}`（TypeScript では `Record<string, unknown>`）、リストは `{type: array, items: {}}`（`unknown[]`）です。正確な形が必要なら SCHEMA 定数で宣言してください。
+
 → 詳細は「[SCHEMA定数 - 完全な制御](#schema定数---完全な制御)」を参照
 
 ---

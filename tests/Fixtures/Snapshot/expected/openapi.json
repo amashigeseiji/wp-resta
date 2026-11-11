@@ -253,6 +253,26 @@
                     }
                 }
             }
+        },
+        "/snapshot/shape": {
+            "get": {
+                "description": "",
+                "tags": [],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {

@@ -66,6 +66,18 @@ class PhpTypeToOpenApiSchema
     }
 
     /**
+     * キーが文字列と分かるが値の型のわからない連想配列（array shape、array<string, ?>）のスキーマ。
+     * properties も additionalProperties も無い {type: object} は「キーを持たない object」と読まれる
+     * （openapi-typescript なら Record<string, never>）ので、値が任意であることを additionalProperties: {} で表す
+     *
+     * @return array{type: 'object', additionalProperties: \stdClass}
+     */
+    public static function untypedObject(): array
+    {
+        return ['type' => 'object', 'additionalProperties' => new \stdClass()];
+    }
+
+    /**
      * ReflectionType から OpenAPI スキーマを生成
      *
      * - ビルトインのプリミティブ型と array を処理する
