@@ -87,6 +87,19 @@ if (!class_exists('WP_REST_Request')) {
 
         private string $method = 'GET';
 
+        /** @var array<string, string> */
+        private array $headers = [];
+
+        public function get_header(string $key): ?string
+        {
+            return $this->headers[strtolower(str_replace('-', '_', $key))] ?? null;
+        }
+
+        public function set_header(string $key, string $value): void
+        {
+            $this->headers[strtolower(str_replace('-', '_', $key))] = $value;
+        }
+
         public function get_route(): string
         {
             return $this->route;

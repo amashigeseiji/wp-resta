@@ -116,6 +116,8 @@ class ResponseTransformer
 | `$event->route` | `RouteInterface` | 実行中のルート（読み取り専用） |
 | `$event->response` | `RestaResponseInterface` | レスポンス（書き換え可） |
 
+組み込みの購読者は 2 つあります。`EnvelopeHook`（priority 10）は `#[Envelope]` のルートのレスポンスを包みます。`CacheHook`（priority -100）は `#[Cache]` のルートに `Cache-Control` と `ETag` を付け、`If-None-Match` が一致すれば 304 に差し替えます。priority は大きいほど先に呼ばれるので、既定の priority（10）で登録した購読者は `CacheHook` より先に走り、ETag はその結果のボディから計算されます。
+
 #### WP ライフサイクルイベント（`'wp.init'`、`'wp.rest_api_init'`）
 
 WordPress のアクションを `WpKernelAdapter` が Dispatcher のイベントに変換したものです。WordPress が同じアクションを何度発火しても、そのたびに dispatch されます。

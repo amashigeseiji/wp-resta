@@ -9,6 +9,7 @@ use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\Kernel\WpKernelAdapter;
 use Wp\Resta\REST\RegisterRestRoutes;
+use Wp\Resta\REST\Hooks\CacheHook;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
 
 class Resta
@@ -60,8 +61,10 @@ class Resta
             ['priority' => PHP_INT_MAX]
         );
 
-        // フレームワーク内部リスナーを登録
+        // フレームワーク内部リスナーを登録。CacheHook は最終的なボディから ETag を計算するので、
+        // 自身の priority で EnvelopeHook と利用者の購読者より後に走る
         $dispatcher->addSubscriber(new EnvelopeHook());
+        $dispatcher->addSubscriber($container->get(CacheHook::class));
 
         // ユーザー定義リスナーを登録（DI コンテナ経由でインスタンス化）
         foreach ($config->listeners as $listenerClass) {

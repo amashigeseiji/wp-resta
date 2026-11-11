@@ -18,11 +18,13 @@ class TestRestaRequest implements RestaRequestInterface
      * @param string $path リクエストパス。クエリ文字列を含めてよい（例: '/example/post/123?name=foo'）
      * @param RouteInterface $route ルートオブジェクト（パターンと namespace を取得するため）
      * @param string $method HTTP メソッド。省略すると GET
+     * @param array<string, string> $headers リクエストヘッダ（例: ['If-None-Match' => '"abc"']）
      */
     public function __construct(
         private string $path,
         RouteInterface $route,
         private string $method = 'GET',
+        private array $headers = [],
     ) {
         $this->method = strtoupper($method);
         $this->parseUrlParams($route->getRouteRegex(), $route->getNamespace());
@@ -31,6 +33,16 @@ class TestRestaRequest implements RestaRequestInterface
     public function getMethod(): string
     {
         return $this->method;
+    }
+
+    public function getHeader(string $name): ?string
+    {
+        foreach ($this->headers as $header => $value) {
+            if (strcasecmp($header, $name) === 0) {
+                return $value;
+            }
+        }
+        return null;
     }
 
     public function getUrlParam(string $name): mixed

@@ -32,7 +32,7 @@ src/
     Http/                   RestaRequestInterface、WpRestaRequest / WpRestaResponse（WP 境界）、TestRestaRequest
     Exception/              HttpException と 400 / 401 / 403 のサブクラス
     Attributes/             RouteMeta、Envelope
-    Hooks/EnvelopeHook.php  RouteInvocationEvent を購読してレスポンスを包む
+    Hooks/                  RouteInvocationEvent の組み込み購読者。EnvelopeHook（包む）、CacheHook（#[Cache] のヘッダと 304）
     Example/                サンプルのルートとスキーマ
   Auth/                     Principal、WpPrincipal（WP 境界）、TestPrincipal
   Kernel/WpKernelAdapter.php  WP フック → Dispatcher イベント（wp.init、wp.rest_api_init）。WP 境界

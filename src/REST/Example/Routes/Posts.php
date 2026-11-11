@@ -2,11 +2,13 @@
 namespace Wp\Resta\REST\Example\Routes;
 
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Cache;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Example\Schemas\Post;
 use WP_Query;
 
 #[Envelope]
+#[Cache(maxAge: 60)]
 class Posts extends AbstractRoute
 {
     protected const ROUTE = 'posts';
