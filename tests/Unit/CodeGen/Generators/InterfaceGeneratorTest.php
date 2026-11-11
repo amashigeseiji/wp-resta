@@ -236,4 +236,31 @@ class InterfaceGeneratorTest extends TestCase
         $this->assertStringContainsString('tags: unknown[];', $output);
         $this->assertStringContainsString('export type Posts = unknown[];', $output);
     }
+
+    public function testEnumValuesAreEscapedAndArrayOfEnumIsParenthesized(): void
+    {
+        $spec = [
+            'openapi' => '3.0.0',
+            'paths' => [],
+            'components' => [
+                'schemas' => [
+                    'Post' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'label' => ['type' => 'string', 'enum' => ["can't", 'C:\\temp']],
+                            'statuses' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['draft', 'published']]],
+                        ],
+                        'required' => ['label', 'statuses'],
+                    ],
+                    'Statuses' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['draft', 'published']]],
+                ],
+            ],
+        ];
+
+        $output = (new InterfaceGenerator())->generate(new OpenApiParser($spec));
+
+        $this->assertStringContainsString("label: 'can\\'t' | 'C:\\\\temp';", $output);
+        $this->assertStringContainsString("statuses: ('draft' | 'published')[];", $output);
+        $this->assertStringContainsString("export type Statuses = ('draft' | 'published')[];", $output);
+    }
 }

@@ -285,6 +285,30 @@ class ApiEndpointsGeneratorTest extends TestCase
         $this->assertStringContainsString('raw?: unknown[]', $output, '要素型が {} なら unknown[]');
     }
 
+    public function testGenerateParamEnumValuesAreEscaped(): void
+    {
+        $parser = $this->makeParser($this->makeEndpoint('/posts', 'get', [
+            'parameters' => [
+                ['name' => 'label', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string', 'enum' => ["can't", 'C:\\temp', "a\nb"]]],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString("label: 'can\\'t' | 'C:\\\\temp' | 'a\\nb'", $output);
+    }
+
+    public function testGenerateParamArrayOfEnumIsParenthesized(): void
+    {
+        $parser = $this->makeParser($this->makeEndpoint('/posts', 'get', [
+            'parameters' => [
+                ['name' => 'sorts', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['asc', 'desc']]]],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString("sorts?: ('asc' | 'desc')[]", $output);
+    }
+
     // -------------------------------------------------------------------------
     // response 型生成
     // -------------------------------------------------------------------------
@@ -543,5 +567,20 @@ class ApiEndpointsGeneratorTest extends TestCase
         $output = $this->generator->generate($parser);
 
         $this->assertStringContainsString('response: unknown[];', $output);
+    }
+
+    public function testGenerateResponseArrayOfEnumIsParenthesized(): void
+    {
+        $parser = $this->makeParser($this->makeEndpoint('/posts', 'get', [
+            'responses' => [
+                '200' => ['content' => ['application/json' => ['schema' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string', 'enum' => ['draft', 'published']],
+                ]]]],
+            ],
+        ]));
+        $output = $this->generator->generate($parser);
+
+        $this->assertStringContainsString("response: ('draft' | 'published')[];", $output);
     }
 }

@@ -2,6 +2,7 @@
 namespace Wp\Resta\CodeGen\Generators;
 
 use Wp\Resta\CodeGen\OpenApiParser;
+use Wp\Resta\CodeGen\TypeScriptSyntax;
 
 /**
  * API Endpoints型マップ生成
@@ -134,15 +135,12 @@ class ApiEndpointsGenerator
     private function convertParamSchema(array $schema): string
     {
         if (isset($schema['enum']) && is_array($schema['enum'])) {
-            return implode(' | ', array_map(
-                fn(mixed $value): string => is_string($value) ? "'{$value}'" : (string) $value,
-                $schema['enum'],
-            ));
+            return TypeScriptSyntax::literalUnion(array_values($schema['enum']));
         }
         $type = $schema['type'] ?? 'string';
         if ($type === 'array') {
             $items = $schema['items'] ?? [];
-            return (is_array($items) && $items !== [] ? $this->convertParamSchema($items) : 'unknown') . '[]';
+            return TypeScriptSyntax::arrayOf(is_array($items) && $items !== [] ? $this->convertParamSchema($items) : 'unknown');
         }
         return $this->convertParamType(is_string($type) ? $type : 'string');
     }
@@ -195,6 +193,9 @@ class ApiEndpointsGenerator
 
         switch ($type) {
             case 'string':
+                if (isset($schema['enum']) && is_array($schema['enum'])) {
+                    return TypeScriptSyntax::literalUnion(array_values($schema['enum']));
+                }
                 return 'string';
             case 'integer':
             case 'number':
@@ -211,8 +212,7 @@ class ApiEndpointsGenerator
                     $schemaName = $parser->extractSchemaNameFromRef($items['$ref']);
                     return "Schema.{$schemaName}[]";
                 }
-                $itemType = $this->convertInlineSchema($items, $parser);
-                return "{$itemType}[]";
+                return TypeScriptSyntax::arrayOf($this->convertInlineSchema($items, $parser));
             case 'object':
                 if (isset($schema['properties'])) {
                     // InterfaceGenerator と同じ規則で required を見る。

@@ -2,6 +2,7 @@
 namespace Wp\Resta\CodeGen\Generators;
 
 use Wp\Resta\CodeGen\OpenApiParser;
+use Wp\Resta\CodeGen\TypeScriptSyntax;
 
 /**
  * TypeScriptインターフェース生成
@@ -125,9 +126,8 @@ class InterfaceGenerator
         switch ($type) {
             case 'string':
                 // enum の場合
-                if (isset($schema['enum'])) {
-                    $enumValues = array_map(fn($v) => "'{$v}'", $schema['enum']);
-                    return implode(' | ', $enumValues);
+                if (isset($schema['enum']) && is_array($schema['enum'])) {
+                    return TypeScriptSyntax::literalUnion(array_values($schema['enum']));
                 }
                 return 'string';
 
@@ -139,7 +139,7 @@ class InterfaceGenerator
                 return 'boolean';
 
             case 'array':
-                return $this->convertItems($schema, $parser) . '[]';
+                return TypeScriptSyntax::arrayOf($this->convertItems($schema, $parser));
 
             case 'object':
                 // インラインオブジェクトの場合
@@ -215,7 +215,7 @@ class InterfaceGenerator
             $output .= " */\n";
         }
 
-        $output .= "export type {$name} = {$itemType}[];\n";
+        $output .= 'export type ' . $name . ' = ' . TypeScriptSyntax::arrayOf($itemType) . ";\n";
 
         return $output;
     }
