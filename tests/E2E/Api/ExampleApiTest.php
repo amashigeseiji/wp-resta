@@ -120,10 +120,11 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $data = $this->getJsonResponse($response);
 
-        // Post route throws HttpException for non-existent post; the error body is wrapped in envelope
-        $this->assertArrayHasKey('data', $data);
-        $this->assertSame('rest_post_invalid_id', $data['data']['code']);
-        $this->assertSame(404, $data['data']['data']['status']);
+        // Post route throws HttpException for non-existent post. Errors are not enveloped (#85):
+        // the body is the WP_Error shape, same as errors WordPress core returns before dispatch
+        $this->assertSame('rest_post_invalid_id', $data['code']);
+        $this->assertSame(404, $data['data']['status']);
+        $this->assertArrayNotHasKey('meta', $data);
     }
 
     public function testSampleStaticApiReturnsStaticValue(): void

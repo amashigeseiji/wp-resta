@@ -9,8 +9,12 @@ use Wp\Resta\REST\RouteInvocationEvent;
 /**
  * エンベロープパターンを適用するリスナー
  *
- * #[Envelope] Attribute が付いたルートのレスポンスを
+ * #[Envelope] Attribute が付いたルートの成功（2xx）レスポンスを
  * { data: ..., meta: ... } 構造でラップする。
+ *
+ * エラーは包まない。WordPress コアが dispatch 前に返すエラー（認証、rest_no_route、required 欠落）は
+ * wp-resta に届かず WP_Error の形のまま返るので、パイプラインのエラーも同じ形にしておくことで、
+ * クライアントはどの層で止まっても 1 通りの判定で済む（#85、spec「エラーレスポンス」）。
  *
  * Resta::init() で Dispatcher に登録される。
  */
@@ -23,6 +27,11 @@ class EnvelopeHook
         }
 
         if ($event->response instanceof EnvelopeResponse) {
+            return;
+        }
+
+        $status = $event->response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
             return;
         }
 

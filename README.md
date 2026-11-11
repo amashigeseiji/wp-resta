@@ -656,7 +656,7 @@ class Posts extends AbstractRoute
 
 **EnvelopeHook は自動的に有効です**
 
-`EnvelopeHook` はフレームワークに組み込まれており、設定不要で常に有効です。`#[Envelope]` 属性のないルートには適用されません（素通り）。
+`EnvelopeHook` はフレームワークに組み込まれており、設定不要で常に有効です。`#[Envelope]` 属性のないルートには適用されません（素通り）。包まれるのは成功（2xx）のレスポンスだけで、400 や 500 などのエラーは WordPress コアと同じ `WP_Error` の形のまま返ります。クライアントはステータスが 2xx なら `data` を、そうでなければ `code` を見れば済みます。
 
 **レスポンス：**
 ```json
