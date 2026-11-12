@@ -73,6 +73,15 @@ wp-resta に当てると、次のようになる。
 - 宣言は、ルートのインスタンスが無くても読める形にする（クラスの Reflection で足りる）
 - 実行時の値は callback の引数で受ける。ルートのプロパティに書き込まない
 
+## `RouteInterface` と `AbstractRoute`
+
+`RouteInterface` の出どころは `register_rest_route()` である。対応は [wordpress.md](wordpress.md) に書いてある。
+
+- **WordPress の開発者は、この対応を頭の中で変換すれば読める。** 対応を、理由なく崩さない
+- **`AbstractRoute` は、書かなくてよいものをデフォルトで埋めるためにある。**
+- **機能を `AbstractRoute` に足さない。** 足したものは全部の Route クラスに継承され、事実上の仕様になる。そうなると `RouteInterface` が実態を表さなくなる
+- **型は、WordPress より強く支える。** callback の引数と戻り値の型が、そのまま検証とスキーマになる。ここは `register_rest_route()` との対応から、意図して離れている
+
 ## 検査は、表明されたものだけを行う
 
 - **フレームワークは、検証や認可を自分の判断で執行しない。** 開発者が宣言で表明した検査だけを行う
