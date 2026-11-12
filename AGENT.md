@@ -1,6 +1,6 @@
 # AGENT.md
 
-wp-resta を開発する AI アシスタント向けの指示。保証される挙動は [docs/spec.md](docs/spec.md)、使いかたは [README.md](README.md) にあり、ここには書かない。
+wp-resta を開発する AI アシスタント向けの指示。保証される挙動は [docs/spec.md](docs/spec.md)、設計の考え方は [docs/design.md](docs/design.md)、個別の決定は [docs/adr/](docs/adr/README.md)、使いかたは [README.md](README.md) にあり、ここには書かない。
 
 ## プロジェクト
 
@@ -11,9 +11,10 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 ## 読む順
 
 1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する
-2. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → `validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
-3. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
-4. 目的別: [docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
+2. [docs/design.md](docs/design.md): 設計の考え方。設計に関わる変更や提案をするときは必ず読む。決定済みの事項は [docs/adr/](docs/adr/README.md) の一覧で確かめる
+3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → `validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
+4. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
+5. 目的別: [docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## 構成
 
@@ -54,7 +55,9 @@ tests/Unit, tests/Integration, tests/E2E   docs/testing.md 参照
 - コミットメッセージは 1 行目で何を変えたかを言い切る。レビュー対応は `レビュー指摘の反映: ...`
 - PR を出す前に `composer test` と `composer lint` を通す
 - WP の関数・クラスへの依存を spec.md「WordPress との境界」に列挙した箇所の外に増やさない
-- リリース計画は GitHub の milestone にある。`gh issue list --milestone <version>` で見る。設計の判断とその理由は issue のコメントに残す
+- リリース計画は GitHub の milestone にある。`gh issue list --milestone <version>` で見る
+- 設計の議論は issue のコメントで行う。決定が出たら `docs/adr/` に ADR を 1 つ書き、issue の本文の冒頭を「現在の決定の要約と ADR へのリンク」に更新する。書いた ADR は書き換えず、覆すときは新しい ADR で置き換える（[docs/adr/README.md](docs/adr/README.md)）
+- クラス間の呼び出しや public メソッド、interface のメソッドを足すときは、呼ぶ側に要求される知識が増えるかを確かめる。インターフェースの変更は、合意している方向性から導けるものだけにする。考え方は [docs/design.md](docs/design.md)
 
 ## コマンド
 
