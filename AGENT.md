@@ -1,6 +1,6 @@
 # AGENT.md
 
-wp-resta を開発する AI アシスタント向けの指示。保証される挙動は [docs/spec.md](docs/spec.md)、使いかたは [README.md](README.md) にあり、ここには書かない。
+wp-resta を開発する AI アシスタント向けの指示。保証される挙動は [docs/spec.md](docs/spec.md)、設計の考え方は [docs/design.md](docs/design.md)、個別の決定は [docs/adr/](docs/adr/README.md)、使いかたは [README.md](README.md) にあり、ここには書かない。
 
 ## プロジェクト
 
@@ -11,9 +11,10 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 ## 読む順
 
 1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する
-2. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → `validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
-3. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
-4. 目的別: [docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
+2. [docs/design.md](docs/design.md): 設計の考え方。設計に関わる変更や提案をするときは必ず読む。決定済みの事項は [docs/adr/](docs/adr/README.md) の一覧で確かめる
+3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → `validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
+4. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
+5. 目的別: [docs/wordpress.md](docs/wordpress.md)（`register_rest_route()` との対応）、[docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## 構成
 
@@ -54,7 +55,20 @@ tests/Unit, tests/Integration, tests/E2E   docs/testing.md 参照
 - コミットメッセージは 1 行目で何を変えたかを言い切る。レビュー対応は `レビュー指摘の反映: ...`
 - PR を出す前に `composer test` と `composer lint` を通す
 - WP の関数・クラスへの依存を spec.md「WordPress との境界」に列挙した箇所の外に増やさない
-- リリース計画は GitHub の milestone にある。`gh issue list --milestone <version>` で見る。設計の判断とその理由は issue のコメントに残す
+- リリース計画は GitHub の milestone にある。`gh issue list --milestone <version>` で見る
+- 設計の議論は issue のコメントで行う。決定が出たら `docs/adr/` に ADR を 1 つ書き、issue の本文の冒頭を「現在の決定の要約と ADR へのリンク」に更新する。書いた ADR は書き換えず、覆すときは新しい ADR で置き換える（[docs/adr/README.md](docs/adr/README.md)）
+- クラス間の呼び出しや public メソッド、interface のメソッドを足すときは、呼ぶ側に要求される知識が増えるかを確かめる。インターフェースの変更は、合意している方向性から導けるものだけにする。考え方は [docs/design.md](docs/design.md)
+
+## issue の管理
+
+- **issue 1 つに、問題 1 つ。本文には、解決策ではなく問題を書く。** 問題とは、具体的な利用者に「やりたいことがあり、それを阻むものがある」状態のこと。「これがあると、誰がどう嬉しいか」を書けないものは、解くべき問題ではない。解決策は、問題が整理できてから書く
+- **リリースやマイルストーンから逆算して、問題を作らない。** issue を「消化できるタスク」の形に変換しない。耐えられること、代替手段があることの多くは、解くべき問題ではない。破壊的変更は、そうしないと問題を解けないときにだけ行う
+- **議論の途中で別の問題が見つかったら、その issue に足さない。** 新しい issue を立てる。ある変更の帰結として別のものが消える・変わる場合も、別の問題として切り出し、それ自体の理由を問う
+- **結論が元の問題から離れたら、立て直す。** 元の issue を閉じ、結論をまとめた新しい issue を立てて「#N を置き換える」と書く。コメントを積み増して続けない
+- **問題の大きさと変更の大きさが釣り合っているかを確かめる。** 釣り合わないときは、変更を小さくするか、やらない（[docs/design.md](docs/design.md)）
+- **実装中に見つけた別の問題は、その PR で直さない。** issue にする
+- **決定を急がせない。** 決まっていないことは、決まっていないまま置いてよい。迷っていることは、その論点が重要であることの印として扱う。「これが決まれば実装できます」のように、決定を作業の前提として迫らない。迷いがあるときは、選択を迫る前に、具体例や反例を出して、何に引っかかっているかを言葉にする。未決の部分に触れない範囲で進めるか、待つ
+- **迷いが残るうちは、非推奨の宣言や削除の予告をしない。** 予告は利用者への約束で、後で覆せば約束を破ることになる
 
 ## コマンド
 
