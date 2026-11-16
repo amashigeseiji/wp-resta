@@ -10,7 +10,7 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 
 ## 読む順
 
-1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する
+1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する。spec.md は現行の挙動を書いている。決定済みでまだ実装していない変更は spec.md には無いので、[docs/adr/README.md](docs/adr/README.md) の一覧で、状態にバージョンが付いている決定（「採用（0.13）」など）を確かめてから提案する
 2. [docs/design.md](docs/design.md): 設計の考え方。設計に関わる変更や提案をするときは必ず読む。決定済みの事項は [docs/adr/](docs/adr/README.md) の一覧で確かめる
 3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → `validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
 4. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
