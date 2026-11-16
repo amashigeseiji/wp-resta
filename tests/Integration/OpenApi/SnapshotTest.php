@@ -5,9 +5,6 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
-use Wp\Resta\CodeGen\Generators\ApiEndpointsGenerator;
-use Wp\Resta\CodeGen\Generators\InterfaceGenerator;
-use Wp\Resta\CodeGen\OpenApiParser;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\Dispatcher;
@@ -15,7 +12,7 @@ use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\OpenApi\ResponseSchema;
 
 /**
- * tests/Fixtures/Snapshot のルートとスキーマから生成した OpenAPI / TypeScript を
+ * tests/Fixtures/Snapshot のルートとスキーマから生成した OpenAPI を
  * tests/Fixtures/Snapshot/expected と突き合わせる。
  * 出力を意図して変えたときは UPDATE_SNAPSHOTS=1 composer test で期待値を書き換え、差分をレビューする
  */
@@ -33,14 +30,7 @@ class SnapshotTest extends TestCase
 
         self::resetContainer();
         $this->container = Container::getInstance();
-        $this->container->bind(Config::class, new Config([
-            'routeDirectory' => [
-                [self::FIXTURES . '/Routes', 'Test\\Resta\\Fixtures\\Snapshot\\Routes\\', 'snapshot'],
-            ],
-            'schemaDirectory' => [
-                [self::FIXTURES . '/Schemas', 'Test\\Resta\\Fixtures\\Snapshot\\Schemas\\'],
-            ],
-        ]));
+        $this->container->bind(Config::class, new Config(require self::FIXTURES . '/config.php'));
         $this->container->bind(DispatcherInterface::class, new Dispatcher());
     }
 
@@ -65,18 +55,30 @@ class SnapshotTest extends TestCase
         $this->assertSnapshot('openapi.json', $json);
     }
 
-    public function testTypeScriptEndpointsMatchSnapshot(): void
+    /**
+     * scripts/generate-openapi.php は WordPress 無しの別プロセスで動く。同じ宣言から同じ JSON が出る
+     */
+    public function testGenerateOpenApiScriptWritesTheSameJson(): void
     {
-        $parser = new OpenApiParser($this->container->get(ResponseSchema::class)->responseSchema());
+        $output = tempnam(sys_get_temp_dir(), 'openapi');
+        $this->assertIsString($output);
 
-        $this->assertSnapshot('endpoints.ts', (new ApiEndpointsGenerator())->generate($parser));
-    }
+        try {
+            $command = sprintf(
+                '%s %s %s %s %s 2>&1',
+                escapeshellarg(PHP_BINARY),
+                escapeshellarg(__DIR__ . '/../../../scripts/generate-openapi.php'),
+                escapeshellarg(self::FIXTURES . '/config.php'),
+                escapeshellarg($output),
+                escapeshellarg('http://localhost/wp-json/'),
+            );
+            exec($command, $lines, $exitCode);
 
-    public function testTypeScriptInterfacesMatchSnapshot(): void
-    {
-        $parser = new OpenApiParser($this->container->get(ResponseSchema::class)->responseSchema());
-
-        $this->assertSnapshot('schema.ts', (new InterfaceGenerator())->generate($parser));
+            $this->assertSame(0, $exitCode, implode("\n", $lines));
+            $this->assertStringEqualsFile(self::FIXTURES . '/expected/openapi.json', (string) file_get_contents($output));
+        } finally {
+            unlink($output);
+        }
     }
 
     private function assertSnapshot(string $name, string $actual): void

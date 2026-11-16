@@ -170,7 +170,7 @@ class RegisterRestRoutesTest extends TestCase
         $this->expectUserDeprecationMessageMatches('/assigned \$status/');
         $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
 
-        // OpenAPI スキーマ生成や CodeGen が参照する元のインスタンスは変わらない
+        // OpenAPI スキーマ生成が参照する元のインスタンスは変わらない
         $original = Container::getInstance()->get(TestStatefulRoute::class);
         $reflection = new ReflectionClass($original);
         $this->assertSame(200, $reflection->getProperty('status')->getValue($original));

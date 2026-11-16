@@ -6,6 +6,15 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ## [Unreleased]
 
+### 削除
+
+- TypeScript の型生成を削除した（#108）。`Wp\Resta\CodeGen\*`、`scripts/generate-types.php`、`composer generate:types` が無くなる。実験的な実装で、非推奨の期間は挟まない。OpenAPI から TypeScript への変換を自前で持つと、スキーマ側を直すたびに TypeScript 側も直すことになり、同じことは標準のツールでできる
+  - 代替: OpenAPI を書き出し、[openapi-typescript](https://openapi-ts.dev/) などで型を生成する。手順は [docs/frontend.md](docs/frontend.md)。`ApiEndpoints['GET /path']` で引いていた型は、`paths['/path']['get']` で引ける
+
+### 追加
+
+- OpenAPI を JSON ファイルに書き出す `scripts/generate-openapi.php` を追加した（#108）。WordPress を起動せずに動くので、フロントエンドのビルドや CI で使える。`php vendor/tenjuu99/wp-resta/scripts/generate-openapi.php <config-file> [output-file] [server-url]`
+
 ## [0.12.0] - 2026-11-11
 
 ルートを「宣言」に寄せ、実行を WordPress 非依存の `RequestHandler` に移した破壊的リリース。callback のシグニチャから URL パラメータを宣言し、同じ URL で `get()` / `post()` を分け、`authorize()` で認可を宣言できる。ステートマシンと `AbstractRoute::invoke()` は無くなり、`$status` / `$body` / `$headers` への代入は非推奨になった。移行はこの節の「削除」「変更」の各項目に書いた代替のとおり。計画と判断の経緯は [milestone 0.12.0](https://github.com/amashigeseiji/wp-resta/milestone/1) の各 issue にある。

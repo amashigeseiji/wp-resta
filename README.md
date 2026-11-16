@@ -147,6 +147,7 @@ $ curl http://example.com/wp-json/myroute/helloworld
 | レスポンスの形（スキーマ）を宣言する | [docs/SCHEMA.md](docs/SCHEMA.md) | `Post.php`、`Sample.php`、`SimpleApi.php` |
 | Service クラスを注入する | [docs/di.md](docs/di.md) | `Feed.php` |
 | Route クラスをテストする | [docs/testing.md](docs/testing.md) | |
+| フロントエンドの TypeScript の型を生成する | [docs/frontend.md](docs/frontend.md) | |
 | イベントを購読する、WordPress のフックを登録する | [docs/extending.md](docs/extending.md) | `src/REST/Example/Hooks/` |
 | `register_rest_route()` との対応を知る | [docs/wordpress.md](docs/wordpress.md) | |
 | 何が保証されているかを確かめる | [docs/spec.md](docs/spec.md) | |
