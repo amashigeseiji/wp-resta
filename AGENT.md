@@ -47,6 +47,7 @@ tests/Unit, tests/Integration, tests/E2E   docs/testing.md 参照
 ## 作業ルール
 
 - 応答・コメント・コミットメッセージ・PR は日本語。識別子と技術用語は英語のまま
+- `AbstractRoute` を継承したクラスは「Route クラス」と書く。「ルートクラス」と書かない。「ルート」は URL に属する宣言を指す語として使う
 - ブランチは `fix/<issue>-<slug>`、`feature/<slug>`、`release/<x.y.z>-bump`。`main` に直接コミットしない
 - PR タイトルに issue 番号を含める。例: `URL_PARAMS の regex を pattern として WP コアにも渡す (#66)`
 - 挙動を変える PR は `CHANGELOG.md` の `[Unreleased]` と `docs/spec.md` を同じ PR で更新する

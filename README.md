@@ -35,10 +35,10 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 (new Wp\Resta\Resta)->init([
     'routeDirectory' => [
-        [__DIR__ . '/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example']
+        [__DIR__ . '/vendor/tenjuu99/wp-resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example']
     ],
     'schemaDirectory' => [
-        [__DIR__ . '/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
+        [__DIR__ . '/vendor/tenjuu99/wp-resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
     ],
     'hooks' => [
         \Wp\Resta\Hooks\SwaggerHook::class,  // Swagger UI を有効化
@@ -83,11 +83,11 @@ $ composer require composer/installers tenjuu99/wp-resta
 ```diff
 (new Wp\Resta\Resta)->init([
     'routeDirectory' => [
-        ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example'],
+        ['wp-content/themes/mytheme/vendor/tenjuu99/wp-resta/src/REST/Example/Routes', 'Wp\\Resta\\REST\\Example\\Routes\\', 'example'],
 +       ['src/Routes', 'MyREST\\Routes\\', 'myroute']
     ],
     'schemaDirectory' => [
-        ['wp-content/themes/mytheme/vendor/wp/resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
+        ['wp-content/themes/mytheme/vendor/tenjuu99/wp-resta/src/REST/Example/Schemas', 'Wp\\Resta\\REST\\Example\\Schemas\\'],
 +       ['src/Schemas', 'MyREST\\Schemas\\']
     ],
 ]);
