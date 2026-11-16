@@ -819,3 +819,19 @@ public const SCHEMA = [
 - **柔軟性**: metadata()やSCHEMA定数で詳細な定義も可能
 
 詳細な実装例は`src/REST/Example/`ディレクトリを参照してください。
+
+---
+
+## OpenAPI スキーマの確認
+
+生成された OpenAPI スキーマは以下の URL で確認できます：
+
+```
+http://localhost:8080/rest-api/schema
+```
+
+Swagger UI で視覚的に確認できます：
+
+```
+http://localhost:8080/wp-admin/admin.php?page=wp-resta
+```

@@ -2,7 +2,7 @@
 
 wp-resta が利用者に約束することを書く。ここに書いてあることは依存してよく、変えるときは破壊的変更として CHANGELOG に載る。ここに書いていない挙動は実装の詳細であり、patch リリースで変わりうる。
 
-使いかたは README、拡張方法は [extending.md](extending.md)、スキーマ定義は [SCHEMA.md](SCHEMA.md)、テストの書きかたは [testing.md](testing.md)。
+使いかたは [README](../README.md) の「文書の案内」、拡張方法は [extending.md](extending.md)、スキーマ定義は [SCHEMA.md](SCHEMA.md)、テストの書きかたは [testing.md](testing.md)。
 
 この文書は 3 つの部分からなる。
 

@@ -21,6 +21,12 @@ composer lint            # PHPStan
 
 ## ルートのユニットテスト
 
+PHPUnit が要る。
+
+```bash
+composer require --dev phpunit/phpunit
+```
+
 ルートの実行（検証、認可、callback、`RouteInvocationEvent`）は `RequestHandler` が行い、WordPress に依存しない。`TestRestaRequest` が URL 文字列をルート定義に照らしてパラメータに分解するので、WordPress 無しで本番と同じパイプラインを通せる。
 
 ```php
@@ -98,6 +104,31 @@ Functions\expect('register_rest_route')->once()->with('myapi', Mockery::type('st
 ## E2E
 
 `docker-compose.yml` の WordPress にプラグインとして wp-resta を有効化し、`tests/E2E/Api/` から Guzzle で叩く。WP コアの検証・型変換・認証を含めて確認したいケースはここに書く。Unit で再現できるものは Unit に書く。
+
+### Docker で動作確認する
+
+Docker を使って簡単に動作確認環境をセットアップできます。
+
+```bash
+# セットアップ（WordPress インストール + プラグイン有効化）
+./docker/setup.sh
+
+# API の動作確認
+./docker/test.sh
+```
+
+セットアップ完了後、以下の URL にアクセスできます：
+
+- WordPress: http://localhost:8080
+- 管理画面: http://localhost:8080/wp-admin (admin / admin)
+- サンプルAPI: http://localhost:8080/wp-json/example/sample/1
+- Swagger UI: http://localhost:8080/wp-admin/admin.php?page=resta-swagger-ui
+
+環境を停止するには：
+
+```bash
+docker compose down
+```
 
 ## 本体の変更で足すテストの目安
 
