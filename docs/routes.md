@@ -133,7 +133,7 @@ public function post(string $title, ResponseContext $response): Note
 {
     $note = $this->service->create($title);
     $response->status(201);
-    $response->header('Location', "/notes/{$note->id}");
+    $response->header('Location', rest_url("myroute/notes/{$note->id}"));
     return $note;   // 返すのは body。$response は返さない
 }
 ```

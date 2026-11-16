@@ -299,6 +299,47 @@ class ParameterDefinitionBuilderTest extends TestCase
         });
     }
 
+    public function testUnionContainingClassIsLogicExceptionEvenWhenDeclaredInUrlParams(): void
+    {
+        // 同名の URL_PARAMS があると fromSignature() を通らない。それでも登録時に止める
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('argument $service: stdClass|DateTime cannot be a callback argument');
+
+        $this->build('x', ['service' => 'string'], new class {
+            public function callback(\stdClass|\DateTime $service): void {}
+        });
+    }
+
+    public function testIntersectionTypedArgumentIsLogicException(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('cannot be a callback argument');
+
+        $this->build('x', ['items' => 'string'], new class {
+            public function callback(\Countable&\Traversable $items): void {}
+        });
+    }
+
+    public function testBuiltinUnionDeclaredInUrlParamsIsStillAccepted(): void
+    {
+        $params = $this->build('x', ['id' => 'integer'], new class {
+            public function callback(int|string $id): void {}
+        });
+
+        $this->assertNotNull($params->get('id'));
+    }
+
+    public function testSubtypeOfResponseContextIsLogicException(): void
+    {
+        // 実行者が渡すのは ResponseContext としての書き込み先だけ。派生型を宣言すると呼び出し時に TypeError になるので登録時に止める
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Declare the argument as ' . \Wp\Resta\REST\Http\ResponseContext::class);
+
+        $this->build('x', [], new class {
+            public function callback(\Wp\Resta\REST\Http\RecordingResponseContext $response): void {}
+        });
+    }
+
     public function testVariadicArgumentIsLogicException(): void
     {
         $this->expectException(LogicException::class);

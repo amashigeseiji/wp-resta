@@ -23,7 +23,10 @@ class OperationsTest extends AbstractE2ETestCase
 
         // ステータスとヘッダは callback が ResponseContext に書いたもの。WordPress を経由しても届く
         $this->assertResponseCode(201, $response);
-        $this->assertSame('/example/notes/1', $response->getHeaderLine('Location'));
+        // Location は GET できる URL を指す
+        $location = $response->getHeaderLine('Location');
+        $this->assertStringEndsWith('/wp-json/example/notes/1', $location);
+        $this->assertSame(['id' => 1, 'method' => 'GET'], $this->getJsonResponse($this->get((string) parse_url($location, PHP_URL_PATH))));
         $this->assertSame(['id' => 1, 'method' => 'POST', 'title' => 'hello'], $this->getJsonResponse($response));
     }
 

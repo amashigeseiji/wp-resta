@@ -33,7 +33,8 @@ class Notes extends AbstractRoute
     public function post(int $id, string $title, ResponseContext $response): array
     {
         $response->status(201);
-        $response->header('Location', "/example/notes/{$id}");
+        // 作ったリソースの URL。REST API の URL はサイトの設定で変わるので rest_url() で組み立てる
+        $response->header('Location', rest_url("example/notes/{$id}"));
         return ['id' => $id, 'method' => 'POST', 'title' => $title];
     }
 }

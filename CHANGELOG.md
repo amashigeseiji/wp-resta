@@ -41,7 +41,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   {
       $note = $this->service->create($title);
       $response->status(201);
-      $response->header('Location', "/notes/{$note->id}");
+      $response->header('Location', rest_url("myroute/notes/{$note->id}"));
       return $note;
   }
   ```

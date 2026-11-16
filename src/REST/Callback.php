@@ -6,11 +6,13 @@ use Closure;
 use LogicException;
 use ReflectionClass;
 use ReflectionFunction;
+use ReflectionIntersectionType;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
 use ReflectionType;
+use ReflectionUnionType;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\ResponseContext;
 use Wp\Resta\REST\Parameter\BoundParameters;
@@ -106,7 +108,7 @@ final class Callback
                 }
                 continue;
             }
-            if (is_a($class, ResponseContext::class, true)) {
+            if ($class === ResponseContext::class) {
                 $args[$param->name] = $response;
                 continue;
             }
@@ -133,6 +135,23 @@ final class Callback
     public static function contextClass(ReflectionParameter $param): ?string
     {
         $type = $param->getType();
+        if ($type instanceof ReflectionUnionType || $type instanceof ReflectionIntersectionType) {
+            // クラスを含む union / intersection は、型で 1 つに決められない。同名の URL_PARAMS があっても
+            // 渡るのは文字列なので、呼び出し時に TypeError になる。ビルトイン型だけの union はパラメータの側で扱う
+            foreach ($type->getTypes() as $member) {
+                $isClass = $member instanceof ReflectionNamedType
+                    ? !$member->isBuiltin() && !is_subclass_of($member->getName(), BackedEnum::class)
+                    : true;
+                if ($isClass) {
+                    throw new LogicException(sprintf(
+                        'argument $%s: %s cannot be a callback argument. A union or intersection type cannot contain a class. Declare the request as RestaRequestInterface (or one implementation) and the response as ResponseContext',
+                        $param->name,
+                        $type,
+                    ));
+                }
+            }
+            return null;
+        }
         if (!($type instanceof ReflectionNamedType) || $type->isBuiltin()) {
             return null;
         }
@@ -140,8 +159,17 @@ final class Callback
         if (is_subclass_of($class, BackedEnum::class)) {
             return null;
         }
-        if (is_a($class, RestaRequestInterface::class, true) || is_a($class, ResponseContext::class, true)) {
+        if (is_a($class, RestaRequestInterface::class, true) || $class === ResponseContext::class) {
             return $class;
+        }
+        if (is_a($class, ResponseContext::class, true)) {
+            // 実行者が渡すのは ResponseContext としての書き込み先だけで、実装クラスは約束していない
+            throw new LogicException(sprintf(
+                'argument $%s: %s cannot be a callback argument. Declare the argument as %s',
+                $param->name,
+                $class,
+                ResponseContext::class,
+            ));
         }
         throw new LogicException(sprintf(
             'argument $%s: %s cannot be a callback argument. Arguments are URL parameters (built-in types and backed enums), the request (RestaRequestInterface) or ResponseContext. %s',
