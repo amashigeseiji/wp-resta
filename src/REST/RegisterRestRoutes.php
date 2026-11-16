@@ -69,8 +69,6 @@ class RegisterRestRoutes
             // setNamespace() の名前空間はそのまま引き継がれる。
             // 操作の選択は RequestHandler がリクエストのメソッドで行うので、callback はどの操作でも同じ
             $callback = function (WP_REST_Request $wpRequest) use ($route, $handler): WP_REST_Response {
-                // WordPress から移行するコードが callback 引数で WP_REST_Request を受け取れるように bind する
-                $this->container->bind(WP_REST_Request::class, $wpRequest);
                 $response = $handler->handle(clone $route, WpRestaRequest::fromWpRequest($wpRequest));
                 return WpRestaResponse::toWp($response);
             };

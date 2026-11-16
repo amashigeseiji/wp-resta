@@ -21,7 +21,9 @@ class OperationsTest extends AbstractE2ETestCase
     {
         $response = $this->post('/wp-json/example/notes/1', ['title' => 'hello']);
 
-        $this->assertResponseCode(200, $response);
+        // ステータスとヘッダは callback が ResponseContext に書いたもの。WordPress を経由しても届く
+        $this->assertResponseCode(201, $response);
+        $this->assertSame('/example/notes/1', $response->getHeaderLine('Location'));
         $this->assertSame(['id' => 1, 'method' => 'POST', 'title' => 'hello'], $this->getJsonResponse($response));
     }
 

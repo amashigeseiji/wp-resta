@@ -6,6 +6,7 @@ use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Test\Resta\Fixtures\StatefulRoutes\TestStatefulRoute;
+use Test\Resta\Fixtures\StatefulRoutes\TestWpRequestRoute;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\Dispatcher;
@@ -79,10 +80,10 @@ class RegisterRestRoutesTest extends TestCase
         return $this->registered[$routeRegex][0]['callback']($request);
     }
 
-    public function testCallbackConvertsWpRequestAndResponseAndBindsWpRequest(): void
+    public function testCallbackConvertsWpRequestAndResponse(): void
     {
         // WP 境界はこのクロージャ。WP_REST_Request を wp-resta のリクエストに変換して RequestHandler を呼び、
-        // 結果を WP_REST_Response に戻す。移行用に WP_REST_Request を Container に bind する
+        // 結果を WP_REST_Response に戻す
         $request = new \WP_REST_Request();
         $request['id'] = '2';
         $regex = array_key_first(array_filter($this->registered, fn($args, $route) => str_contains($route, 'stateful'), ARRAY_FILTER_USE_BOTH));
@@ -91,7 +92,17 @@ class RegisterRestRoutesTest extends TestCase
 
         $this->assertInstanceOf(\WP_REST_Response::class, $response);
         $this->assertSame(['id' => 2, 'calls' => 1], $response->get_data(), '型変換は wp-resta 側で行われ、int で届く');
-        $this->assertSame($request, Container::getInstance()->get(\WP_REST_Request::class));
+    }
+
+    public function testRouteDeclaringWpRestaRequestCanReachTheOriginalWpRequest(): void
+    {
+        // WP_REST_Request が要るルートは、引数を WpRestaRequest で宣言して getWpRequest() で取り出す
+        $request = new \WP_REST_Request();
+
+        $response = $this->registered['wp-request'][0]['callback']($request);
+
+        $this->assertSame(['received' => true], $response->get_data());
+        $this->assertSame($request, TestWpRequestRoute::$lastWpRequest);
     }
 
     public function testPermissionCallbackPassedToCoreAlwaysAllows(): void

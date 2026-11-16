@@ -5,7 +5,6 @@ use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Hoge;
-use Wp\Resta\REST\RegisterRestRoutes;
 
 #[RouteMeta(tags: ['サンプルAPI'])]
 #[Envelope]
@@ -17,10 +16,17 @@ class Feed extends AbstractRoute
     ];
 
     /**
+     * Service はコンストラクタで受ける。コンテナが解決して渡す
+     */
+    public function __construct(private readonly Hoge $hoge)
+    {
+    }
+
+    /**
      * @return array<mixed>
      */
-    public function callback(int $id, Hoge $hoge, RegisterRestRoutes $route): array
+    public function callback(int $id): array
     {
-        return [$id, $id * 2, $hoge->getHoge(), $hoge->fuga, $route->routes];
+        return [$id, $id * 2, $this->hoge->getHoge(), $this->hoge->fuga];
     }
 }

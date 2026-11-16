@@ -1,7 +1,9 @@
 <?php
 namespace Wp\Resta\REST;
 
+use BackedEnum;
 use Closure;
+use LogicException;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionMethod;
@@ -9,9 +11,8 @@ use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
 use ReflectionType;
-use RuntimeException;
-use Wp\Resta\DI\Container;
 use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Http\ResponseContext;
 use Wp\Resta\REST\Parameter\BoundParameters;
 
 /**
@@ -86,36 +87,70 @@ final class Callback
     /**
      * callback の引数を組み立てる。検証はしない（RouteParameters::validate() が済ませている）。
      *
-     * - 束縛済みの値に名前があればその値
-     * - 無ければ省略された省略可能なパラメータなので、引数を渡さず PHP のデフォルト値に任せる
-     * - クラス型は現在のリクエスト（RestaRequestInterface やその実装）ならそれを、それ以外は DI で解決する
+     * 引数は 3 種類だけ。クラス型は変数名ではなく型で決まるので、パラメータと同じ名前の変数でも取り違えない
+     * - Request（RestaRequestInterface か、それを実装するクラス）: 現在のリクエスト
+     * - ResponseContext: このリクエストのステータスとヘッダの書き込み先
+     * - それ以外（ビルトイン型と enum）: パラメータ。束縛済みの値があればその値。無ければ省略された
+     *   省略可能なパラメータなので、引数を渡さず PHP のデフォルト値に任せる
      *
      * @return array<string, mixed> 引数名 => 値
      */
-    public function resolve(BoundParameters $params, RestaRequestInterface $request, Container $container): array
+    public function resolve(BoundParameters $params, RestaRequestInterface $request, ResponseContext $response): array
     {
         $args = [];
         foreach ($this->reflection->getParameters() as $param) {
-            if ($params->has($param->name)) {
-                $args[$param->name] = $params->get($param->name);
+            $class = self::contextClass($param);
+            if ($class === null) {
+                if ($params->has($param->name)) {
+                    $args[$param->name] = $params->get($param->name);
+                }
                 continue;
             }
-            $type = $param->getType();
-            if (!($type instanceof ReflectionNamedType) || $type->isBuiltin()) {
-                // 宣言された URL パラメータで、省略されたもの。デフォルト値は invokeArgs() が埋める
+            if (is_a($class, ResponseContext::class, true)) {
+                $args[$param->name] = $response;
                 continue;
             }
-            $class = $type->getName();
-            if ($request instanceof $class) {
-                $args[$param->name] = $request;
-                continue;
+            if (!($request instanceof $class)) {
+                // WpRestaRequest を宣言したルートを TestRestaRequest で実行した、など
+                throw new LogicException(sprintf(
+                    'argument $%s expects %s, but the current request is %s',
+                    $param->name,
+                    $class,
+                    $request::class,
+                ));
             }
-            if (!class_exists($class) && !interface_exists($class)) {
-                throw new RuntimeException('cannot resolve type: ' . $class);
-            }
-            $args[$param->name] = $container->get($class);
+            $args[$param->name] = $request;
         }
         return $args;
+    }
+
+    /**
+     * 引数が Request か ResponseContext を受け取る宣言なら、そのクラス名。パラメータの宣言なら null。
+     * それ以外のクラス型は callback の引数に書けない
+     *
+     * @return class-string|null
+     */
+    public static function contextClass(ReflectionParameter $param): ?string
+    {
+        $type = $param->getType();
+        if (!($type instanceof ReflectionNamedType) || $type->isBuiltin()) {
+            return null;
+        }
+        $class = $type->getName();
+        if (is_subclass_of($class, BackedEnum::class)) {
+            return null;
+        }
+        if (is_a($class, RestaRequestInterface::class, true) || is_a($class, ResponseContext::class, true)) {
+            return $class;
+        }
+        throw new LogicException(sprintf(
+            'argument $%s: %s cannot be a callback argument. Arguments are URL parameters (built-in types and backed enums), the request (RestaRequestInterface) or ResponseContext. %s',
+            $param->name,
+            $class,
+            $class === 'WP_REST_Request'
+                ? 'To use WP_REST_Request, declare the argument as WpRestaRequest and call getWpRequest()'
+                : 'Receive services in the constructor of the route',
+        ));
     }
 
     /**

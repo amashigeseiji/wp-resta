@@ -35,6 +35,15 @@ final class ParameterDefinitionBuilder
 
         $docParams = self::docParams($callback->getDocComment());
         foreach ($callback->getParameters() as $param) {
+            try {
+                $isContext = Callback::contextClass($param) !== null;
+            } catch (LogicException $e) {
+                throw new LogicException(sprintf('%s() %s', $owner, $e->getMessage()), 0, $e);
+            }
+            if ($isContext) {
+                // Request と ResponseContext はパラメータではない。型で決まるので、同名の URL パラメータがあっても関係ない
+                continue;
+            }
             $isPath = in_array($param->name, $pathNames, true);
             if ($isPath && $param->isDefaultValueAvailable()) {
                 // [id] のセグメントが無い URL はルートにマッチしないので、default が効く場面が無い。URL_PARAMS の有無によらず検査する
@@ -43,10 +52,7 @@ final class ParameterDefinitionBuilder
             if (isset($definitions[$param->name])) {
                 continue;
             }
-            $definition = $this->fromSignature($param, $isPath, $docParams[$param->name] ?? null, $owner);
-            if ($definition !== null) {
-                $definitions[$param->name] = $definition;
-            }
+            $definitions[$param->name] = $this->fromSignature($param, $isPath, $docParams[$param->name] ?? null, $owner);
         }
 
         foreach ($pathNames as $name) {
@@ -98,11 +104,11 @@ final class ParameterDefinitionBuilder
     }
 
     /**
-     * callback の引数 1 つから。URL パラメータでなければ null
+     * callback の引数 1 つから
      *
      * @param array{items: array<string, mixed>|null, description: string|null}|null $doc
      */
-    private function fromSignature(ReflectionParameter $param, bool $isPath, ?array $doc, string $owner): ?ParameterDefinition
+    private function fromSignature(ReflectionParameter $param, bool $isPath, ?array $doc, string $owner): ParameterDefinition
     {
         $name = $param->name;
         $type = $param->getType();
@@ -125,11 +131,9 @@ final class ParameterDefinitionBuilder
                 $items = $doc['items'] ?? [];
             }
         } else {
+            // ここに来るクラス型は backed enum だけ（それ以外は Callback::contextClass() が先に振り分けている）
             $class = $type->getName();
-            if (!is_subclass_of($class, BackedEnum::class)) {
-                // クラス型は DI で解決する引数。URL パラメータではない
-                return null;
-            }
+            assert(is_subclass_of($class, BackedEnum::class));
             $backing = (new ReflectionEnum($class))->getBackingType();
             $openApiType = $backing !== null && $backing->getName() === 'int' ? 'integer' : 'string';
             $enum = array_map(fn(BackedEnum $case) => $case->value, $class::cases());

@@ -140,7 +140,7 @@ $ curl http://example.com/wp-json/myroute/helloworld
 |---|---|---|
 | URL とパラメータを宣言する | [docs/routes.md](docs/routes.md) | `Hello.php`、`Items.php` |
 | 同じ URL で GET と POST を分ける | [docs/routes.md](docs/routes.md) | `Notes.php` |
-| ステータスやヘッダを指定する、エラーを返す | [docs/routes.md](docs/routes.md) | |
+| ステータスやヘッダを指定する、エラーを返す | [docs/routes.md](docs/routes.md) | `Notes.php`、`Post.php` |
 | ログイン状態や権限で制限する | [docs/authorization.md](docs/authorization.md) | `Secret.php` |
 | キャッシュのヘッダを付ける | [docs/cache.md](docs/cache.md) | `Posts.php` |
 | レスポンスを `data` / `meta` で包む | [docs/envelope.md](docs/envelope.md) | `Post.php`、`Posts.php` |

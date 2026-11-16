@@ -17,7 +17,6 @@ use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionType;
 use ReflectionUnionType;
-use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\OpenApi\PhpTypeToOpenApiSchema;
 use Wp\Resta\REST\Callback;
 
@@ -99,10 +98,7 @@ class SchemaInference
 
     /**
      * 戻り値型のうち、レスポンスボディの形を表す側の型と nullable かどうか。
-     *
-     * `Post|RestaResponseInterface` のように RestaResponseInterface との union で宣言された callback
-     * （`$this->response(null, 404)` を返す分岐があるルート）は、もう一方の型からスキーマを推論する。
-     * RestaResponseInterface を除いて 1 つに決まらない union は推論しない
+     * null を除いて 1 つに決まらない union は推論しない
      *
      * @return array{0: ReflectionNamedType|null, 1: bool}
      */
@@ -123,7 +119,7 @@ class SchemaInference
             $name = $member->getName();
             if ($name === 'null') {
                 $nullable = true;
-            } elseif ($member->isBuiltin() || !is_a($name, RestaResponseInterface::class, true)) {
+            } else {
                 $candidates[] = $member;
             }
         }
@@ -138,7 +134,7 @@ class SchemaInference
      * - array<Post>
      * - array<int, Post>
      * - array<string, Post>
-     * - 上記と null / RestaResponseInterface の union（Post[]|RestaResponseInterface）。戻り値型と同じ扱い
+     * - 上記と null の union（Post[]|null）。戻り値型と同じ扱い
      *
      * @return array<string, mixed>|null
      */
@@ -186,20 +182,14 @@ class SchemaInference
 
     /**
      * PHPDoc の union のうち、レスポンスボディの形を表す側の型。
-     * bodyType() と同じく null と RestaResponseInterface を除き、1 つに決まらなければ null
+     * bodyType() と同じく null を除き、1 つに決まらなければ null
      */
     private function bodyTypeNode(UnionTypeNode $union): ?TypeNode
     {
         $candidates = [];
         foreach ($union->types as $member) {
-            if ($member instanceof IdentifierTypeNode) {
-                if ($member->name === 'null') {
-                    continue;
-                }
-                $class = $this->resolveClassName($member->name);
-                if ($class !== null && is_a($class, RestaResponseInterface::class, true)) {
-                    continue;
-                }
+            if ($member instanceof IdentifierTypeNode && $member->name === 'null') {
+                continue;
             }
             $candidates[] = $member;
         }

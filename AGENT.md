@@ -24,13 +24,13 @@ src/
   Config.php                init() の設定キー
   DI/Container.php          シングルトンの DI コンテナ（autowiring）
   REST/
-    AbstractRoute.php       ルート基底。宣言のみ: getOperations()（get()/post()… か callback()、無ければ body プロパティから導出）、validate() / authorize() フック、response()
+    AbstractRoute.php       ルート基底。宣言のみ: getOperations()（get()/post()… か callback()、無ければ body プロパティから導出）、validate() / authorize() フック
     Operation.php           1 操作 = HTTP メソッド + Callback + RouteParameters。内部の値オブジェクト
     RequestHandler.php      パイプライン。WP 非依存。テストもこれを通す
-    Callback.php            callback の定義。シグニチャを読む、resolve()（引数の束縛 + DI）、invoke()
+    Callback.php            callback の定義。シグニチャを読む、resolve()（引数の束縛。パラメータ / Request / ResponseContext）、invoke()
     Parameter/              ParameterDefinition、RouteParameters（宣言。validate() で検証・型変換）、BoundParameters（値）、ParameterDefinitionBuilder
     RegisterRestRoutes.php  ルート収集と register_rest_route()。WP_REST_Request/Response の変換を呼ぶ。WP 境界
-    Http/                   RestaRequestInterface、WpRestaRequest / WpRestaResponse（WP 境界）、TestRestaRequest
+    Http/                   RestaRequestInterface、ResponseContext（callback がステータスとヘッダを書く先）、WpRestaRequest / WpRestaResponse（WP 境界）、TestRestaRequest
     Exception/              HttpException と 400 / 401 / 403 のサブクラス
     Attributes/             RouteMeta、Envelope
     Hooks/                  RouteInvocationEvent の組み込み購読者。EnvelopeHook（包む）、CacheHook（#[Cache] のヘッダと 304）
@@ -90,8 +90,9 @@ composer generate:openapi  # サンプルのルートの OpenAPI を openapi.jso
 ## 落とし穴
 
 - `Container` はシングルトン。bind したテストは `tearDown()` でリセットする
-- ルートインスタンスはプロセス内で共有され、リクエストごとに `clone` される。`AbstractRoute` に `$status` / `$body` / `$headers` は無い（0.13 で削除）。ステータスとヘッダは `$this->response()` と `HEADERS` 定数で指定する
+- ルートインスタンスはプロセス内で共有され、リクエストごとに `clone` される。`AbstractRoute` に `$status` / `$body` / `$headers` は無い（0.13 で削除）。ステータスとヘッダは callback の引数の `ResponseContext`（リクエストごと）と `HEADERS` 定数（ルートの既定）で指定する
+- callback の戻り値は body。`RestaResponseInterface` や `ResponseContext` を返すと 500（`LogicException`）。引数に書けるのはパラメータ（ビルトイン型と backed enum）、`RestaRequestInterface`（とその実装）、`ResponseContext` だけで、Service や `WP_REST_Request` を書くと登録時に `LogicException`（[ADR 0002](docs/adr/0002-callback-definition.md)）
 - callback の無い静的なルートは、応答を `public readonly` の `body` プロパティで宣言する。callback と `body` の両方がある、どちらも無い、`body` が `public readonly` でない、のいずれも `LogicException`（[ADR 0005](docs/adr/0005-static-route-body.md)）
-- `callback` の引数のビルトイン型は `URL_PARAMS` に無くても URL パラメータの宣言になる。`ROUTE` の `[name]` に対応する宣言が無いと `LogicException`
+- `callback` の引数のビルトイン型と backed enum は `URL_PARAMS` に無くても URL パラメータの宣言になる。`ROUTE` の `[name]` に対応する宣言が無いと `LogicException`
 - 同じ URL で GET / POST を分けるなら `get()` / `post()`。`callback()` と両方書くと `LogicException`。操作の `Callback` はインスタンスに束縛されるので、`clone` したルートでは導出し直す（`getOperations()` の owner チェック）
 - WP のパーマリンク設定が「基本」だと `/wp-json/` が動かない

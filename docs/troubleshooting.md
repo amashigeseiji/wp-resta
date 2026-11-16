@@ -17,8 +17,8 @@
 ## DI で解決できない
 
 - インターフェースは autowiring できない。`dependencies` に実装クラスか factory を bind する
-- callback 引数のクラス型が DI で解決できないと 500。インターフェースなら `dependencies` に bind する。ビルトイン型の引数は URL パラメータの宣言として扱われるので、DI したい値は Service に包んでクラス型で受ける
-- union 型・intersection 型の引数は解決できない
+- `cannot be a callback argument` という `LogicException`: callback の引数に Service クラスなどを書いている。引数に書けるのはパラメータ、`RestaRequestInterface`、`ResponseContext` だけ。Service はコンストラクタで受ける
+- コンストラクタの union 型・intersection 型の引数は解決できない
 
 ## テストが失敗する
 

@@ -7,6 +7,8 @@ use Test\Resta\Fixtures\Parameter\Sort;
 use Wp\Resta\REST\Attributes\Param;
 use Wp\Resta\REST\Callback;
 use Wp\Resta\REST\Http\RestaRequestInterface;
+use Wp\Resta\REST\Http\ResponseContext;
+use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\Parameter\ParameterDefinition;
 use Wp\Resta\REST\Parameter\ParameterDefinitionBuilder;
 use Wp\Resta\REST\Parameter\RouteParameters;
@@ -91,13 +93,44 @@ class ParameterDefinitionBuilderTest extends TestCase
         $this->assertSame(['type' => 'integer', 'required' => true, 'regex' => '\d+', 'description' => 'id', 'sanitize_callback' => null], $id->toCoreArg());
     }
 
-    public function testClassTypedArgumentsAreNotParameters(): void
+    public function testRequestAndResponseContextAreNotParameters(): void
     {
         $params = $this->build('x', [], new class {
-            public function callback(int $id, RestaRequestInterface $request, \stdClass $service): void {}
+            public function callback(int $id, RestaRequestInterface $request, ResponseContext $response): void {}
         });
 
         $this->assertSame(['id'], array_keys($params->all()));
+    }
+
+    public function testRequestImplementationClassIsNotAParameter(): void
+    {
+        $params = $this->build('x', [], new class {
+            public function callback(int $id, TestRestaRequest $request): void {}
+        });
+
+        $this->assertSame(['id'], array_keys($params->all()));
+    }
+
+    public function testOtherClassTypedArgumentIsRejectedWithTheDeclaringMethod(): void
+    {
+        // 引数でのサービス注入はできない。宣言を読む時点で、どのメソッドのどの引数かを言う
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('TestRoute() argument $service: stdClass cannot be a callback argument');
+        $this->expectExceptionMessage('Receive services in the constructor');
+
+        $this->build('x', [], new class {
+            public function callback(int $id, \stdClass $service): void {}
+        });
+    }
+
+    public function testWpRestRequestArgumentIsRejectedWithTheWayOut(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('declare the argument as WpRestaRequest and call getWpRequest()');
+
+        $this->build('x', [], new class {
+            public function callback(\WP_REST_Request $request): void {}
+        });
     }
 
     public function testUrlParamsOverrideSignatureByName(): void

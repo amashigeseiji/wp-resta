@@ -5,7 +5,7 @@ Route クラスに Service クラスなどを注入する書きかた。保証�
 簡易なDIを用意しています。
 
 基本的には autorwiring で、ほとんどの場合に設定なしで利用できます。
-また、基本的にはコンストラクタインジェクションのみ対応しています(`AbstractRoute::callback` は例外)。
+注入できるのはコンストラクタだけです。`callback` の引数には注入されません（引数はパラメータの宣言です。[routes.md](routes.md)「引数に書けるもの」）。
 
 ```php
 // src/Lib/Foo.php

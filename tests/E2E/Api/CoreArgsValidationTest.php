@@ -7,7 +7,7 @@ use Test\Resta\Support\E2E\AbstractE2ETestCase;
  * URL_PARAMS の regex が pattern として WP コアに渡り、callback の引数に無い
  * クエリパラメータでもコア側で検証されることを確認する E2E テスト。
  *
- * /example/search の callback は WP_REST_Request を受け取るだけで、
+ * /example/search の callback はリクエスト（RestaRequestInterface）を受け取るだけで、
  * keyword / order / path を引数に持たない。wp-resta 側の resolveArguments() の
  * 検証は通らないので、400 になるならコアの rest_validate_request_arg によるもの。
  */

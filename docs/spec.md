@@ -36,7 +36,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 - `ROUTE` の `[name]` はパスパラメータ。それ以外の宣言済みパラメータはクエリパラメータ
 - `URL_PARAMS` では名前と型（string / integer）を宣言する。省略可能なパラメータは `?` を付けて宣言し、callback 引数のデフォルト値が使われる
-- 操作のメソッド（`callback()` や `get()` など。以下 callback）の引数も宣言になる。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は、`URL_PARAMS` に無くてもその名前のパラメータの宣言で、デフォルト値があれば省略可能。クラス型の引数は DI で解決され、宣言にはならない。同名の `URL_PARAMS` があればそちらが優先される
+- 操作のメソッド（`callback()` や `get()` など。以下 callback）の引数も宣言になる。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は、`URL_PARAMS` に無くてもその名前のパラメータの宣言で、デフォルト値があれば省略可能。`RestaRequestInterface` と `ResponseContext` の引数は宣言にならない（「callback」）。同名の `URL_PARAMS` があればそちらが優先される
 - 型で表せない制約（正規表現、最小値、最大値、説明）は `#[Param]` で宣言する。配列の要素型は docblock の `@param string[]` のように宣言する
 - 値は宣言した型に変換されて callback に届く。`bool` は `true` / `false` / `1` / `0`、配列は `tags[]=a` の繰り返しとカンマ区切りの両方を受け取り、backed enum はそのインスタンスになる
 - `ROUTE` の `[name]` には対応する宣言が必要で、パスパラメータにデフォルト値は付けられない
@@ -82,15 +82,17 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - 選ばれた操作の callback（`callback()` か `get()` などの HTTP メソッド名のメソッド）がリクエストごとに呼ばれる
 - callback を持たないルートは、`public readonly` の `body` プロパティで応答を宣言できる（静的なルート）。その値がステータス 200 のレスポンスボディになり、プロパティの型が、callback の戻り値型と同じようにレスポンスの形の宣言になる
 - callback と `body` プロパティの両方を持つルート、どちらも持たないルートは `LogicException` になる
-- callback の引数は、宣言済みの URL パラメータなら名前で型変換済みの値が、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決でき、`getMethod()` は HTTP メソッド、`getHeader()` はリクエストヘッダの値（無ければ null）、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
-- WordPress の REST API から移行するコードのために、`WP_REST_Request` も callback 引数で受け取れる。新しく書くコードでは使わない
-- callback の戻り値がレスポンスボディになる
+- callback の引数に書けるのは、パラメータ（ビルトイン型と backed enum）、リクエスト（`RestaRequestInterface` か、それを実装するクラス）、`ResponseContext` の 3 種類。それ以外の型の引数を持つルートは `LogicException` になる。サービスはコンストラクタで受ける（「DI」）
+- パラメータの引数には、その名前の型変換済みの値が渡る。リクエストと `ResponseContext` は型で決まり、変数名は問わない
+- `RestaRequestInterface` の `getMethod()` は HTTP メソッド、`getHeader()` はリクエストヘッダの値（無ければ null）、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
+- callback の戻り値がレスポンスボディになる。戻り値型が、そのままレスポンスの形の宣言になる。レスポンスオブジェクト（`RestaResponseInterface`、`ResponseContext`）を返すことはできない
 
 ### レスポンス
 
-- `RestaResponseInterface` を返せばステータスとヘッダも含めてそのまま使われる
-- `$this->response($data, $status, $headers)` でステータスとヘッダを指定したレスポンスを作れる
-- `HEADERS` 定数で宣言したルートの既定ヘッダは、エラーを含むどのレスポンスにも付く。レスポンス自身が同名のヘッダを持てばそちらが優先される
+- ステータスは 200。変えるときは、callback の引数で受け取った `ResponseContext` の `status()` に書く
+- このレスポンスだけのヘッダは、`ResponseContext` の `header()` に書く
+- callback が例外を投げた場合、`ResponseContext` に書いた値は使われない。エラーレスポンスは例外から作られる
+- `HEADERS` 定数で宣言したルートの既定ヘッダは、エラーを含むどのレスポンスにも付く。`ResponseContext` に同名のヘッダを書けばそちらが優先される
 - `RestaResponseInterface::withHeaders()` でヘッダを足した複製を作れる。購読者がレスポンスにヘッダを付けるときに使う
 - `#[Envelope]` を付けたルートは、成功（2xx）のボディが `{ "data": ..., "meta": ... }` に包まれる。エラーレスポンスは包まれず、「エラーレスポンス」の形のまま
 - `#[Cache(maxAge:)]` を付けたルートは、未認証の GET / HEAD の 200 レスポンスに `Cache-Control` と `ETag` が付く。`If-None-Match` が一致すれば空ボディの 304 になる。認証済みのリクエスト、エラー、GET / HEAD 以外、レスポンスがすでに `Cache-Control` を持つ場合には付かない
@@ -106,7 +108,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 - クラス型はコンストラクタの型宣言から自動で解決される
 - インターフェースは設定の `dependencies` で実装クラスか factory を対応づける
-- コンストラクタインジェクションはルート生成時、callback 引数の解決はリクエスト時
+- 注入できるのはコンストラクタだけ。ルートの生成時に解決される。callback の引数には注入されない
 
 ## イベント
 
@@ -140,6 +142,8 @@ WordPress に依存するのは次の役割だけ。
 - アトリビュートで宣言されたフックを `add_action()` / `add_filter()` に登録する（`HookProvider`）
 
 これは wp-resta 本体の制約であって、利用者の制約ではない。ルートの callback や利用者のサービスが WordPress の関数を呼ぶのは自由。
+
+`WP_REST_Request` そのものが要るルート（コアの `WP_REST_Controller` やフィルタにそのまま渡す場合など）は、callback の引数を `WpRestaRequest` で宣言し、`getWpRequest()` で取り出す。そのルートは WordPress を前提にするので、`TestRestaRequest` では実行できない。
 
 本体が依存する WordPress の API は次のとおり。ここに無いものへの依存を増やすときは、対応バージョンへの影響を確認する。
 

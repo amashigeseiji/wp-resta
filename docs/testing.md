@@ -74,7 +74,7 @@ $service->shouldReceive('getData')->with(123)->andReturn(['result' => 'mocked'])
 $route = new MyRoute($service);
 ```
 
-callback 引数で受け取る依存は `Container::getInstance()->bind(MyService::class, $service)` で bind する。
+callback が `ResponseContext` に書いたステータスとヘッダは、`handle()` が返すレスポンスの `getStatusCode()` / `getHeaders()` で確かめる。
 
 ## Container のリセット
 

@@ -4,8 +4,6 @@ namespace Wp\Resta\REST;
 use Wp\Resta\Auth\Principal;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use ReflectionProperty;
-use Wp\Resta\REST\Http\RestaResponseInterface;
-use Wp\Resta\REST\Http\SimpleRestaResponse;
 use LogicException;
 use Wp\Resta\REST\Parameter\BoundParameters;
 use Wp\Resta\REST\Parameter\ParameterDefinitionBuilder;
@@ -219,19 +217,6 @@ abstract class AbstractRoute implements RouteInterface
     public function getHeaders(): array
     {
         return static::HEADERS;
-    }
-
-    /**
-     * callback からステータスやヘッダを指定してレスポンスを返すためのヘルパ。
-     *
-     * `return $this->response(null, 404);` のように使う。ルートの既定ヘッダ（HEADERS）は実行者が合成するので、
-     * ここで渡すのはこのレスポンス固有のヘッダだけでよい。同名なら渡したほうが勝つ
-     *
-     * @param array<string, string> $headers
-     */
-    protected function response(mixed $data, int $status = 200, array $headers = []): RestaResponseInterface
-    {
-        return new SimpleRestaResponse($data, $status, $headers);
     }
 
     public function getReadableRoute(): string
