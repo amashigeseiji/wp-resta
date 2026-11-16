@@ -62,8 +62,8 @@ class RegisterRestRoutes
     {
         $handler = $this->container->get(RequestHandler::class);
         foreach ($this->routes as $route) {
-            // ルートはプロセス内でシングルトンなので、callback 内で $this->status などに
-            // 代入した値が次のリクエスト（/batch/v1、rest_preload_api_request、
+            // ルートはプロセス内でシングルトンなので、callback の中でルートのプロパティに
+            // 書き込んだ値が次のリクエスト（/batch/v1、rest_preload_api_request、
             // rest_do_request() の内部呼び出し）に持ち越されないよう、リクエストごとに clone する。
             // 浅いコピーなのでコンストラクタ注入されたサービスは共有され、クラス宣言の初期値や
             // setNamespace() の名前空間はそのまま引き継がれる。

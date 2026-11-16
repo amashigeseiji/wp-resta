@@ -3,10 +3,9 @@ namespace Wp\Resta\REST;
 
 use Wp\Resta\Auth\Principal;
 use Wp\Resta\REST\Http\RestaRequestInterface;
-use ReflectionClass;
+use ReflectionProperty;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
-use Closure;
 use LogicException;
 use Wp\Resta\REST\Parameter\BoundParameters;
 use Wp\Resta\REST\Parameter\ParameterDefinitionBuilder;
@@ -26,30 +25,6 @@ abstract class AbstractRoute implements RouteInterface
      * @var array<string, string>
      */
     protected const HEADERS = [];
-
-    /**
-     * @deprecated 0.12。HEADERS 定数で宣言する。0.13 で削除
-     * @var array<string, string>
-     */
-    protected array $headers = [];
-
-    /**
-     * @deprecated 0.12。callback の戻り値が body になる。0.13 で削除
-     * @var mixed
-     */
-    protected $body = '';
-
-    /**
-     * @deprecated 0.12。`return $this->response($body, $status)` で指定する。0.13 で削除
-     */
-    protected int $status = 200;
-
-    /**
-     * クラスごとのプロパティの初期値。callback の後に代入を検知する（非推奨の警告）ための比較対象
-     *
-     * @var array<class-string, array<string, mixed>>
-     */
-    private static array $propertyDefaults = [];
 
     /** @var list<Operation>|null */
     private ?array $operations = null;
@@ -97,7 +72,8 @@ abstract class AbstractRoute implements RouteInterface
      *
      * - get() / post() / put() / patch() / delete() があれば、それぞれが 1 つの操作
      * - callback() は getMethods() で宣言したメソッド全部に対する 1 つの操作の省略形
-     * - 両方あれば LogicException。どちらも無ければ非推奨の警告付きで $body を返す操作を合成する
+     * - どちらも無いルートは、public readonly の body プロパティの値を返す 1 つの操作（静的なルート）
+     * - 書きかたを併用したルートと、どれも無いルートは LogicException
      */
     public function getOperations(): array
     {
@@ -115,6 +91,7 @@ abstract class AbstractRoute implements RouteInterface
     {
         $httpMethods = array_values(array_filter(self::OPERATION_METHODS, fn(string $m) => method_exists($this, $m)));
         $hasCallback = method_exists($this, 'callback');
+        $hasBody = $this->declaresBody();
 
         if ($hasCallback && $httpMethods !== []) {
             throw new LogicException(sprintf(
@@ -123,12 +100,26 @@ abstract class AbstractRoute implements RouteInterface
                 implode('() / ', $httpMethods),
             ));
         }
+        if ($hasBody && ($hasCallback || $httpMethods !== [])) {
+            // プロパティの型と callback の戻り値型が違うと、レスポンスの型が 1 つに決まらない
+            throw new LogicException(sprintf(
+                '%s declares both a $body property and %s(). Declare the response either as a public readonly $body property (static route) or as the return value of the method',
+                static::class,
+                $hasCallback ? 'callback' : implode('() / ', $httpMethods),
+            ));
+        }
+        if (!$hasBody && !$hasCallback && $httpMethods === []) {
+            throw new LogicException(sprintf(
+                '%s declares no operation. Declare callback(), get() / post() / put() / patch() / delete(), or a public readonly $body property',
+                static::class,
+            ));
+        }
 
         $builder = new ParameterDefinitionBuilder();
         $operations = [];
         if ($httpMethods !== []) {
             foreach ($httpMethods as $method) {
-                $callback = $this->callbackFor($method);
+                $callback = Callback::fromMethod($this, $method);
                 $operations[] = new Operation(
                     strtoupper($method),
                     $callback,
@@ -136,17 +127,15 @@ abstract class AbstractRoute implements RouteInterface
                 );
             }
         } elseif ($hasCallback) {
-            $callback = $this->callbackFor('callback');
+            $callback = Callback::fromMethod($this, 'callback');
             $operations[] = new Operation(
                 $this->getMethods(),
                 $callback,
                 $builder->build($this::ROUTE, $this::URL_PARAMS, $callback, static::class . '::callback'),
             );
         } else {
-            // callback を持たないルートは非推奨。0.13 で LogicException にする。
-            // それまでは宣言された body と status を返す callback として扱い、実行者は「無い場合」を知らない
-            trigger_error(static::class . ' has no callback(). Routes without callback() are deprecated; return the body from callback() instead.', E_USER_DEPRECATED);
-            $callback = Callback::returning(new SimpleRestaResponse($this->body, $this->status));
+            // 静的なルート。プロパティの型が、callback の戻り値型と同じようにスキーマになる
+            $callback = Callback::fromProperty($this, 'body');
             $operations[] = new Operation(
                 $this->getMethods(),
                 $callback,
@@ -176,47 +165,23 @@ abstract class AbstractRoute implements RouteInterface
         return $operations;
     }
 
-    private function callbackFor(string $method): Callback
-    {
-        // 0.12 の橋: callback 内で $this->status に代入された値を、戻り値の包みに変換する。
-        // プロパティへの代入は 0.12 で非推奨（#59）。0.13 でプロパティと一緒にこの橋も消す。
-        // 実行者はルートのプロパティを知らず、callback が body か RestaResponseInterface を返すとだけ見る
-        $defaults = self::$propertyDefaults[static::class] ??= (new ReflectionClass(static::class))->getDefaultProperties();
-        return Callback::fromMethod($this, $method)->wrapInvoke(function (Closure $invoke) use ($method, $defaults): mixed {
-            try {
-                $result = $invoke();
-            } finally {
-                // 例外で抜けた場合も、代入そのものは移行対象なので警告する。例外とエラーレスポンスはそのまま
-                $this->warnIfPropertiesAssigned($method, $defaults);
-            }
-            return $result instanceof RestaResponseInterface
-                ? $result
-                : new SimpleRestaResponse($result, $this->status);
-        });
-    }
-
     /**
-     * callback の中で $status / $body / $headers が宣言時の初期値から変わっていたら非推奨の警告
-     *
-     * @param array<string, mixed> $defaults
+     * 静的なルートの宣言（public readonly の body プロパティ）があるか。
+     * public でない、または readonly でない body は宣言の誤りとして扱い、黙って無視しない
      */
-    private function warnIfPropertiesAssigned(string $method, array $defaults): void
+    private function declaresBody(): bool
     {
-        $assigned = [];
-        foreach (['status', 'body', 'headers'] as $property) {
-            if ($this->{$property} !== ($defaults[$property] ?? null)) {
-                $assigned[] = '$' . $property;
-            }
+        if (!property_exists($this, 'body')) {
+            return false;
         }
-        if ($assigned === []) {
-            return;
+        $property = new ReflectionProperty($this, 'body');
+        if (!$property->isPublic() || !$property->isReadOnly()) {
+            throw new LogicException(sprintf(
+                '%s::$body must be declared as public readonly to be used as the response of a static route. To set the response per request, return it from callback()',
+                static::class,
+            ));
         }
-        trigger_error(sprintf(
-            '%s::%s() assigned %s. Assigning $status / $body / $headers is deprecated and will be removed in 0.13; return $this->response($body, $status, $headers) instead',
-            static::class,
-            $method,
-            implode(' / ', $assigned),
-        ), E_USER_DEPRECATED);
+        return true;
     }
 
     /**
@@ -249,26 +214,17 @@ abstract class AbstractRoute implements RouteInterface
     }
 
     /**
-     * ルートの既定ヘッダ。既定実装は HEADERS 定数を返す。
-     * $headers プロパティに値があれば（0.11 までの宣言方法）非推奨の警告を出しつつ、そちらを優先する
+     * ルートの既定ヘッダ。既定実装は HEADERS 定数を返す
      */
     public function getHeaders(): array
     {
-        if ($this->headers !== []) {
-            trigger_error(
-                static::class . ': the $headers property is deprecated and will be removed in 0.13; declare default headers in the HEADERS constant instead',
-                E_USER_DEPRECATED
-            );
-            return array_merge(static::HEADERS, $this->headers);
-        }
         return static::HEADERS;
     }
 
     /**
      * callback からステータスやヘッダを指定してレスポンスを返すためのヘルパ。
      *
-     * `return $this->response(null, 404);` のように使う。ルートに状態を持たせずに済む
-     * （$status / $body / $headers プロパティへの代入は非推奨）。ルートの既定ヘッダ（HEADERS）は実行者が合成するので、
+     * `return $this->response(null, 404);` のように使う。ルートの既定ヘッダ（HEADERS）は実行者が合成するので、
      * ここで渡すのはこのレスポンス固有のヘッダだけでよい。同名なら渡したほうが勝つ
      *
      * @param array<string, string> $headers

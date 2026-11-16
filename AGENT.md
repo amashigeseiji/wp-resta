@@ -24,7 +24,7 @@ src/
   Config.php                init() の設定キー
   DI/Container.php          シングルトンの DI コンテナ（autowiring）
   REST/
-    AbstractRoute.php       ルート基底。宣言のみ: getOperations()（get()/post()… か callback() から導出）、validate() / authorize() フック、response()
+    AbstractRoute.php       ルート基底。宣言のみ: getOperations()（get()/post()… か callback()、無ければ body プロパティから導出）、validate() / authorize() フック、response()
     Operation.php           1 操作 = HTTP メソッド + Callback + RouteParameters。内部の値オブジェクト
     RequestHandler.php      パイプライン。WP 非依存。テストもこれを通す
     Callback.php            callback の定義。シグニチャを読む、resolve()（引数の束縛 + DI）、invoke()
@@ -90,7 +90,8 @@ composer generate:openapi  # サンプルのルートの OpenAPI を openapi.jso
 ## 落とし穴
 
 - `Container` はシングルトン。bind したテストは `tearDown()` でリセットする
-- ルートインスタンスはプロセス内で共有される。`$status` / `$body` / `$headers` への代入は 0.12 で非推奨（`E_USER_DEPRECATED`）、0.13 でプロパティごと削除（#59）。`$this->response()` と `HEADERS` 定数を使う。callback の無いルート（`$body` だけ）は 0.12 で非推奨、0.13 で `LogicException`
+- ルートインスタンスはプロセス内で共有され、リクエストごとに `clone` される。`AbstractRoute` に `$status` / `$body` / `$headers` は無い（0.13 で削除）。ステータスとヘッダは `$this->response()` と `HEADERS` 定数で指定する
+- callback の無い静的なルートは、応答を `public readonly` の `body` プロパティで宣言する。callback と `body` の両方がある、どちらも無い、`body` が `public readonly` でない、のいずれも `LogicException`（[ADR 0005](docs/adr/0005-static-route-body.md)）
 - `callback` の引数のビルトイン型は `URL_PARAMS` に無くても URL パラメータの宣言になる。`ROUTE` の `[name]` に対応する宣言が無いと `LogicException`
 - 同じ URL で GET / POST を分けるなら `get()` / `post()`。`callback()` と両方書くと `LogicException`。操作の `Callback` はインスタンスに束縛されるので、`clone` したルートでは導出し直す（`getOperations()` の owner チェック）
 - WP のパーマリンク設定が「基本」だと `/wp-json/` が動かない

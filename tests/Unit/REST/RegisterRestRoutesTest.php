@@ -5,7 +5,6 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
-use Test\Resta\Fixtures\StatefulRoutes\TestDefaultStatusRoute;
 use Test\Resta\Fixtures\StatefulRoutes\TestStatefulRoute;
 use Wp\Resta\Config;
 use Wp\Resta\DI\Container;
@@ -18,7 +17,7 @@ use Wp\Resta\REST\RouteInvocationEvent;
 /**
  * RegisterRestRoutes::register() が register_rest_route() に渡す callback のテスト
  *
- * ルートはプロセス内でシングルトンなので、callback 内で $this->status などに代入した値が
+ * ルートはプロセス内でシングルトンなので、callback の中でルートのプロパティに書き込んだ値が
  * 次のリクエスト（/batch/v1、rest_preload_api_request、rest_do_request() の内部呼び出し）に
  * 持ち越されないことを確認する。
  */
@@ -91,7 +90,7 @@ class RegisterRestRoutesTest extends TestCase
         $response = $this->registered[$regex][0]['callback']($request);
 
         $this->assertInstanceOf(\WP_REST_Response::class, $response);
-        $this->assertSame(['id' => 2], $response->get_data(), '型変換は wp-resta 側で行われ、int で届く');
+        $this->assertSame(['id' => 2, 'calls' => 1], $response->get_data(), '型変換は wp-resta 側で行われ、int で届く');
         $this->assertSame($request, Container::getInstance()->get(\WP_REST_Request::class));
     }
 
@@ -108,25 +107,13 @@ class RegisterRestRoutesTest extends TestCase
         }
     }
 
-    public function testStatusSetInPreviousRequestDoesNotCarryOverToNextRequest(): void
+    public function testStateWrittenInPreviousRequestDoesNotCarryOverToNextRequest(): void
     {
-        // TestStatefulRoute は $this->status に代入する（非推奨）
-        $this->expectUserDeprecationMessageMatches('/assigned \$status/');
-        $notFound = $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
-        $this->assertSame(404, $notFound->get_status());
+        $first = $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
+        $this->assertSame(['id' => 1, 'calls' => 1], $first->get_data());
 
-        $found = $this->dispatch('stateful/(?P<id>\d+)', ['id' => 2]);
-        $this->assertSame(200, $found->get_status());
-        $this->assertSame(['id' => 2], $found->get_data());
-    }
-
-    public function testDefaultStatusDeclaredInSubclassIsPreservedAcrossRequests(): void
-    {
-        $first = $this->dispatch('default-status');
-        $this->assertSame(404, $first->get_status());
-
-        $second = $this->dispatch('default-status');
-        $this->assertSame(404, $second->get_status());
+        $second = $this->dispatch('stateful/(?P<id>\d+)', ['id' => 2]);
+        $this->assertSame(['id' => 2, 'calls' => 1], $second->get_data());
     }
 
     public function testEachRequestIsHandledByFreshInstanceWithSameNamespace(): void
@@ -154,25 +141,11 @@ class RegisterRestRoutesTest extends TestCase
 
     public function testCallbackRunsOnTheClonedInstanceNotTheRegisteredOne(): void
     {
-        // TestStatefulRoute は $this->status に代入する（非推奨）
-        $this->expectUserDeprecationMessageMatches('/assigned \$status/');
         // 操作の callback はインスタンスに束縛される。登録時に導出した操作を clone が使い回すと、
-        // callback は元のインスタンスで走り、状態が次のリクエストに持ち越される
-        $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
-        $original = Container::getInstance()->get(TestStatefulRoute::class);
-
-        $this->assertSame(200, (new ReflectionClass($original))->getProperty('status')->getValue($original));
-    }
-
-    public function testBoundInstanceInContainerIsNotMutatedByRequest(): void
-    {
-        // TestStatefulRoute は $this->status に代入する（非推奨）
-        $this->expectUserDeprecationMessageMatches('/assigned \$status/');
-        $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
-
+        // callback は元のインスタンスで走り、状態が次のリクエストに持ち越される。
         // OpenAPI スキーマ生成が参照する元のインスタンスは変わらない
-        $original = Container::getInstance()->get(TestStatefulRoute::class);
-        $reflection = new ReflectionClass($original);
-        $this->assertSame(200, $reflection->getProperty('status')->getValue($original));
+        $this->dispatch('stateful/(?P<id>\d+)', ['id' => 1]);
+
+        $this->assertSame(0, Container::getInstance()->get(TestStatefulRoute::class)->calls);
     }
 }

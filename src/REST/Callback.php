@@ -7,6 +7,7 @@ use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionProperty;
 use ReflectionType;
 use RuntimeException;
 use Wp\Resta\DI\Container;
@@ -16,31 +17,19 @@ use Wp\Resta\REST\Parameter\BoundParameters;
 /**
  * ルートの callback の定義。シグニチャ（引数、戻り値型、docblock）を読むための薄い包み。
  *
- * ルートが callback メソッドを持たない場合も、宣言された body を返す callback として扱うので、
- * 実行者は「callback が無い」場合を知らなくてよい。
+ * 静的なルート（callback メソッドを持たず、body プロパティで応答を宣言するルート）も、
+ * そのプロパティの値を返す callback として扱うので、実行者は「callback が無い」場合を知らなくてよい。
  */
 final class Callback
 {
     private readonly ReflectionFunction $reflection;
-    private ?Closure $wrapInvoke = null;
-
-    private function __construct(Closure $closure)
-    {
-        $this->reflection = new ReflectionFunction($closure);
-    }
 
     /**
-     * invoke() の呼び出しを包んだ複製を返す。シグニチャは元の callback のまま。
-     * $wrap は callback を実行する closure を受け取り、その戻り値（または例外）をどう扱うかを決める
-     *
-     * @internal AbstractRoute が非推奨プロパティ（$status）を戻り値の包みに変換するための橋。#59 で消す
-     * @param Closure(Closure(): mixed): mixed $wrap
+     * @param ReflectionProperty|null $property fromProperty() で作ったときの、型と docblock の出どころ
      */
-    public function wrapInvoke(Closure $wrap): self
+    private function __construct(Closure $closure, private readonly ?ReflectionProperty $property = null)
     {
-        $clone = clone $this;
-        $clone->wrapInvoke = $wrap;
-        return $clone;
+        $this->reflection = new ReflectionFunction($closure);
     }
 
     public static function fromMethod(object $object, string $method): self
@@ -50,10 +39,13 @@ final class Callback
         return new self((new ReflectionMethod($object, $method))->getClosure($object));
     }
 
-    /** 固定の値を返す引数なしの callback */
-    public static function returning(mixed $value): self
+    /**
+     * プロパティの値を返す引数なしの callback。プロパティの型と docblock（@var）が、戻り値型と @return の代わりになる
+     */
+    public static function fromProperty(object $object, string $property): self
     {
-        return new self(fn() => $value);
+        $reflection = new ReflectionProperty($object, $property);
+        return new self(fn(): mixed => $reflection->getValue($object), $reflection);
     }
 
     /** @return ReflectionParameter[] */
@@ -64,23 +56,29 @@ final class Callback
 
     public function getReturnType(): ?ReflectionType
     {
+        if ($this->property !== null) {
+            return $this->property->getType();
+        }
         return $this->reflection->getReturnType();
     }
 
     public function getDocComment(): ?string
     {
-        $doc = $this->reflection->getDocComment();
+        $doc = ($this->property ?? $this->reflection)->getDocComment();
         return $doc === false ? null : $doc;
     }
 
     /**
      * callback を宣言しているクラス。docblock の型名を use 文で解決するときに使う。
-     * fromMethod() で作った callback ならそのメソッドのクラス、returning() なら null
+     * fromMethod() で作った callback ならそのメソッドのクラス、fromProperty() ならそのプロパティのクラス
      *
      * @return ReflectionClass<object>|null
      */
     public function getDeclaringClass(): ?ReflectionClass
     {
+        if ($this->property !== null) {
+            return $this->property->getDeclaringClass();
+        }
         $scope = $this->reflection->getClosureScopeClass();
         return $scope === null || $scope->getName() === self::class ? null : $scope;
     }
@@ -125,7 +123,6 @@ final class Callback
      */
     public function invoke(array $args): mixed
     {
-        $invoke = fn(): mixed => $this->reflection->invokeArgs($args);
-        return $this->wrapInvoke === null ? $invoke() : ($this->wrapInvoke)($invoke);
+        return $this->reflection->invokeArgs($args);
     }
 }

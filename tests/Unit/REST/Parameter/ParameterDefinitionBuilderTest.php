@@ -18,7 +18,10 @@ class ParameterDefinitionBuilderTest extends TestCase
      */
     private function build(string $route, array $urlParams, object $owner): RouteParameters
     {
-        $callback = method_exists($owner, 'callback') ? Callback::fromMethod($owner, 'callback') : Callback::returning(null);
+        // callback を持たない owner は、引数の無い callback として扱う（URL_PARAMS だけからの導出を確かめる）
+        $callback = method_exists($owner, 'callback')
+            ? Callback::fromMethod($owner, 'callback')
+            : Callback::fromMethod(new class { public function callback(): void {} }, 'callback');
         return (new ParameterDefinitionBuilder())->build($route, $urlParams, $callback, 'TestRoute');
     }
 

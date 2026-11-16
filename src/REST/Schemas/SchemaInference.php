@@ -153,9 +153,12 @@ class SchemaInference
         $tokens = new TokenIterator($this->lexer->tokenize($docComment));
         $phpDocNode = $this->phpDocParser->parse($tokens);
 
-        // @return タグを探す
+        // @return タグを探す。静的なルートの body プロパティでは @var がそれに当たる
         foreach ($phpDocNode->getTags() as $tag) {
-            if ($tag->name === '@return' && $tag->value instanceof \PHPStan\PhpDocParser\Ast\PhpDoc\ReturnTagValueNode) {
+            if (
+                $tag->value instanceof \PHPStan\PhpDocParser\Ast\PhpDoc\ReturnTagValueNode
+                || $tag->value instanceof \PHPStan\PhpDocParser\Ast\PhpDoc\VarTagValueNode
+            ) {
                 $returnType = $tag->value->type;
                 if ($returnType instanceof UnionTypeNode) {
                     $returnType = $this->bodyTypeNode($returnType);

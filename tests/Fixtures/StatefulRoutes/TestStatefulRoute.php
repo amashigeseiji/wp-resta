@@ -4,7 +4,7 @@ namespace Test\Resta\Fixtures\StatefulRoutes;
 use Wp\Resta\REST\AbstractRoute;
 
 /**
- * callback 内で $this->status に代入するルート（Example/Routes/Post.php と同じパターン）
+ * callback の中で、自分のプロパティに書き込むルート
  */
 class TestStatefulRoute extends AbstractRoute
 {
@@ -13,12 +13,14 @@ class TestStatefulRoute extends AbstractRoute
         'id' => 'integer',
     ];
 
-    public function callback(int $id): ?array
+    public int $calls = 0;
+
+    /**
+     * @return array{id: int, calls: int}
+     */
+    public function callback(int $id): array
     {
-        if ($id === 1) {
-            $this->status = 404;
-            return null;
-        }
-        return ['id' => $id];
+        $this->calls++;
+        return ['id' => $id, 'calls' => $this->calls];
     }
 }
