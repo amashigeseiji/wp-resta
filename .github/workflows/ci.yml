@@ -43,10 +43,16 @@ jobs:
     - name: Check PSR-4 mapping
       run: composer dump-autoload --dev --optimize --strict-psr
 
-    - name: Run phpstan analyse
+    # PR へのインラインコメント用。失敗の判定は次のステップで行う
+    # 解析は phpstan.neon の設定で全体に対して行い、差分への絞り込みは reviewdog に任せる
+    - name: Comment phpstan errors on the pull request
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: git diff main --name-only | grep '.php' | vendor/bin/phpstan analyse --error-format=raw --no-progress -l 6 | reviewdog -reporter=github-pr-review -f=phpstan -fail-on-error=false
+      run: vendor/bin/phpstan analyse --memory-limit=-1 --error-format=raw --no-progress | reviewdog -reporter=github-pr-review -f=phpstan -fail-on-error=false
+
+    # 手元の composer lint と同じもの。指摘があれば CI を落とす
+    - name: Run phpstan analyse
+      run: composer lint
 
     - name: Run test suite
       run: composer run-script test
