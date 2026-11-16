@@ -12,7 +12,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ## 設計原則
 
-- **wp-resta は DSL である。** ルートクラスの宣言から、登録・検証・OpenAPI・TypeScript を導出する。利用者に WordPress REST API の語彙（`register_rest_route()` の引数、`permission_callback`、`WP_Error`）を直接書かせない
+- **wp-resta は DSL である。** ルートクラスの宣言から、登録・検証・OpenAPI を導出する。利用者に WordPress REST API の語彙（`register_rest_route()` の引数、`permission_callback`、`WP_Error`）を直接書かせない
 - **ルートは WordPress 無しでテストできる。** ルートの実行は `RestaRequestInterface` だけに依存する
 - **WordPress との境界は薄い変換層に限定する。** WordPress の型・関数・フックを wp-resta の型に変換する箇所以外で WordPress に依存しない
 - **プロセスの状態は WordPress が持つ。** WordPress のフックを起点にした状態を wp-resta は管理しない
@@ -49,7 +49,6 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 - ルートの登録と入力の検証。宣言していない制約は検証されない
 - OpenAPI 定義。path の下に操作ごとの operation が出る。parameters には宣言した型、必須かどうか、enum、デフォルト値、最小値・最大値、配列の要素型が載る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出される。`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される
-- TypeScript の型定義。OpenAPI と同じ宣言から生成される。パラメータの enum はリテラルの union、配列は要素型の配列、デフォルト値があるものは optional になる
 
 ## HTTP 実行のパイプライン
 

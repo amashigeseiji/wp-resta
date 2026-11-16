@@ -5,7 +5,7 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 ## プロジェクト
 
 - WordPress 上で REST API を作る PHP 8.2+ のフレームワーク。`AbstractRoute` を継承したクラス 1 つがエンドポイント 1 つ
-- ルートの定数・callback シグニチャ・アトリビュートから登録・検証・OpenAPI・TypeScript を導出する DSL
+- ルートの定数・callback シグニチャ・アトリビュートから登録・検証・OpenAPI を導出する DSL
 - ルートを WordPress 無しでテストできること、WP との境界を薄い変換層に閉じることを設計原則として守る（spec.md「設計原則」）
 
 ## 読む順
@@ -40,7 +40,6 @@ src/
   EventDispatcher/          Dispatcher、Event、NamedEvent、#[Listen]
   Hooks/                    HookProvider（#[AddAction] / #[AddFilter]）、SwaggerHook
   OpenApi/                  OpenAPI 生成、スキーマ推論
-  CodeGen/                  TypeScript 生成
 tests/Unit, tests/Integration, tests/E2E   docs/testing.md 参照
 ```
 
@@ -78,7 +77,7 @@ composer test            # Unit + Integration（WP 不要）
 composer test:e2e        # Docker 上の WP に対する E2E
 composer test:coverage   # カバレッジ
 composer lint            # PHPStan
-composer generate:types  # TypeScript 型の生成
+composer generate:openapi  # サンプルのルートの OpenAPI を openapi.json に書き出す
 ```
 
 ## ルートを追加するとき

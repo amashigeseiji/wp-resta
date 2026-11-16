@@ -9,3 +9,6 @@ docker/data/
 # Coverage reports
 coverage/
 node_modules/
+
+# composer generate:openapi の既定の出力先
+/openapi.json
