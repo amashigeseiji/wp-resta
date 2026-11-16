@@ -11,7 +11,6 @@ use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Hooks\CacheHook;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
-use Wp\Resta\REST\Http\ResponseContext;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
@@ -128,11 +127,9 @@ class CacheHookTest extends TestCase
     {
         // callback が no-store を明示したレスポンスは public に緩めない。ETag も 304 も付けない
         $route = new #[Cache(maxAge: 300)] class extends AbstractRoute {
-            /** @return array{id: int} */
-            public function callback(ResponseContext $response): array
+            public function callback(): RestaResponseInterface
             {
-                $response->header('cache-control', 'no-store');
-                return ['id' => 1];
+                return $this->response(['id' => 1], 200, ['cache-control' => 'no-store']);
             }
         };
 

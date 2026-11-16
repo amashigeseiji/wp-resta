@@ -3,11 +3,9 @@ namespace Wp\Resta\REST\Example\Routes;
 
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\RouteMeta;
-use Wp\Resta\REST\Http\ResponseContext;
 
 /**
- * 同じ URL で GET と POST を分けるサンプル。HTTP メソッド名のメソッドがそれぞれ 1 つの操作になる。
- * POST は、ステータスとヘッダを ResponseContext に書く例でもある
+ * 同じ URL で GET と POST を分けるサンプル。HTTP メソッド名のメソッドがそれぞれ 1 つの操作になる
  */
 #[RouteMeta(
     description: "同じ URL で GET と POST を分けるサンプルです",
@@ -26,15 +24,10 @@ class Notes extends AbstractRoute
     }
 
     /**
-     * 戻り値は body。ステータスとヘッダは、引数で受け取った ResponseContext に書く（返す必要は無い）
-     *
      * @return array{id: int, method: string, title: string}
      */
-    public function post(int $id, string $title, ResponseContext $response): array
+    public function post(int $id, string $title): array
     {
-        $response->status(201);
-        // 作ったリソースの URL。REST API の URL はサイトの設定で変わるので rest_url() で組み立てる
-        $response->header('Location', rest_url("example/notes/{$id}"));
         return ['id' => $id, 'method' => 'POST', 'title' => $title];
     }
 }

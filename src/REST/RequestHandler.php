@@ -1,14 +1,12 @@
 <?php
 namespace Wp\Resta\REST;
 
-use LogicException;
 use Throwable;
 use Wp\Resta\Auth\Principal;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Exception\RouteNotFoundException;
 use Wp\Resta\REST\Http\Headers;
-use Wp\Resta\REST\Http\ResponseContext;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
@@ -40,18 +38,9 @@ class RequestHandler
             $route->authorize($request, $params, $this->principal);
 
             $callback = $operation->getCallback();
-            // ステータスとヘッダの書き込み先はリクエストごとに作る。callback が例外で抜けたら、書かれた値は使わない
-            $context = new ResponseContext();
-            $result = $callback->invoke($callback->resolve($params, $request, $context));
-            if ($result instanceof RestaResponseInterface || $result instanceof ResponseContext) {
-                throw new LogicException(sprintf(
-                    '%s returned %s. Return the response body; write the status and headers to ResponseContext (they do not need to be returned)',
-                    $route::class,
-                    $result::class,
-                ));
-            }
-            // callback の戻り値が body（spec「レスポンス」）
-            $response = new SimpleRestaResponse($result, $context->getStatus(), $context->getHeaders());
+            $result = $callback->invoke($callback->resolve($params, $request));
+            // callback は body か RestaResponseInterface を返す（spec「レスポンス」）
+            $response = $result instanceof RestaResponseInterface ? $result : new SimpleRestaResponse($result, 200);
         } catch (HttpException $e) {
             // 入力不正・認可の拒否などクライアント起因のエラー。WP_Error と同じ形で返す
             $response = new SimpleRestaResponse(

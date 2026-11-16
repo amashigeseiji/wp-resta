@@ -82,7 +82,7 @@ callback の中や、そこから使うサービスで、WordPress の関数を�
 
 対応から意図して離れている箇所が 2 つある。
 
-- **callback の引数と戻り値。** `register_rest_route()` の callback は `WP_REST_Request` を受け取り、`WP_REST_Response` か `WP_Error` を返す。wp-resta の callback は、型の付いたパラメータを受け取り、レスポンスの body を返す。引数と戻り値の型が、そのまま検証とスキーマになるからである。エラーは例外（`HttpException`）を投げる。レスポンスの形は `WP_Error` を返したときと同じになる。ステータスとヘッダは、`WP_REST_Response` を作る代わりに、引数で受け取った `ResponseContext` に書く
+- **callback の引数と戻り値。** `register_rest_route()` の callback は `WP_REST_Request` を受け取り、`WP_REST_Response` か `WP_Error` を返す。wp-resta の callback は、型の付いたパラメータを受け取り、レスポンスの body を返す。引数と戻り値の型が、そのまま検証とスキーマになるからである。エラーは例外（`HttpException`）を投げる。レスポンスの形は `WP_Error` を返したときと同じになる
 - **`permission_callback` に当たるものが、関数ではない。** 許可制であることを、アトリビュートで宣言する。宣言から OpenAPI に 401 / 403 を出せるからである。リクエストの値を見て判定する場合は、callback の中で確かめる
 
 ## `WP_REST_Request` が要るとき

@@ -7,7 +7,6 @@ use Test\Resta\Fixtures\Parameter\Sort;
 use Wp\Resta\REST\Attributes\Param;
 use Wp\Resta\REST\Callback;
 use Wp\Resta\REST\Http\RestaRequestInterface;
-use Wp\Resta\REST\Http\ResponseContext;
 use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\Parameter\ParameterDefinition;
 use Wp\Resta\REST\Parameter\ParameterDefinitionBuilder;
@@ -93,10 +92,10 @@ class ParameterDefinitionBuilderTest extends TestCase
         $this->assertSame(['type' => 'integer', 'required' => true, 'regex' => '\d+', 'description' => 'id', 'sanitize_callback' => null], $id->toCoreArg());
     }
 
-    public function testRequestAndResponseContextAreNotParameters(): void
+    public function testRequestIsNotAParameter(): void
     {
         $params = $this->build('x', [], new class {
-            public function callback(int $id, RestaRequestInterface $request, ResponseContext $response): void {}
+            public function callback(int $id, RestaRequestInterface $request): void {}
         });
 
         $this->assertSame(['id'], array_keys($params->all()));
@@ -327,17 +326,6 @@ class ParameterDefinitionBuilderTest extends TestCase
         });
 
         $this->assertNotNull($params->get('id'));
-    }
-
-    public function testSubtypeOfResponseContextIsLogicException(): void
-    {
-        // 実行者が渡すのは ResponseContext そのもの。継承したクラスを宣言すると呼び出し時に TypeError になるので登録時に止める
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('Declare the argument as ' . \Wp\Resta\REST\Http\ResponseContext::class);
-
-        $this->build('x', [], new class {
-            public function callback(\Test\Resta\Fixtures\Parameter\TestDerivedResponseContext $response): void {}
-        });
     }
 
     public function testVariadicArgumentIsLogicException(): void

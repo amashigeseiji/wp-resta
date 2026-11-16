@@ -14,7 +14,6 @@ use ReflectionProperty;
 use ReflectionType;
 use ReflectionUnionType;
 use Wp\Resta\REST\Http\RestaRequestInterface;
-use Wp\Resta\REST\Http\ResponseContext;
 use Wp\Resta\REST\Parameter\BoundParameters;
 
 /**
@@ -89,27 +88,22 @@ final class Callback
     /**
      * callback の引数を組み立てる。検証はしない（RouteParameters::validate() が済ませている）。
      *
-     * 引数は 3 種類だけ。クラス型は変数名ではなく型で決まるので、パラメータと同じ名前の変数でも取り違えない
+     * 引数は 2 種類だけ。クラス型は変数名ではなく型で決まるので、パラメータと同じ名前の変数でも取り違えない
      * - Request（RestaRequestInterface か、それを実装するクラス）: 現在のリクエスト
-     * - ResponseContext: このリクエストのステータスとヘッダの書き込み先
      * - それ以外（ビルトイン型と enum）: パラメータ。束縛済みの値があればその値。無ければ省略された
      *   省略可能なパラメータなので、引数を渡さず PHP のデフォルト値に任せる
      *
      * @return array<string, mixed> 引数名 => 値
      */
-    public function resolve(BoundParameters $params, RestaRequestInterface $request, ResponseContext $response): array
+    public function resolve(BoundParameters $params, RestaRequestInterface $request): array
     {
         $args = [];
         foreach ($this->reflection->getParameters() as $param) {
-            $class = self::contextClass($param);
+            $class = self::requestClass($param);
             if ($class === null) {
                 if ($params->has($param->name)) {
                     $args[$param->name] = $params->get($param->name);
                 }
-                continue;
-            }
-            if ($class === ResponseContext::class) {
-                $args[$param->name] = $response;
                 continue;
             }
             if (!($request instanceof $class)) {
@@ -127,12 +121,12 @@ final class Callback
     }
 
     /**
-     * 引数が Request か ResponseContext を受け取る宣言なら、そのクラス名。パラメータの宣言なら null。
+     * 引数が Request を受け取る宣言なら、そのクラス名。パラメータの宣言なら null。
      * それ以外のクラス型は callback の引数に書けない
      *
      * @return class-string|null
      */
-    public static function contextClass(ReflectionParameter $param): ?string
+    public static function requestClass(ReflectionParameter $param): ?string
     {
         $type = $param->getType();
         if ($type instanceof ReflectionUnionType || $type instanceof ReflectionIntersectionType) {
@@ -144,7 +138,7 @@ final class Callback
                     : true;
                 if ($isClass) {
                     throw new LogicException(sprintf(
-                        'argument $%s: %s cannot be a callback argument. A union or intersection type cannot contain a class. Declare the request as RestaRequestInterface (or one implementation) and the response as ResponseContext',
+                        'argument $%s: %s cannot be a callback argument. A union or intersection type cannot contain a class. Declare the request as RestaRequestInterface or one of its implementations',
                         $param->name,
                         $type,
                     ));
@@ -159,20 +153,11 @@ final class Callback
         if (is_subclass_of($class, BackedEnum::class)) {
             return null;
         }
-        if (is_a($class, RestaRequestInterface::class, true) || $class === ResponseContext::class) {
+        if (is_a($class, RestaRequestInterface::class, true)) {
             return $class;
         }
-        if (is_a($class, ResponseContext::class, true)) {
-            // 実行者が作って渡すのは ResponseContext そのもの。継承したクラスを宣言しても、それは渡らない
-            throw new LogicException(sprintf(
-                'argument $%s: %s cannot be a callback argument. Declare the argument as %s',
-                $param->name,
-                $class,
-                ResponseContext::class,
-            ));
-        }
         throw new LogicException(sprintf(
-            'argument $%s: %s cannot be a callback argument. Arguments are URL parameters (built-in types and backed enums), the request (RestaRequestInterface) or ResponseContext. %s',
+            'argument $%s: %s cannot be a callback argument. Arguments are URL parameters (built-in types and backed enums) or the request (RestaRequestInterface). %s',
             $param->name,
             $class,
             $class === 'WP_REST_Request'

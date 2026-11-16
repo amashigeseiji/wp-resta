@@ -106,42 +106,38 @@ public function callback(
 
 ## コールバック
 
-`AbstractRoute` を継承したクラスが `callback` という名のメソッドを持っている場合、このメソッドを呼びだし、**戻り値をレスポンスの body にします**。body として返してよいのは、配列、文字列、オブジェクトなど、WordPress REST API がレスポンスとして扱える任意のデータです。戻り値型が、そのままレスポンスのスキーマになります（[SCHEMA.md](SCHEMA.md)）。
+`AbstractRoute` を継承したクラスが `callback` という名のメソッドを持っている場合、このメソッドを呼びだしてレスポンスの body にします。body として返してよいのは、配列、文字列、オブジェクトなど、WordPress REST API がレスポンスとして扱える任意のデータです。また、`Wp\Resta\REST\Http\RestaResponseInterface` を返した場合にはそのまま利用されます。
 
 ### 引数に書けるもの
 
-`callback` の引数に書けるのは、次の 3 種類だけです。
+`callback` の引数に書けるのは、次の 2 種類だけです。
 
 | 引数 | 型 | 受け取るもの |
 |---|---|---|
 | パラメータ | `int` / `float` / `bool` / `string` / `array` / backed enum | URL のパラメータ。名前で対応し、型に変換された値が届く |
 | リクエスト | `RestaRequestInterface` | 現在のリクエスト。ヘッダや、変換前の値を読む |
-| レスポンスの書き込み先 | `ResponseContext` | ステータスとヘッダを書く |
 
-リクエストと `ResponseContext` は型で決まるので、変数名は何でもかまいません。
+リクエストは型で決まるので、変数名は何でもかまいません。
 
 これ以外の型（Service クラスなど）を引数に書くと、ルートの登録時に `LogicException` になります。Service はコンストラクタで受け取ります（[di.md](di.md)）。
 
 ### ステータスとヘッダを指定する
 
-戻り値は body なので、ステータスとヘッダは戻り値では指定しません。引数で `ResponseContext` を受け取り、そこに書きます。PHP の `http_response_code()` や `header()` と同じで、書くだけでよく、返す必要はありません。
+ステータスコードやヘッダを指定したい場合は、`$this->response()` でレスポンスを作って返します。
 
 ```php
-use Wp\Resta\REST\Http\ResponseContext;
-
-public function post(string $title, ResponseContext $response): Note
+public function callback(int $id): RestaResponseInterface
 {
-    $note = $this->service->create($title);
-    $response->status(201);
-    $response->header('Location', rest_url("myroute/notes/{$note->id}"));
-    return $note;   // 返すのは body。$response は返さない
+    $post = get_post($id);
+    if ($post === null || $post->post_status !== 'publish') {
+        return $this->response(null, 404);
+    }
+    // WP_Post をそのまま返すと post_password などの内部フィールドも JSON に出るので、返すフィールドを選ぶ
+    return $this->response(['id' => $post->ID, 'title' => $post->post_title], 200, ['Cache-Control' => 'no-store']);
 }
 ```
 
-- `status()` を呼ばなければ 200 です
-- エラーは `ResponseContext` ではなく、例外で返します（「エラーレスポンス」）。例外を投げると、それまでに `ResponseContext` に書いた値は使われません
-
-どのレスポンスにも付けるヘッダは、`HEADERS` 定数で宣言します。エラーを含むすべてのレスポンスに付き、`ResponseContext` に同名のヘッダを書いた場合はそちらが勝ちます。
+ルートの既定ヘッダは `HEADERS` 定数で宣言します。callback がどう返してもすべてのレスポンス（エラーを含む）に付き、同名ならレスポンス側の値が勝ちます。
 
 ```php
 protected const HEADERS = ['Cache-Control' => 'no-store'];

@@ -74,18 +74,6 @@ $service->shouldReceive('getData')->with(123)->andReturn(['result' => 'mocked'])
 $route = new MyRoute($service);
 ```
 
-callback が `ResponseContext` に書いたステータスとヘッダは、`handle()` が返すレスポンスの `getStatusCode()` / `getHeaders()` で確かめる。
-
-`RequestHandler` を通さずに callback を直接呼ぶなら、`ResponseContext` を `new` して渡し、書かれた値を読む。この場合、パラメータの検証と型変換は通らない。
-
-```php
-$context = new ResponseContext();
-$body = $route->post('title', $context);
-
-$this->assertSame(201, $context->getStatus());
-$this->assertArrayHasKey('Location', $context->getHeaders());
-```
-
 ## Container のリセット
 
 `Container` はプロセス内シングルトンなので、bind したものはテスト間で持ち越される。bind したテストは `tearDown()` でリセットする。

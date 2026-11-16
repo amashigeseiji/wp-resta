@@ -5,6 +5,8 @@ use PHPUnit\Framework\TestCase;
 use Test\Resta\Fixtures\Routes\TestPhpDocArrayRoute;
 use Test\Resta\Fixtures\Routes\TestPhpDocAssociativeRoute;
 use Test\Resta\Fixtures\Routes\TestPhpDocGenericRoute;
+use Test\Resta\Fixtures\Routes\TestPhpDocUnionDictionaryRoute;
+use Test\Resta\Fixtures\Routes\TestPhpDocUnionListRoute;
 use Test\Resta\Fixtures\Routes\TestPrimitiveArrayRoute;
 use Test\Resta\Fixtures\Routes\TestIntegerArrayRoute;
 use Test\Resta\Fixtures\Routes\TestGenericPrimitiveRoute;
@@ -43,17 +45,44 @@ class SchemaInferenceTest extends TestCase
         $this->assertArrayNotHasKey('properties', $schema);
     }
 
-    public function testUnionWithResponseInterfaceIsNotInferred()
+    public function testUnionWithResponseInterfaceInfersFromTheOtherType()
     {
-        // callback は RestaResponseInterface を返せないので、union から body の型を拾う救済はしない
+        // $this->response() を返す分岐のあるルートが戻り値型に RestaResponseInterface を含めても、もう一方の型から推論できる
         $route = new class extends AbstractRoute {
             public function callback(): TestUserType|RestaResponseInterface
             {
-                return new TestUserType();
+                return $this->response(null, 404);
             }
         };
 
-        $this->assertNull($this->inference->inferSchema($route->getOperation('GET')->getCallback()));
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertSame(['$ref' => TestUserType::getSchemaId()], $schema);
+    }
+
+    public function testPhpDocUnionWithResponseInterfaceInfersListFromTheOtherType()
+    {
+        // @return TestUser[]|RestaResponseInterface は TestUser[] として推論する
+        $route = new TestPhpDocUnionListRoute();
+
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertSame(['type' => 'array', 'items' => ['$ref' => TestUser::getSchemaId()]], $schema);
+    }
+
+    public function testPhpDocUnionWithResponseInterfaceInfersDictionaryFromTheOtherType()
+    {
+        // @return array<string, TestUser>|RestaResponseInterface|null は辞書として推論し、null は anyOf に出る
+        $route = new TestPhpDocUnionDictionaryRoute();
+
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertSame([
+            'anyOf' => [
+                ['type' => 'object', 'additionalProperties' => ['$ref' => TestUser::getSchemaId()]],
+                ['type' => 'null'],
+            ],
+        ], $schema);
     }
 
     public function testPhpDocUnionOfTwoBodyTypesIsNotInferred()
@@ -107,6 +136,25 @@ class SchemaInferenceTest extends TestCase
 
         $this->assertEquals($expected, $schema);
         $this->assertArrayNotHasKey('properties', $schema);
+    }
+
+    public function testNullableUnionWithResponseInterfaceIsAnyOfWithNull()
+    {
+        $route = new class extends AbstractRoute {
+            public function callback(): TestUserType|RestaResponseInterface|null
+            {
+                return null;
+            }
+        };
+
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertSame([
+            'anyOf' => [
+                ['$ref' => TestUserType::getSchemaId()],
+                ['type' => 'null'],
+            ],
+        ], $schema);
     }
 
     public function testUnionOfTwoBodyTypesIsNotInferred()

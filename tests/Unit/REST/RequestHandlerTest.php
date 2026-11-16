@@ -12,7 +12,6 @@ use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Exception\ForbiddenException;
 use Wp\Resta\REST\Exception\InvalidParameterException;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
-use Wp\Resta\REST\Http\ResponseContext;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
 use Wp\Resta\REST\Http\TestRestaRequest;
@@ -164,16 +163,13 @@ class RequestHandlerTest extends TestCase
 
     public function testDeclaredHeadersApplyToEveryResponseAndResponseWins(): void
     {
-        // ルートの既定ヘッダは、callback がヘッダを書いたレスポンスにもエラーにも付く。同名は callback が書いたほうが勝つ
+        // ルートの既定ヘッダは、callback が直接返したレスポンスにもエラーにも付く。同名はレスポンス側が勝つ
         $route = new class extends AbstractRoute {
             protected const HEADERS = ['Cache-Control' => 'no-store', 'X-Route' => 'r'];
-            public function callback(ResponseContext $response, string $mode = 'data'): mixed
+            public function callback(string $mode = 'data'): mixed
             {
-                if ($mode === 'direct') {
-                    $response->header('cache-control', 'max-age=60');
-                    return ['direct' => true];
-                }
                 return match ($mode) {
+                    'direct' => new SimpleRestaResponse(['direct' => true], 200, ['cache-control' => 'max-age=60']),
                     'error' => throw new InvalidParameterException('mode'),
                     default => ['data' => true],
                 };
@@ -184,7 +180,7 @@ class RequestHandlerTest extends TestCase
         $this->assertSame(['Cache-Control' => 'no-store', 'X-Route' => 'r'], $data->getHeaders());
 
         $direct = $this->handler()->handle($route, new TestRestaRequest('/x?mode=direct', $route));
-        $this->assertSame(['X-Route' => 'r', 'cache-control' => 'max-age=60'], $direct->getHeaders(), 'callback が書いた同名ヘッダが勝つ');
+        $this->assertSame(['X-Route' => 'r', 'cache-control' => 'max-age=60'], $direct->getHeaders(), '直接返したレスポンスの同名ヘッダが勝つ');
 
         $error = $this->handler()->handle($route, new TestRestaRequest('/x?mode=error', $route));
         $this->assertSame(400, $error->getStatusCode());

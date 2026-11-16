@@ -17,7 +17,7 @@
 ## DI で解決できない
 
 - インターフェースは autowiring できない。`dependencies` に実装クラスか factory を bind する
-- `cannot be a callback argument` という `LogicException`: callback の引数に Service クラスなどを書いている。引数に書けるのはパラメータ、`RestaRequestInterface`、`ResponseContext` だけ。Service はコンストラクタで受ける
+- `cannot be a callback argument` という `LogicException`: callback の引数に Service クラスなどを書いている。引数に書けるのはパラメータと `RestaRequestInterface` だけ。Service はコンストラクタで受ける
 - コンストラクタの union 型・intersection 型の引数は解決できない
 
 ## テストが失敗する

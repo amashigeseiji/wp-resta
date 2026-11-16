@@ -15,7 +15,7 @@ use Wp\Resta\REST\Callback;
  *
  * - URL_PARAMS に書かれた宣言はそのまま使い、同名の callback 引数より優先する
  * - URL_PARAMS に無い callback 引数は、ビルトイン型と backed enum なら URL パラメータの宣言、
- *   それ以外のクラス型なら DI で解決する引数として宣言から外す
+ *   Request（RestaRequestInterface とその実装）は宣言から外す。それ以外のクラス型は LogicException
  * - パスかクエリかは ROUTE に [name] があるかで決まる
  */
 final class ParameterDefinitionBuilder
@@ -36,12 +36,12 @@ final class ParameterDefinitionBuilder
         $docParams = self::docParams($callback->getDocComment());
         foreach ($callback->getParameters() as $param) {
             try {
-                $isContext = Callback::contextClass($param) !== null;
+                $isRequest = Callback::requestClass($param) !== null;
             } catch (LogicException $e) {
                 throw new LogicException(sprintf('%s() %s', $owner, $e->getMessage()), 0, $e);
             }
-            if ($isContext) {
-                // Request と ResponseContext はパラメータではない。型で決まるので、同名の URL パラメータがあっても関係ない
+            if ($isRequest) {
+                // Request はパラメータではない。型で決まるので、同名の URL パラメータがあっても関係ない
                 continue;
             }
             $isPath = in_array($param->name, $pathNames, true);
@@ -131,7 +131,7 @@ final class ParameterDefinitionBuilder
                 $items = $doc['items'] ?? [];
             }
         } else {
-            // ここに来るクラス型は backed enum だけ（それ以外は Callback::contextClass() が先に振り分けている）
+            // ここに来るクラス型は backed enum だけ（それ以外は Callback::requestClass() が先に振り分けている）
             $class = $type->getName();
             assert(is_subclass_of($class, BackedEnum::class));
             $backing = (new ReflectionEnum($class))->getBackingType();

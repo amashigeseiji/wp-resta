@@ -9,14 +9,10 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 ### 削除
 
 - `AbstractRoute` の `$status` / `$body` / `$headers` プロパティを削除した（#105）。0.12 で非推奨にしていたもの。callback の中での代入を戻り値に変換する処理と、非推奨の警告も無くなる
-  - 代替: ステータスとこのレスポンスだけのヘッダは `ResponseContext`（下の「追加」）、エラーは `HttpException`、ルートの既定ヘッダは `HEADERS` 定数
-  - `protected int $status = 201;` のようにクラス宣言で既定値を変えていたルートは、callback で `ResponseContext` の `status(201)` を呼ぶ
+  - 代替: ステータスとヘッダは `return $this->response($body, $status, $headers)`、エラーは `HttpException`、ルートの既定ヘッダは `HEADERS` 定数
+  - `protected int $status = 201;` のようにクラス宣言で既定値を変えていたルートは、callback から `$this->response($body, 201)` を返す
   - callback の中に `$this->status = 404;` が残っていると、効かないうえに PHP が動的プロパティの非推奨を警告する
-- `AbstractRoute::response()` と、callback が `RestaResponseInterface` を返す経路を削除した（#99、[ADR 0002](docs/adr/0002-callback-definition.md)）。callback の戻り値は常に body で、戻り値型がそのままレスポンスのスキーマになる。`RestaResponseInterface` を返すと 500 になる。非推奨の期間は挟まない
-  - **0.12 で案内した移行先の変更:** 0.12 の非推奨メッセージは `$this->response()` を移行先として案内していた。0.12 でそのとおりに書き換えたコードは、もう一度書き換えが要る
-  - 代替: `return $this->response($body, 201, ['Location' => $url]);` は、引数で `ResponseContext $response` を受け取り、`$response->status(201); $response->header('Location', $url); return $body;` と書く。`return $this->response(null, 404);` のようなエラーは `HttpException` を投げる
-  - `Post|RestaResponseInterface` のような union の戻り値型から body の型を推論する処理も無くなる。戻り値型を body の型だけにする
-- callback の引数でのサービスの注入（DI コンテナからの解決）を削除した（#99）。引数に書けるのは、パラメータ（ビルトイン型と backed enum）、リクエスト（`RestaRequestInterface` かそれを実装するクラス）、`ResponseContext` の 3 種類だけになる。それ以外の型の引数があると、ルートの登録時に `LogicException` になる
+- callback の引数でのサービスの注入（DI コンテナからの解決）を削除した（#99）。引数に書けるのは、パラメータ（ビルトイン型と backed enum）、リクエスト（`RestaRequestInterface` かそれを実装するクラス）の 2 種類だけになる。それ以外の型の引数があると、ルートの登録時に `LogicException` になる
   - 代替: サービスはコンストラクタで受ける
 - callback の引数での `WP_REST_Request` を削除した（#99）。`RegisterRestRoutes` がリクエストごとに `WP_REST_Request` をコンテナへ bind する処理も無くなる
   - 代替: リクエストの値は、型の付いた引数か `RestaRequestInterface` で読む。`WP_REST_Request` そのものが要る場合は、引数を `WpRestaRequest` で宣言し、`getWpRequest()` で取り出す（[docs/wordpress.md](docs/wordpress.md)）
@@ -34,24 +30,12 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   }
   ```
 
-- `ResponseContext` を追加した（#99）。callback の引数で受け取り、このリクエストのレスポンスのステータスとヘッダを書く。callback が使うのは `status(int)` と `header(string, string)` の 2 つ。書くだけでよく、返す必要は無い。callback が例外を投げた場合、書いた値は使われない。callback を直接呼ぶテストでは、`new ResponseContext()` を渡して `getStatus()` / `getHeaders()` で確かめられる
-
-  ```php
-  public function post(string $title, ResponseContext $response): Note
-  {
-      $note = $this->service->create($title);
-      $response->status(201);
-      $response->header('Location', rest_url("myroute/notes/{$note->id}"));
-      return $note;
-  }
-  ```
-
 - `WpRestaRequest::getWpRequest()` を追加した（#99）。元の `WP_REST_Request` を返す。`RestaRequestInterface` には無く、引数を `WpRestaRequest` で宣言したルートだけが使える
 - OpenAPI を JSON ファイルに書き出す `scripts/generate-openapi.php` を追加した（#108）。WordPress を起動せずに動くので、フロントエンドのビルドや CI で使える。`php vendor/tenjuu99/wp-resta/scripts/generate-openapi.php <config-file> [output-file] [server-url]`
 
 ### 変更
 
-- callback のクラス型の引数（リクエストと `ResponseContext`）を、変数名ではなく型で解決する（#99）。これまでは型より先に名前で URL パラメータの値を引いていたので、`URL_PARAMS` に `request` があると `RestaRequestInterface $request` に URL の値が渡っていた
+- callback のリクエストの引数を、変数名ではなく型で解決する（#99）。これまでは型より先に名前で URL パラメータの値を引いていたので、`URL_PARAMS` に `request` があると `RestaRequestInterface $request` に URL の値が渡っていた
 - `RequestHandler` の `final` を外した（#99）。独自のリクエストを使う場合などに、継承して差し替えられる。拡張点としての約束はしない
 - **0.12 の予告の取り消し:** 「callback の無いルートは 0.13 で `LogicException`」を取り消した（#105）。callback は必須にしない。ただし 0.12 までの `protected $body = ...;` という書きかたは使えなくなり、`public readonly` で宣言してコンストラクタで値を入れる形に書き換える。`public readonly` でない `body`、callback と `body` の両方があるルート、どちらも無いルートは `LogicException` になる
 
