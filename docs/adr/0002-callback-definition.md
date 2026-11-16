@@ -33,7 +33,7 @@ callback の引数の型を、そのままパラメータの宣言として読�
 - 「body の型を宣言したレスポンスを返す」という案を、比べていなかった
 - `ResponseContext` は、書き込んで返さないオブジェクトで、`$response` に書いて返すという一般的な期待とずれていた
 
-戻り値まわりは 0.12 のまま残す。callback は body か `RestaResponseInterface` を返し、`$this->response()` も、`T|RestaResponseInterface` からのスキーマの推論も残る。どうするかは、別の issue で問題から立て直す。
+戻り値まわりは 0.12 のまま残す。callback は body か `RestaResponseInterface` を返し、`$this->response()` も、`T|RestaResponseInterface` からのスキーマの推論も残る。0.12 のままで利用者ができないことは、いまのところ見つかっていない。OpenAPI のステータスが常に 200 になる件は [#110](https://github.com/amashigeseiji/wp-resta/issues/110) が扱う。
 
 ## 採らなかった案
 
