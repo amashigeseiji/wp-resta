@@ -40,11 +40,24 @@ class CallbackTest extends TestCase
         $this->assertSame('id', $callback->getParameters()[0]->name);
     }
 
-    public function testReturningHasNoParameters(): void
+    public function testFromPropertyReadsTypeAndDocCommentFromTheProperty(): void
     {
-        $callback = Callback::returning(['static' => true]);
+        $object = new class {
+            /** @var array<string, bool> */
+            public readonly array $body;
+
+            public function __construct()
+            {
+                $this->body = ['static' => true];
+            }
+        };
+
+        $callback = Callback::fromProperty($object, 'body');
 
         $this->assertSame([], $callback->getParameters());
-        $this->assertNull($callback->getDocComment());
+        $this->assertSame('array', (string) $callback->getReturnType());
+        $this->assertStringContainsString('@var array<string, bool>', (string) $callback->getDocComment());
+        $this->assertSame($object::class, $callback->getDeclaringClass()?->getName());
+        $this->assertSame(['static' => true], $callback->invoke([]));
     }
 }

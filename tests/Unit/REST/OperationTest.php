@@ -215,27 +215,11 @@ class OperationTest extends TestCase
         $this->assertSame('notes/(?P<id>\\d+)', $route->getRouteRegex());
     }
 
-    public function testStatusAssignedInHttpMethodOperationGoesThroughBridge(): void
-    {
-        // 0.12 の橋は get() / post() にも効く（#59 で消すまで）。警告はどのメソッドで代入したかを言う
-        $route = new class extends AbstractRoute {
-            public function get(): ?array
-            {
-                $this->status = 404;
-                return null;
-            }
-        };
-        $this->expectUserDeprecationMessageMatches('/get\(\) assigned \$status/');
-
-        $this->assertSame(404, $this->handle($route, '/x')->getStatusCode());
-    }
-
-    public function testRouteWithoutAnyCallbackBecomesOneDeprecatedOperation(): void
+    public function testStaticRouteBecomesOneOperation(): void
     {
         $route = new class extends AbstractRoute {
-            protected $body = 'static';
+            public function __construct(public readonly string $body = 'static') {}
         };
-        $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
         $this->assertCount(1, $route->getOperations());
         $this->assertSame('GET', $route->getOperations()[0]->getMethods());

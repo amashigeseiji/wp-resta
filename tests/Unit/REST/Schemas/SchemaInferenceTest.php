@@ -184,16 +184,25 @@ class SchemaInferenceTest extends TestCase
         $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $schema, 'OpenAPI 3.0 の array には items が必須。要素型が無ければ {}');
     }
 
-    public function testInferSchemaReturnsNullWhenNoCallbackMethod()
+    public function testStaticRouteInfersSchemaFromBodyPropertyType()
     {
-        // callback メソッドがない場合
-        $route = new class extends AbstractRoute {
-            // callback メソッドなし
+        // 静的なルートは、body プロパティの型が callback の戻り値型と同じようにスキーマになる
+        $route = new class(new TestUserType()) extends AbstractRoute {
+            public function __construct(public readonly TestUserType $body) {}
         };
 
         $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
 
-        $this->assertNull($schema);
+        $this->assertSame(['$ref' => TestUserType::getSchemaId()], $schema);
+    }
+
+    public function testStaticRouteInfersArraySchemaFromVarAnnotation()
+    {
+        $route = new TestUserListStaticRoute();
+
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertSame(['type' => 'array', 'items' => ['$ref' => TestUserType::getSchemaId()]], $schema);
     }
 
     public function testInferSchemaFromPhpDocArrayAnnotation()
@@ -370,5 +379,16 @@ class TestUserRoute extends AbstractRoute
     {
         // このメソッドは実際には呼ばれない（Reflection で型情報を取得するだけ）
         return new TestUserType();
+    }
+}
+
+class TestUserListStaticRoute extends AbstractRoute
+{
+    /** @var TestUserType[] */
+    public readonly array $body;
+
+    public function __construct()
+    {
+        $this->body = [];
     }
 }

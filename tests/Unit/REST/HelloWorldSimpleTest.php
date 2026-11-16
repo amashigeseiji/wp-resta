@@ -27,13 +27,11 @@ class HelloWorldSimpleTest extends TestCase
         $this->assertEquals('Hello, world!', $response->getData());
     }
 
-    public function testRouteWithoutCallbackStillWorksButIsDeprecated()
+    public function testStaticRouteReturnsItsBody()
     {
-        // 0.12 では非推奨の警告を出して $body を返す。0.13 で LogicException にする
         $route = new class extends AbstractRoute {
-            protected $body = 'Hello, world!';
+            public function __construct(public readonly string $body = 'Hello, world!') {}
         };
-        $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
         $request = new TestRestaRequest('/myroute/helloworld', $route);
         $response = (new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request);

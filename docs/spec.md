@@ -79,7 +79,9 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ### callback
 
-- 選ばれた操作の callback（`callback()` か `get()` などの HTTP メソッド名のメソッド）がリクエストごとに呼ばれる。どちらも持たないルートは非推奨で、次の minor で許可されなくなる
+- 選ばれた操作の callback（`callback()` か `get()` などの HTTP メソッド名のメソッド）がリクエストごとに呼ばれる
+- callback を持たないルートは、`public readonly` の `body` プロパティで応答を宣言できる（静的なルート）。その値がステータス 200 のレスポンスボディになり、プロパティの型が、callback の戻り値型と同じようにレスポンスの形の宣言になる
+- callback と `body` プロパティの両方を持つルート、どちらも持たないルートは `LogicException` になる
 - callback の引数は、宣言済みの URL パラメータなら名前で型変換済みの値が、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決でき、`getMethod()` は HTTP メソッド、`getHeader()` はリクエストヘッダの値（無ければ null）、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
 - WordPress の REST API から移行するコードのために、`WP_REST_Request` も callback 引数で受け取れる。新しく書くコードでは使わない
 - callback の戻り値がレスポンスボディになる
@@ -89,7 +91,6 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - `RestaResponseInterface` を返せばステータスとヘッダも含めてそのまま使われる
 - `$this->response($data, $status, $headers)` でステータスとヘッダを指定したレスポンスを作れる
 - `HEADERS` 定数で宣言したルートの既定ヘッダは、エラーを含むどのレスポンスにも付く。レスポンス自身が同名のヘッダを持てばそちらが優先される
-- `$status` / `$body` / `$headers` プロパティへの代入は非推奨（`E_USER_DEPRECATED`）で、次の minor で許可されなくなる。`$this->response()` と `HEADERS` を使う
 - `RestaResponseInterface::withHeaders()` でヘッダを足した複製を作れる。購読者がレスポンスにヘッダを付けるときに使う
 - `#[Envelope]` を付けたルートは、成功（2xx）のボディが `{ "data": ..., "meta": ... }` に包まれる。エラーレスポンスは包まれず、「エラーレスポンス」の形のまま
 - `#[Cache(maxAge:)]` を付けたルートは、未認証の GET / HEAD の 200 レスポンスに `Cache-Control` と `ETag` が付く。`If-None-Match` が一致すれば空ボディの 304 になる。認証済みのリクエスト、エラー、GET / HEAD 以外、レスポンスがすでに `Cache-Control` を持つ場合には付かない

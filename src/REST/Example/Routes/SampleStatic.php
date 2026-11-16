@@ -10,11 +10,16 @@ use Wp\Resta\REST\Attributes\RouteMeta;
 class SampleStatic extends AbstractRoute
 {
     /**
-     * @return array{name: string, body: string}
+     * 静的なルート。callback を書かず、応答を public readonly の body で宣言する。
+     * コンストラクタは、このルートが呼ばれなくても登録時に実行されるので、軽い値だけを置く
+     *
+     * @var array{name: string, body: string}
      */
-    public function callback(): array
+    public readonly array $body;
+
+    public function __construct()
     {
-        return [
+        $this->body = [
             'name' => 'static_parameter',
             'body' => 'this is sttatic parameter',
         ];

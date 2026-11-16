@@ -132,6 +132,29 @@ public function callback(int $id): RestaResponseInterface
 protected const HEADERS = ['Cache-Control' => 'no-store'];
 ```
 
+## 静的なルート
+
+リクエストによって変わらない値を返すだけなら、callback を書かずに、応答を `public readonly` の `body` プロパティで宣言できます。手本は `src/REST/Example/Routes/SampleStatic.php` です。
+
+```php
+class Version extends AbstractRoute
+{
+    public readonly VersionInfo $body;
+
+    public function __construct(VersionService $service)
+    {
+        $this->body = $service->current();
+    }
+}
+```
+
+- `body` の値が、ステータス 200 のレスポンスボディになります。既定のヘッダは `HEADERS` 定数で宣言します
+- プロパティの型が、callback の戻り値型と同じようにスキーマになります。配列の要素の型は `@var Post[]` のように docblock で書けます
+- `body` はコンストラクタで確定させます。`readonly` なので、あとから書き換えようとすると PHP がエラーにします
+- callback（`callback()` や `get()` / `post()` など）と `body` の両方を書くことはできません。どちらも無いクラスも、ルートとして登録できません
+
+コンストラクタは、そのルートが呼ばれなくても、ルートの登録時に実行されます。コンストラクタで DB のクエリのような重い処理をすると、ほかのルートへのリクエストでもそれが走ります。静的なルートは、リクエストを待たずに決まる軽い値に使い、重い処理は callback に書いてください。
+
 ## 同じ URL で HTTP メソッドごとに処理を分ける
 
 `callback` の代わりに `get` / `post` / `put` / `patch` / `delete` という名前のメソッドを書くと、それぞれがその HTTP メソッドの処理になります。引数の宣言はメソッドごとに独立していて、`post` の引数は GET のリクエストでは要求されません。

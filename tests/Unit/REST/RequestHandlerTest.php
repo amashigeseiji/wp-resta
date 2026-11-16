@@ -212,24 +212,6 @@ class RequestHandlerTest extends TestCase
         $this->assertSame(['Cache-Control' => 'no-store', 'X-Route' => 'r'], $error->getHeaders(), 'エラーレスポンスにも付く');
     }
 
-    public function testStatusAssignedInCallbackStillWorksThroughBridge(): void
-    {
-        // 0.12 の橋: callback 内の $this->status への代入は非推奨の警告付きで戻り値の包みに変換される
-        $route = new class extends AbstractRoute {
-            public function callback(): ?array
-            {
-                $this->status = 404;
-                return null;
-            }
-        };
-        $this->expectUserDeprecationMessageMatches('/callback\(\) assigned \$status/');
-
-        $response = $this->handler()->handle($route, new TestRestaRequest('/x', $route));
-
-        $this->assertSame(404, $response->getStatusCode());
-        $this->assertNull($response->getData());
-    }
-
     public function testCurrentRequestIsPassedToCallbackWithoutContainer(): void
     {
         $route = new class extends AbstractRoute {

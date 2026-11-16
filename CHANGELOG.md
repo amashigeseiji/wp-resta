@@ -8,12 +8,29 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 削除
 
+- `AbstractRoute` の `$status` / `$body` / `$headers` プロパティを削除した（#105）。0.12 で非推奨にしていたもの。callback の中での代入を戻り値に変換する処理と、非推奨の警告も無くなる
+  - 代替: ステータスとヘッダは `return $this->response($body, $status, $headers)`、エラーは `HttpException`、ルートの既定ヘッダは `HEADERS` 定数
+  - `protected int $status = 201;` のようにクラス宣言で既定値を変えていたルートは、callback から `$this->response($body, 201)` を返す
+  - callback の中に `$this->status = 404;` が残っていると、効かないうえに PHP が動的プロパティの非推奨を警告する
 - TypeScript の型生成を削除した（#108）。`Wp\Resta\CodeGen\*`、`scripts/generate-types.php`、`composer generate:types` が無くなる。実験的な実装で、非推奨の期間は挟まない。OpenAPI から TypeScript への変換を自前で持つと、スキーマ側を直すたびに TypeScript 側も直すことになり、同じことは標準のツールでできる
   - 代替: OpenAPI を書き出し、[openapi-typescript](https://openapi-ts.dev/) などで型を生成する。手順は [docs/frontend.md](docs/frontend.md)。`ApiEndpoints['GET /path']` で引いていた型は、`paths['/path']['get']` で引ける
 
 ### 追加
 
+- 静的なルートを `public readonly` の `body` プロパティで宣言できる（#105、[ADR 0005](docs/adr/0005-static-route-body.md)）。callback を持たないルートは、コンストラクタで確定させた `body` の値をステータス 200 で返す。プロパティの型（配列は `@var`）がスキーマになる
+
+  ```php
+  class Version extends AbstractRoute
+  {
+      public function __construct(public readonly VersionInfo $body) {}
+  }
+  ```
+
 - OpenAPI を JSON ファイルに書き出す `scripts/generate-openapi.php` を追加した（#108）。WordPress を起動せずに動くので、フロントエンドのビルドや CI で使える。`php vendor/tenjuu99/wp-resta/scripts/generate-openapi.php <config-file> [output-file] [server-url]`
+
+### 変更
+
+- **0.12 の予告の取り消し:** 「callback の無いルートは 0.13 で `LogicException`」を取り消した（#105）。callback は必須にしない。ただし 0.12 までの `protected $body = ...;` という書きかたは使えなくなり、`public readonly` で宣言してコンストラクタで値を入れる形に書き換える。`public readonly` でない `body`、callback と `body` の両方があるルート、どちらも無いルートは `LogicException` になる
 
 ## [0.12.0] - 2026-11-11
 

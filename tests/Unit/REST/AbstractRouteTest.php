@@ -274,23 +274,6 @@ class AbstractRouteTest extends TestCase
         $this->assertStringContainsString('TypeError', $this->loggedErrors());
     }
 
-    public function testInvokeDoesNotKeepStatusSetBeforeException()
-    {
-        // callback が $this->status を書き換えたあとに例外を投げても、その値は使わない。代入の警告は出る
-        $route = new class extends AbstractRoute {
-            public function callback(): array
-            {
-                $this->status = 404;
-                throw new \RuntimeException('after status');
-            }
-        };
-
-        $this->expectUserDeprecationMessageMatches('/callback\(\) assigned \$status/');
-        $response = $this->handle($route, new TestRestaRequest('/test', $route));
-
-        $this->assertEquals(500, $response->getStatusCode());
-    }
-
     public function testInvokeKeepsHeadersOnErrorResponse()
     {
         $route = new class extends AbstractRoute {
@@ -400,32 +383,15 @@ class AbstractRouteTest extends TestCase
         $this->assertSame('', $this->loggedErrors());
     }
 
-    public function testInvokeWithoutCallback()
+    public function testRouteWithoutAnyDeclarationIsRejected()
     {
         $route = new class extends AbstractRoute {
-            // No callback method
+            // callback も body も無い
         };
-        $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
-        $request = new TestRestaRequest('/test', $route);
-        $response = $this->handle($route, $request);
-
-        $this->assertInstanceOf(RestaResponseInterface::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
-    }
-
-    public function testRouteWithoutCallbackKeepsDeclaredStatus()
-    {
-        $route = new class extends AbstractRoute {
-            protected int $status = 201;
-            protected $body = ['created' => true];
-        };
-        $this->expectUserDeprecationMessageMatches('/has no callback\\(\\)/');
-
-        $response = $this->handle($route, new TestRestaRequest('/test', $route));
-
-        $this->assertSame(201, $response->getStatusCode(), 'callback が無くても宣言された $status は保たれる');
-        $this->assertSame(['created' => true], $response->getData());
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('declares no operation');
+        $route->getOperations();
     }
 
     public function testNullableEnumArgumentReceivesNullWhenOmitted()
@@ -444,11 +410,9 @@ class AbstractRouteTest extends TestCase
     public function testInvokeWithCustomStatus()
     {
         $route = new class extends AbstractRoute {
-            protected int $status = 201;
-
-            public function callback(): array
+            public function callback(): RestaResponseInterface
             {
-                return ['created' => true];
+                return $this->response(['created' => true], 201);
             }
         };
 
@@ -1006,7 +970,7 @@ class AbstractRouteTest extends TestCase
         $this->assertSame(0, $core($args['name']['pattern'], ''), '空文字は \w+ に一致しない');
     }
 
-    public function testResponseHelperReturnsStatusAndDataWithoutTouchingRouteState()
+    public function testResponseHelperReturnsStatusAndData()
     {
         $route = new class extends AbstractRoute {
             public function callback(): RestaResponseInterface
@@ -1019,9 +983,6 @@ class AbstractRouteTest extends TestCase
         $this->assertEquals(404, $response->getStatusCode());
         $this->assertSame(['error' => 'not found'], $response->getData());
         $this->assertSame([], $response->getHeaders());
-
-        // プロパティに代入していないので、同じインスタンスで次に呼んでも 404 を引きずらない
-        $this->assertEquals(200, (new ReflectionProperty($route, 'status'))->getValue($route));
     }
 
     public function testResponseHelperDefaultsTo200()
@@ -1093,13 +1054,12 @@ class AbstractRouteTest extends TestCase
         $this->assertSame(['page' => ['type' => 'integer', 'required' => false, 'regex' => '\d+', 'description' => 'page', 'sanitize_callback' => null]], $this->args($route));
     }
 
-    public function testRouteWithoutCallbackHasCallbackReturningDeclaredBody()
+    public function testStaticRouteHasCallbackReturningDeclaredBody()
     {
-        // 0.12 では非推奨の警告付きで動く。0.13 で LogicException にする
         $route = new class extends AbstractRoute {
-            protected $body = ['static' => true];
+            /** @param array<string, bool> $body */
+            public function __construct(public readonly array $body = ['static' => true]) {}
         };
-        $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
         $this->assertSame([], $route->getOperation('GET')->getCallback()->getParameters());
         $this->assertCount(0, $route->getOperation('GET')->getParameters());
@@ -1259,13 +1219,16 @@ class AbstractRouteTest extends TestCase
     public function testAuthorizeAppliesToRouteWithoutCallback()
     {
         $route = new class extends AbstractRoute {
-            protected $body = ['static' => true];
+            public readonly string $body;
+            public function __construct()
+            {
+                $this->body = 'static';
+            }
             public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 throw new ForbiddenException();
             }
         };
-        $this->expectUserDeprecationMessageMatches('/has no callback\(\)/');
 
         $response = $this->handle($route, $this->requestWith([]));
 
