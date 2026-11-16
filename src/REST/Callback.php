@@ -131,14 +131,12 @@ final class Callback
         $type = $param->getType();
         if ($type instanceof ReflectionUnionType || $type instanceof ReflectionIntersectionType) {
             // クラスを含む union / intersection は、型で 1 つに決められない。同名の URL_PARAMS があっても
-            // 渡るのは文字列なので、呼び出し時に TypeError になる。ビルトイン型だけの union はパラメータの側で扱う
+            // 渡るのは文字列なので、呼び出し時に TypeError になる。backed enum も、union の中では変換先を
+            // 1 つに決められないので同じ。ビルトイン型だけの union はパラメータの側で扱う
             foreach ($type->getTypes() as $member) {
-                $isClass = $member instanceof ReflectionNamedType
-                    ? !$member->isBuiltin() && !is_subclass_of($member->getName(), BackedEnum::class)
-                    : true;
-                if ($isClass) {
+                if (!($member instanceof ReflectionNamedType) || !$member->isBuiltin()) {
                     throw new LogicException(sprintf(
-                        'argument $%s: %s cannot be a callback argument. A union or intersection type cannot contain a class. Declare the request as RestaRequestInterface or one of its implementations',
+                        'argument $%s: %s cannot be a callback argument. A union or intersection type can contain only built-in types. Declare a single backed enum, or the request as RestaRequestInterface or one of its implementations',
                         $param->name,
                         $type,
                     ));

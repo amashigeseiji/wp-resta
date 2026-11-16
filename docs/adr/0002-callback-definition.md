@@ -20,7 +20,7 @@ callback の引数の型を、そのままパラメータの宣言として読�
 
 クラス型の引数は型で解決する。変数名は任意。
 
-- それ以外の型の引数を持つルートは、登録時に `LogicException`。クラスを含む union / intersection 型も同じ
+- それ以外の型の引数を持つルートは、登録時に `LogicException`。クラスや enum を含む union / intersection 型も同じ
 - 引数での `WP_REST_Request` を削除する。必要なルートは、引数を `WpRestaRequest` で宣言し、`getWpRequest()` で取り出す。このメソッドは実クラスにだけ置き、`RestaRequestInterface` には足さない
 - 引数でのサービスの注入（コンテナ解決）を削除する。サービスはコンストラクタで受ける
 - 非推奨の期間は挟まない

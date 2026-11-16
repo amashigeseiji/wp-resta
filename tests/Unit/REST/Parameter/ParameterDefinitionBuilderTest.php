@@ -3,6 +3,7 @@ namespace Test\Resta\Unit\REST\Parameter;
 
 use LogicException;
 use PHPUnit\Framework\TestCase;
+use Test\Resta\Fixtures\Parameter\Direction;
 use Test\Resta\Fixtures\Parameter\Sort;
 use Wp\Resta\REST\Attributes\Param;
 use Wp\Resta\REST\Callback;
@@ -306,6 +307,17 @@ class ParameterDefinitionBuilderTest extends TestCase
 
         $this->build('x', ['service' => 'string'], new class {
             public function callback(\stdClass|\DateTime $service): void {}
+        });
+    }
+
+    public function testUnionContainingBackedEnumIsLogicExceptionEvenWhenDeclaredInUrlParams(): void
+    {
+        // 単独の backed enum は書ける。union の中では変換先が決まらず、文字列のまま渡って TypeError になる
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('can contain only built-in types');
+
+        $this->build('x', ['sort' => 'string'], new class {
+            public function callback(Sort|Direction $sort): void {}
         });
     }
 
