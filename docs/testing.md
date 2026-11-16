@@ -130,6 +130,18 @@ Docker を使って簡単に動作確認環境をセットアップできます�
 docker compose down
 ```
 
+### WordPress のバージョンを変えて回す
+
+CI は PR ごとに、WordPress の最新と、[spec.md](spec.md)「互換性ポリシー」の下限の 2 つで E2E を回す。手元で下限を試すには、`WP_IMAGE` でイメージを差し替える。WordPress のファイルはボリュームに残るので、切り替える前にボリュームごと消す。
+
+```bash
+docker compose down -v
+WP_IMAGE=wordpress:6.1-php8.2-apache ./docker/setup.sh
+composer test:e2e
+```
+
+下限を上げるときは、spec.md と `.github/workflows/ci.yml` の matrix を一緒に変える。
+
 ## 本体の変更で足すテストの目安
 
 - `AbstractRoute` の挙動変更: `tests/Unit/REST/AbstractRouteTest.php` に加え、E2E で WP コア経由の結果も 1 ケース

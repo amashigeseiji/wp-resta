@@ -19,7 +19,9 @@ services:
       retries: 10
 
   wordpress:
-    image: wordpress:php8.2-apache
+    # WP_IMAGE で WordPress のバージョンを差し替えられる（例: WP_IMAGE=wordpress:6.1-php8.2-apache）
+    # 切り替えるときは docker compose down -v でボリュームを作り直す
+    image: ${WP_IMAGE:-wordpress:php8.2-apache}
     container_name: wp-resta-wordpress
     restart: unless-stopped
     ports:
