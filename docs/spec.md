@@ -92,6 +92,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - ステータスは 200。変えるときは、callback の引数で受け取った `ResponseContext` の `status()` に書く
 - このレスポンスだけのヘッダは、`ResponseContext` の `header()` に書く
 - callback が例外を投げた場合、`ResponseContext` に書いた値は使われない。エラーレスポンスは例外から作られる
+- `ResponseContext` は引数なしで `new` できるクラスで、書かれた値は `getStatus()` / `getHeaders()` で読める。callback を直接呼ぶテストで使う。callback の引数の型に書けるのは `ResponseContext` そのものだけで、継承したクラスを書いたルートは `LogicException` になる
 - `HEADERS` 定数で宣言したルートの既定ヘッダは、エラーを含むどのレスポンスにも付く。`ResponseContext` に同名のヘッダを書けばそちらが優先される
 - `RestaResponseInterface::withHeaders()` でヘッダを足した複製を作れる。購読者がレスポンスにヘッダを付けるときに使う
 - `#[Envelope]` を付けたルートは、成功（2xx）のボディが `{ "data": ..., "meta": ... }` に包まれる。エラーレスポンスは包まれず、「エラーレスポンス」の形のまま

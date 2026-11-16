@@ -8,7 +8,6 @@ use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Exception\RouteNotFoundException;
 use Wp\Resta\REST\Http\Headers;
-use Wp\Resta\REST\Http\RecordingResponseContext;
 use Wp\Resta\REST\Http\ResponseContext;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
@@ -42,7 +41,7 @@ class RequestHandler
 
             $callback = $operation->getCallback();
             // ステータスとヘッダの書き込み先はリクエストごとに作る。callback が例外で抜けたら、書かれた値は使わない
-            $context = new RecordingResponseContext();
+            $context = new ResponseContext();
             $result = $callback->invoke($callback->resolve($params, $request, $context));
             if ($result instanceof RestaResponseInterface || $result instanceof ResponseContext) {
                 throw new LogicException(sprintf(

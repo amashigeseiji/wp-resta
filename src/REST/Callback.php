@@ -163,7 +163,7 @@ final class Callback
             return $class;
         }
         if (is_a($class, ResponseContext::class, true)) {
-            // 実行者が渡すのは ResponseContext としての書き込み先だけで、実装クラスは約束していない
+            // 実行者が作って渡すのは ResponseContext そのもの。継承したクラスを宣言しても、それは渡らない
             throw new LogicException(sprintf(
                 'argument $%s: %s cannot be a callback argument. Declare the argument as %s',
                 $param->name,

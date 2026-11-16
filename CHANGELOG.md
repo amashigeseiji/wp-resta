@@ -34,7 +34,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   }
   ```
 
-- `ResponseContext` を追加した（#99）。callback の引数で受け取り、このリクエストのレスポンスのステータスとヘッダを書く。`status(int)` と `header(string, string)` の 2 つだけを持つ。書くだけでよく、返す必要は無い。callback が例外を投げた場合、書いた値は使われない
+- `ResponseContext` を追加した（#99）。callback の引数で受け取り、このリクエストのレスポンスのステータスとヘッダを書く。callback が使うのは `status(int)` と `header(string, string)` の 2 つ。書くだけでよく、返す必要は無い。callback が例外を投げた場合、書いた値は使われない。callback を直接呼ぶテストでは、`new ResponseContext()` を渡して `getStatus()` / `getHeaders()` で確かめられる
 
   ```php
   public function post(string $title, ResponseContext $response): Note

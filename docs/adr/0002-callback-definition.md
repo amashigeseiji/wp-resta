@@ -1,6 +1,6 @@
 # 0002. callback の定義: 戻り値は body、status とヘッダは `ResponseContext`、引数は 3 種類だけ
 
-- 状態: 採用（0.13 で実装）
+- 状態: 採用（0.13 で実装）。`ResponseContext` を interface とした部分は [0006](0006-response-context-concrete-class.md) で置き換え
 - 日付: 2026-11-12
 - 関連: [#99](https://github.com/amashigeseiji/wp-resta/issues/99)
 

@@ -331,12 +331,12 @@ class ParameterDefinitionBuilderTest extends TestCase
 
     public function testSubtypeOfResponseContextIsLogicException(): void
     {
-        // 実行者が渡すのは ResponseContext としての書き込み先だけ。派生型を宣言すると呼び出し時に TypeError になるので登録時に止める
+        // 実行者が渡すのは ResponseContext そのもの。継承したクラスを宣言すると呼び出し時に TypeError になるので登録時に止める
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('Declare the argument as ' . \Wp\Resta\REST\Http\ResponseContext::class);
 
         $this->build('x', [], new class {
-            public function callback(\Wp\Resta\REST\Http\RecordingResponseContext $response): void {}
+            public function callback(\Test\Resta\Fixtures\Parameter\TestDerivedResponseContext $response): void {}
         });
     }
 

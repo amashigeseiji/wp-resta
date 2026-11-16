@@ -239,6 +239,35 @@ class ResponseContextTest extends TestCase
         $this->assertStringContainsString('Return the response body; write the status and headers to ResponseContext', $this->loggedErrors());
     }
 
+    public function testCallbackCanBeCalledDirectlyWithANewContext(): void
+    {
+        // RequestHandler を通さず、callback を直接呼ぶテストの書き方
+        $route = new class extends AbstractRoute {
+            /** @return array{id: int} */
+            public function post(ResponseContext $response): array
+            {
+                $response->status(201);
+                $response->header('Location', '/notes/1');
+                return ['id' => 1];
+            }
+        };
+
+        $context = new ResponseContext();
+        $body = $route->post($context);
+
+        $this->assertSame(['id' => 1], $body);
+        $this->assertSame(201, $context->getStatus());
+        $this->assertSame(['Location' => '/notes/1'], $context->getHeaders());
+    }
+
+    public function testNewContextIs200WithNoHeaders(): void
+    {
+        $context = new ResponseContext();
+
+        $this->assertSame(200, $context->getStatus());
+        $this->assertSame([], $context->getHeaders());
+    }
+
     public function testRequestHandlerIsOpenForExtension(): void
     {
         // DI で組み立てるクラスは差し替えられる状態にしておく（独自の Request を使う場合など）

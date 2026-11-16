@@ -7,10 +7,11 @@
 | 番号 | 決定 | 状態 | 関連 |
 |---|---|---|---|
 | [0001](0001-record-decisions.md) | 設計の決定を ADR に記録する | 採用 | |
-| [0002](0002-callback-definition.md) | callback の定義: 戻り値は body、status とヘッダは `ResponseContext`、引数は 3 種類だけ | 採用（0.13） | #99 |
+| [0002](0002-callback-definition.md) | callback の定義: 戻り値は body、status とヘッダは `ResponseContext`、引数は 3 種類だけ | 採用（0.13）。一部を 0006 で置き換え | #99 |
 | [0003](0003-remove-validate-authorize.md) | `validate()` / `authorize()` を削除し、`Principal` は必要なクラスだけが知る | 採用（0.13） | #114 |
 | [0004](0004-authorization-attributes.md) | 許可制の操作を `#[Authenticated]` / `#[Permission]` で宣言する | 採用（0.13） | #116 |
 | [0005](0005-static-route-body.md) | 静的なルートは `public readonly` の `body` で宣言する | 採用（0.13） | #105 |
+| [0006](0006-response-context-concrete-class.md) | `ResponseContext` は interface ではなく、final でない具象クラスにする | 採用（0.13） | #99 |
 
 ## 書きかた
 
