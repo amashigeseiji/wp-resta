@@ -13,7 +13,28 @@ docker compose up -d
 # WordPress が起動するまで待機
 echo ""
 echo "[2/6] WordPress の起動を待っています..."
-sleep 10
+# 次の 2 つが揃うまで待つ。
+# - Apache が応答する: イメージの entrypoint が WordPress のファイルと wp-config.php を置き終えている。
+#   インストール前は install.php へのリダイレクトが返るので、ステータスは問わず疎通だけを見る
+# - WordPress と同じ接続情報で DB に繋がる: MySQL は初回の初期化で一度再起動するので、
+#   healthcheck が通った直後は接続できないことがある
+DB_CONNECTS='[$host, $port] = explode(":", getenv("WORDPRESS_DB_HOST")) + [1 => 3306];
+exit(mysqli_connect($host, getenv("WORDPRESS_DB_USER"), getenv("WORDPRESS_DB_PASSWORD"), getenv("WORDPRESS_DB_NAME"), (int) $port) ? 0 : 1);'
+wordpress_is_ready() {
+    curl -s -o /dev/null --max-time 5 http://localhost:8080/ \
+        && docker compose exec -T wpcli php -r "$DB_CONNECTS" >/dev/null 2>&1
+}
+WAITED=0
+until wordpress_is_ready; do
+    if [ "$WAITED" -ge 120 ]; then
+        echo "❌ WordPress が 120 秒以内に起動しませんでした"
+        docker compose logs --tail=50 wordpress db
+        exit 1
+    fi
+    sleep 2
+    WAITED=$((WAITED + 2))
+done
+echo "✓ WordPress が起動しました"
 
 # WordPress のコアインストールチェック
 echo ""

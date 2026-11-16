@@ -56,3 +56,44 @@ jobs:
 
     - name: Run test suite
       run: composer run-script test
+
+  e2e:
+
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # 最新と、spec.md「互換性ポリシー」の下限
+        wp-image:
+          - wordpress:php8.2-apache
+          - wordpress:6.1-php8.2-apache
+
+    name: e2e (${{ matrix.wp-image }})
+
+    env:
+      WP_IMAGE: ${{ matrix.wp-image }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Start WordPress
+      run: ./docker/setup.sh
+
+    - name: Show WordPress version
+      run: docker compose exec -T wpcli wp core version
+
+    - name: Run E2E tests
+      run: composer test:e2e
+
+    - name: Show WordPress logs
+      if: failure()
+      run: docker compose logs --tail=200 wordpress
