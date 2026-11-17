@@ -31,6 +31,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 ### 変更
 
 - **0.12 の予告の取り消し:** 「callback の無いルートは 0.13 で `LogicException`」を取り消した（#105）。callback は必須にしない。ただし 0.12 までの `protected $body = ...;` という書きかたは使えなくなり、`public readonly` で宣言してコンストラクタで値を入れる形に書き換える。`public readonly` でない `body`、callback と `body` の両方があるルート、どちらも無いルートは `LogicException` になる
+- `RequestHandler` の `final` を外した。継承できる
 
 ## [0.12.0] - 2026-11-11
 

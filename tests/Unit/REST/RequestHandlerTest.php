@@ -225,4 +225,19 @@ class RequestHandlerTest extends TestCase
 
         $this->assertSame(['id' => '7'], $response->getData(), 'RestaRequestInterface から読む値はクライアントが送った文字列のまま');
     }
+
+    public function testRequestHandlerCanBeExtended(): void
+    {
+        // DI で組み立てるクラスは、差し替えられる状態にしておく（docs/design.md）
+        $handler = new class(new TestPrincipal(), new Dispatcher()) extends RequestHandler {
+        };
+        $route = new class extends AbstractRoute {
+            public function callback(): string
+            {
+                return 'ok';
+            }
+        };
+
+        $this->assertSame('ok', $handler->handle($route, new TestRestaRequest('/x', $route))->getData());
+    }
 }
