@@ -17,7 +17,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 追加
 
-- 静的なルートを `public readonly` の `body` プロパティで宣言できる（#105、[ADR 0005](docs/adr/0005-static-route-body.md)）。callback を持たないルートは、コンストラクタで確定させた `body` の値をステータス 200 で返す。プロパティの型（配列は `@var`）がスキーマになる
+- 静的なルートを `public readonly` の `body` プロパティで宣言できる（#105）。callback を持たないルートは、コンストラクタで確定させた `body` の値をステータス 200 で返す。プロパティの型（配列は `@var`）がスキーマになる
 
   ```php
   class Version extends AbstractRoute
