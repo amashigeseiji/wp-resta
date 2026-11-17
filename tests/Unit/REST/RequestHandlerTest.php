@@ -15,6 +15,8 @@ use Wp\Resta\REST\Hooks\EnvelopeHook;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
 use Wp\Resta\REST\Http\TestRestaRequest;
+use Wp\Resta\REST\Http\WpRestaRequest;
+use WP_REST_Request;
 use Wp\Resta\REST\Parameter\BoundParameters;
 use Wp\Resta\REST\RequestHandler;
 use Wp\Resta\REST\RouteInvocationEvent;
@@ -224,5 +226,22 @@ class RequestHandlerTest extends TestCase
         $response = $this->handler()->handle($route, new TestRestaRequest('/x?id=7', $route));
 
         $this->assertSame(['id' => '7'], $response->getData(), 'RestaRequestInterface から読む値はクライアントが送った文字列のまま');
+    }
+
+    public function testRouteDeclaringWpRestaRequestCanReachTheWpRequest(): void
+    {
+        // 引数を WpRestaRequest で宣言したルートは、元の WP_REST_Request を取り出せる（#136）
+        $route = new class extends AbstractRoute {
+            public function callback(WpRestaRequest $request): array
+            {
+                return ['same' => $request->getWpRequest()];
+            }
+        };
+        $wp = new WP_REST_Request();
+
+        $response = $this->handler()->handle($route, WpRestaRequest::fromWpRequest($wp, false));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame($wp, $response->getData()['same']);
     }
 }

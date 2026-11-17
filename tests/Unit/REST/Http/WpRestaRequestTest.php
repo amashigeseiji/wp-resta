@@ -25,6 +25,13 @@ class WpRestaRequestTest extends TestCase
         $this->assertNull($request->getUrlParam('missing'));
     }
 
+    public function testGetWpRequestReturnsTheWrappedRequest(): void
+    {
+        $wp = new WP_REST_Request();
+
+        $this->assertSame($wp, WpRestaRequest::fromWpRequest($wp, false)->getWpRequest());
+    }
+
     public function testGetHeaderDelegatesToWpRequest(): void
     {
         $wp = new WP_REST_Request();

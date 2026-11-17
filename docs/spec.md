@@ -84,6 +84,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - callback と `body` プロパティの両方を持つルート、どちらも持たないルートは `LogicException` になる
 - callback の引数は、宣言済みの URL パラメータなら名前で型変換済みの値が、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決でき、`getMethod()` は HTTP メソッド、`getHeader()` はリクエストヘッダの値（無ければ null）、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
 - WordPress の REST API から移行するコードのために、`WP_REST_Request` も callback 引数で受け取れる。新しく書くコードでは使わない
+- 元の `WP_REST_Request` は、callback の引数を `WpRestaRequest` で宣言し、`getWpRequest()` で取り出せる。このメソッドは `RestaRequestInterface` には無い
 - callback の戻り値がレスポンスボディになる
 
 ### レスポンス

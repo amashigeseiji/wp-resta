@@ -84,3 +84,19 @@ callback の中や、そこから使うサービスで、WordPress の関数を�
 
 - **callback の引数と戻り値。** `register_rest_route()` の callback は `WP_REST_Request` を受け取り、`WP_REST_Response` か `WP_Error` を返す。wp-resta の callback は、型の付いたパラメータを受け取り、レスポンスの body を返す。引数と戻り値の型が、そのまま検証とスキーマになるからである。エラーは例外（`HttpException`）を投げる。レスポンスの形は `WP_Error` を返したときと同じになる
 - **`permission_callback` に当たるものが、関数ではない。** 許可制であることを、アトリビュートで宣言する。宣言から OpenAPI に 401 / 403 を出せるからである。リクエストの値を見て判定する場合は、callback の中で確かめる
+
+## `WP_REST_Request` が要るとき
+
+リクエストの値は、callback の引数（型の付いたパラメータ）か `RestaRequestInterface` で読む。それでも `WP_REST_Request` そのものが要る場合（コアの `WP_REST_Controller` やフィルタにそのまま渡すなど）は、引数を `WpRestaRequest` で宣言し、`getWpRequest()` で取り出す。
+
+```php
+use Wp\Resta\REST\Http\WpRestaRequest;
+
+public function callback(WpRestaRequest $request): array
+{
+    $wpRequest = $request->getWpRequest();   // WP_REST_Request
+    return (new \WP_REST_Posts_Controller('post'))->get_items($wpRequest)->get_data();
+}
+```
+
+引数の型が `WpRestaRequest` であることが、このルートが WordPress を前提にしていることの宣言になる。`TestRestaRequest` では実行できないので、テストは E2E で書く（[testing.md](testing.md)）。

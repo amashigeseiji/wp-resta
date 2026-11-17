@@ -28,6 +28,8 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 - OpenAPI を JSON ファイルに書き出す `scripts/generate-openapi.php` を追加した（#108）。WordPress を起動せずに動くので、フロントエンドのビルドや CI で使える。`php vendor/tenjuu99/wp-resta/scripts/generate-openapi.php <config-file> [output-file] [server-url]`
 
+- `WpRestaRequest::getWpRequest()` を追加した（#136）。元の `WP_REST_Request` を返す。callback の引数を `WpRestaRequest` で宣言した Route が、コアの `WP_REST_Controller` などにそのまま渡すために使う。`RestaRequestInterface` には無い
+
 ### 変更
 
 - **0.12 の予告の取り消し:** 「callback の無いルートは 0.13 で `LogicException`」を取り消した（#105）。callback は必須にしない。ただし 0.12 までの `protected $body = ...;` という書きかたは使えなくなり、`public readonly` で宣言してコンストラクタで値を入れる形に書き換える。`public readonly` でない `body`、callback と `body` の両方があるルート、どちらも無いルートは `LogicException` になる

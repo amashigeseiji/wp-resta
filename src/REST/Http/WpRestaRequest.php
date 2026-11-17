@@ -49,6 +49,17 @@ class WpRestaRequest implements RestaRequestInterface
         return str_ends_with(rtrim($uriPath, '/'), $route);
     }
 
+    /**
+     * 元の WP_REST_Request。WordPress コアの API（WP_REST_Controller、フィルタなど）にそのまま渡すためのもの。
+     *
+     * RestaRequestInterface には無い。callback の引数を WpRestaRequest で宣言したルートは WordPress 前提になり、
+     * TestRestaRequest では実行できない
+     */
+    public function getWpRequest(): WP_REST_Request
+    {
+        return $this->inner;
+    }
+
     public function getMethod(): string
     {
         return strtoupper($this->inner->get_method());
