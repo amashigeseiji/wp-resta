@@ -36,7 +36,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 - `ROUTE` の `[name]` はパスパラメータ。それ以外の宣言済みパラメータはクエリパラメータ
 - `URL_PARAMS` では名前と型（string / integer）を宣言する。省略可能なパラメータは `?` を付けて宣言し、callback 引数のデフォルト値が使われる
-- 操作のメソッド（`callback()` や `get()` など。以下 callback）の引数も宣言になる。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は、`URL_PARAMS` に無くてもその名前のパラメータの宣言で、デフォルト値があれば省略可能。クラス型の引数は DI で解決され、宣言にはならない。同名の `URL_PARAMS` があればそちらが優先される
+- 操作のメソッド（`callback()` や `get()` など。以下 callback）の引数も宣言になる。`int` / `float` / `bool` / `string` / `array` / backed enum の引数は、`URL_PARAMS` に無くてもその名前のパラメータの宣言で、デフォルト値があれば省略可能。クラス型の引数は DI で解決され、宣言にはならない。同名の `URL_PARAMS` があればそちらが優先される。クラスや enum を含む union / intersection 型の引数は、同名の `URL_PARAMS` があっても `LogicException`
 - 型で表せない制約（正規表現、最小値、最大値、説明）は `#[Param]` で宣言する。配列の要素型は docblock の `@param string[]` のように宣言する
 - 値は宣言した型に変換されて callback に届く。`bool` は `true` / `false` / `1` / `0`、配列は `tags[]=a` の繰り返しとカンマ区切りの両方を受け取り、backed enum はそのインスタンスになる
 - `ROUTE` の `[name]` には対応する宣言が必要で、パスパラメータにデフォルト値は付けられない
@@ -82,7 +82,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - 選ばれた操作の callback（`callback()` か `get()` などの HTTP メソッド名のメソッド）がリクエストごとに呼ばれる
 - callback を持たないルートは、`public readonly` の `body` プロパティで応答を宣言できる（静的なルート）。その値がステータス 200 のレスポンスボディになり、プロパティの型が、callback の戻り値型と同じようにレスポンスの形の宣言になる
 - callback と `body` プロパティの両方を持つルート、どちらも持たないルートは `LogicException` になる
-- callback の引数は、宣言済みの URL パラメータなら名前で型変換済みの値が、それ以外のクラス型なら DI コンテナから解決される。`RestaRequestInterface` は解決でき、`getMethod()` は HTTP メソッド、`getHeader()` はリクエストヘッダの値（無ければ null）、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
+- callback の引数は、宣言済みの URL パラメータなら名前で型変換済みの値が、クラス型なら DI コンテナから解決される。クラス型の引数は、同名の URL パラメータがあっても型で解決される。`RestaRequestInterface` は解決でき、`getMethod()` は HTTP メソッド、`getHeader()` はリクエストヘッダの値（無ければ null）、`getUrlParam()` はクライアントが送った値をそのまま返す（型変換はしない）
 - WordPress の REST API から移行するコードのために、`WP_REST_Request` も callback 引数で受け取れる。新しく書くコードでは使わない
 - callback の戻り値がレスポンスボディになる
 

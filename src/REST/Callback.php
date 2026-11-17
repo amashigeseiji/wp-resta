@@ -1,6 +1,7 @@
 <?php
 namespace Wp\Resta\REST;
 
+use BackedEnum;
 use Closure;
 use ReflectionClass;
 use ReflectionFunction;
@@ -86,9 +87,9 @@ final class Callback
     /**
      * callback の引数を組み立てる。検証はしない（RouteParameters::validate() が済ませている）。
      *
-     * - 束縛済みの値に名前があればその値
+     * - クラス型は、現在のリクエスト（RestaRequestInterface やその実装）ならそれを、それ以外は DI で解決する。名前は見ない
+     * - それ以外は URL パラメータ。束縛済みの値に名前があればその値
      * - 無ければ省略された省略可能なパラメータなので、引数を渡さず PHP のデフォルト値に任せる
-     * - クラス型は現在のリクエスト（RestaRequestInterface やその実装）ならそれを、それ以外は DI で解決する
      *
      * @return array<string, mixed> 引数名 => 値
      */
@@ -96,13 +97,14 @@ final class Callback
     {
         $args = [];
         foreach ($this->reflection->getParameters() as $param) {
-            if ($params->has($param->name)) {
-                $args[$param->name] = $params->get($param->name);
-                continue;
-            }
             $type = $param->getType();
-            if (!($type instanceof ReflectionNamedType) || $type->isBuiltin()) {
-                // 宣言された URL パラメータで、省略されたもの。デフォルト値は invokeArgs() が埋める
+            // クラス型の引数は、同名の URL パラメータがあっても型で解決する。名前を先に見ると文字列が渡って TypeError になる
+            $isClass = $type instanceof ReflectionNamedType && !$type->isBuiltin() && !is_subclass_of($type->getName(), BackedEnum::class);
+            if (!$isClass) {
+                // URL パラメータ。省略されたものは渡さず、デフォルト値を invokeArgs() に任せる
+                if ($params->has($param->name)) {
+                    $args[$param->name] = $params->get($param->name);
+                }
                 continue;
             }
             $class = $type->getName();

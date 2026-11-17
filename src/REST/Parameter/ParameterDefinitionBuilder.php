@@ -4,8 +4,10 @@ namespace Wp\Resta\REST\Parameter;
 use BackedEnum;
 use LogicException;
 use ReflectionEnum;
+use ReflectionIntersectionType;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionUnionType;
 use Wp\Resta\OpenApi\PhpTypeToOpenApiSchema;
 use Wp\Resta\REST\Attributes\Param;
 use Wp\Resta\REST\Callback;
@@ -40,6 +42,7 @@ final class ParameterDefinitionBuilder
                 // [id] のセグメントが無い URL はルートにマッチしないので、default が効く場面が無い。URL_PARAMS の有無によらず検査する
                 throw new LogicException(sprintf('%s() argument $%s is a path parameter and cannot have a default value', $owner, $param->name));
             }
+            self::rejectCompositeTypeWithClass($param, $owner);
             if (isset($definitions[$param->name])) {
                 continue;
             }
@@ -95,6 +98,28 @@ final class ParameterDefinitionBuilder
             enum: isset($coreArg['enum']) && is_array($coreArg['enum']) ? array_values($coreArg['enum']) : null,
             coreArg: $coreArg,
         );
+    }
+
+    /**
+     * クラスや enum を含む union / intersection 型の引数を拒否する。同名の URL_PARAMS があっても、
+     * 渡るのは文字列なので呼び出し時に TypeError になる。ビルトイン型だけの union はここでは止めない
+     */
+    private static function rejectCompositeTypeWithClass(ReflectionParameter $param, string $owner): void
+    {
+        $type = $param->getType();
+        if (!($type instanceof ReflectionUnionType) && !($type instanceof ReflectionIntersectionType)) {
+            return;
+        }
+        foreach ($type->getTypes() as $member) {
+            if (!($member instanceof ReflectionNamedType) || !$member->isBuiltin()) {
+                throw new LogicException(sprintf(
+                    '%s() argument $%s: %s cannot be a callback argument. A union or intersection type can contain only built-in types',
+                    $owner,
+                    $param->name,
+                    $type,
+                ));
+            }
+        }
     }
 
     /**

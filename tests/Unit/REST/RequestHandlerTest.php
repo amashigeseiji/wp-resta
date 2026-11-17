@@ -225,4 +225,26 @@ class RequestHandlerTest extends TestCase
 
         $this->assertSame(['id' => '7'], $response->getData(), 'RestaRequestInterface から読む値はクライアントが送った文字列のまま');
     }
+
+    public function testClassTypedArgumentIsResolvedByTypeEvenWhenUrlParamHasTheSameName(): void
+    {
+        // 名前を先に見ると、クラス型の引数に URL パラメータの文字列が渡って TypeError になる（#134）
+        $service = new \stdClass();
+        $service->name = 'service';
+        Container::getInstance()->bind(\stdClass::class, $service);
+
+        $route = new class extends AbstractRoute {
+            protected const URL_PARAMS = ['id' => '?string', 'service' => '?string'];
+
+            public function callback(RestaRequestInterface $id, \stdClass $service): array
+            {
+                return ['method' => $id->getMethod(), 'raw' => $id->getUrlParam('id'), 'service' => $service->name];
+            }
+        };
+
+        $response = $this->handler()->handle($route, new TestRestaRequest('/x?id=from-url&service=from-url', $route));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(['method' => 'GET', 'raw' => 'from-url', 'service' => 'service'], $response->getData());
+    }
 }

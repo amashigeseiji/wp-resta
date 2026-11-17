@@ -32,6 +32,12 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 - **0.12 の予告の取り消し:** 「callback の無いルートは 0.13 で `LogicException`」を取り消した（#105）。callback は必須にしない。ただし 0.12 までの `protected $body = ...;` という書きかたは使えなくなり、`public readonly` で宣言してコンストラクタで値を入れる形に書き換える。`public readonly` でない `body`、callback と `body` の両方があるルート、どちらも無いルートは `LogicException` になる
 
+### 修正
+
+- `URL_PARAMS` と同名の引数が文字列を受けられない型のとき、登録は通ってリクエストのたびに `TypeError`（500）になっていた（#134）
+  - クラスや enum を含む union / intersection 型の引数（`Ascending|Descending $sort` など）は、同名の `URL_PARAMS` があっても登録時に `LogicException` になる。ビルトイン型だけの union（`int|string $id`）は変わらない
+  - クラス型の引数は、名前ではなく型で解決する。`RestaRequestInterface $id` のように、Request やサービスを受ける変数にパラメータと同じ名前を使える
+
 ## [0.12.0] - 2026-11-11
 
 ルートを「宣言」に寄せ、実行を WordPress 非依存の `RequestHandler` に移した破壊的リリース。callback のシグニチャから URL パラメータを宣言し、同じ URL で `get()` / `post()` を分け、`authorize()` で認可を宣言できる。ステートマシンと `AbstractRoute::invoke()` は無くなり、`$status` / `$body` / `$headers` への代入は非推奨になった。移行はこの節の「削除」「変更」の各項目に書いた代替のとおり。計画と判断の経緯は [milestone 0.12.0](https://github.com/amashigeseiji/wp-resta/milestone/1) の各 issue にある。

@@ -3,6 +3,7 @@ namespace Test\Resta\Unit\REST\Parameter;
 
 use LogicException;
 use PHPUnit\Framework\TestCase;
+use Test\Resta\Fixtures\Parameter\Direction;
 use Test\Resta\Fixtures\Parameter\Sort;
 use Wp\Resta\REST\Attributes\Param;
 use Wp\Resta\REST\Callback;
@@ -264,6 +265,47 @@ class ParameterDefinitionBuilderTest extends TestCase
         $this->build('x', [], new class {
             public function callback(int|string $id): void {}
         });
+    }
+
+    public function testUnionContainingClassIsLogicExceptionEvenWhenDeclaredInUrlParams(): void
+    {
+        // 同名の URL_PARAMS があっても、渡るのは文字列なので TypeError になる。登録時に止める（#134）
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('TestRoute() argument $service: stdClass|DateTime cannot be a callback argument');
+
+        $this->build('x', ['service' => 'string'], new class {
+            public function callback(\stdClass|\DateTime $service): void {}
+        });
+    }
+
+    public function testUnionContainingBackedEnumIsLogicExceptionEvenWhenDeclaredInUrlParams(): void
+    {
+        // 単独の backed enum は書ける。union の中では変換先が決まらず、文字列のまま渡って TypeError になる
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('can contain only built-in types');
+
+        $this->build('x', ['sort' => 'string'], new class {
+            public function callback(Sort|Direction $sort): void {}
+        });
+    }
+
+    public function testIntersectionTypedArgumentIsLogicExceptionEvenWhenDeclaredInUrlParams(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('cannot be a callback argument');
+
+        $this->build('x', ['items' => 'string'], new class {
+            public function callback(\Countable&\Traversable $items): void {}
+        });
+    }
+
+    public function testBuiltinUnionDeclaredInUrlParamsIsStillAccepted(): void
+    {
+        $params = $this->build('x', ['id' => 'integer'], new class {
+            public function callback(int|string $id): void {}
+        });
+
+        $this->assertNotNull($params->get('id'));
     }
 
     public function testVariadicArgumentIsLogicException(): void
