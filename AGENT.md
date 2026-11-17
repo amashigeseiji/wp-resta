@@ -1,6 +1,6 @@
 # AGENT.md
 
-wp-resta を開発する AI アシスタント向けの指示。保証される挙動は [docs/spec.md](docs/spec.md)、設計の考え方は [docs/design.md](docs/design.md)、個別の決定は [docs/adr/](docs/adr/README.md)、使いかたは [README.md](README.md) にあり、ここには書かない。
+wp-resta を開発する AI アシスタント向けの指示。保証される挙動は [docs/spec.md](docs/spec.md)、設計の考え方は [docs/design.md](docs/design.md)、使いかたは [README.md](README.md) にあり、ここには書かない。
 
 ## プロジェクト
 
@@ -10,8 +10,8 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 
 ## 読む順
 
-1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する。spec.md は現行の挙動を書いている。決定済みでまだ実装していない変更は spec.md には無いので、[docs/adr/README.md](docs/adr/README.md) の一覧で、状態にバージョンが付いている決定（「採用（0.13）」など）を確かめてから提案する
-2. [docs/design.md](docs/design.md): 設計の考え方。設計に関わる変更や提案をするときは必ず読む。決定済みの事項は [docs/adr/](docs/adr/README.md) の一覧で確かめる
+1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する。spec.md は現行の挙動を書いている
+2. [docs/design.md](docs/design.md): 設計の考え方。設計に関わる変更や提案をするときは必ず読む
 3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → `validate()` → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
 4. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
 5. 目的別: [README.md](README.md)「文書の案内」に、使う人向けの文書の一覧がある。[docs/routes.md](docs/routes.md)（Route クラスの書きかた）、[docs/wordpress.md](docs/wordpress.md)（`register_rest_route()` との対応）、[docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
@@ -55,7 +55,7 @@ tests/Unit, tests/Integration, tests/E2E   docs/testing.md 参照
 - PR を出す前に `composer test` と `composer lint` を通す
 - WP の関数・クラスへの依存を spec.md「WordPress との境界」に列挙した箇所の外に増やさない
 - リリース計画は GitHub の milestone にある。`gh issue list --milestone <version>` で見る
-- 設計の議論は issue のコメントで行う。決定が出たら `docs/adr/` に ADR を 1 つ書き、issue の本文の冒頭を「現在の決定の要約と ADR へのリンク」に更新する。書いた ADR は書き換えず、覆すときは新しい ADR で置き換える（[docs/adr/README.md](docs/adr/README.md)）
+- 設計の議論は issue のコメントで行う
 - クラス間の呼び出しや public メソッド、interface のメソッドを足すときは、呼ぶ側に要求される知識が増えるかを確かめる。インターフェースの変更は、合意している方向性から導けるものだけにする。考え方は [docs/design.md](docs/design.md)
 
 ## issue の管理
@@ -91,7 +91,7 @@ composer generate:openapi  # サンプルのルートの OpenAPI を openapi.jso
 
 - `Container` はシングルトン。bind したテストは `tearDown()` でリセットする
 - ルートインスタンスはプロセス内で共有され、リクエストごとに `clone` される。`AbstractRoute` に `$status` / `$body` / `$headers` は無い（0.13 で削除）。ステータスとヘッダは `$this->response()` と `HEADERS` 定数で指定する
-- callback の無い静的なルートは、応答を `public readonly` の `body` プロパティで宣言する。callback と `body` の両方がある、どちらも無い、`body` が `public readonly` でない、のいずれも `LogicException`（[ADR 0005](docs/adr/0005-static-route-body.md)）
+- callback の無い静的なルートは、応答を `public readonly` の `body` プロパティで宣言する。callback と `body` の両方がある、どちらも無い、`body` が `public readonly` でない、のいずれも `LogicException`
 - `callback` の引数のビルトイン型は `URL_PARAMS` に無くても URL パラメータの宣言になる。`ROUTE` の `[name]` に対応する宣言が無いと `LogicException`
 - 同じ URL で GET / POST を分けるなら `get()` / `post()`。`callback()` と両方書くと `LogicException`。操作の `Callback` はインスタンスに束縛されるので、`clone` したルートでは導出し直す（`getOperations()` の owner チェック）
 - WP のパーマリンク設定が「基本」だと `/wp-json/` が動かない

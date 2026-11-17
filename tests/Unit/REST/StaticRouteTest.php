@@ -11,7 +11,7 @@ use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
 
 /**
- * 静的なルート: callback を持たず、応答を public readonly の body プロパティで宣言する（ADR 0005）
+ * 静的なルート: callback を持たず、応答を public readonly の body プロパティで宣言する（#105）
  */
 class StaticRouteTest extends TestCase
 {
