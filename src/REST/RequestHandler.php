@@ -20,7 +20,7 @@ use Wp\Resta\REST\Http\SimpleRestaResponse;
  * エラーレスポンスの形は同じ。WordPress からは RegisterRestRoutes が WP_REST_Request を変換して呼び、
  * テストからは TestRestaRequest を渡して直接呼ぶ。
  */
-final class RequestHandler
+class RequestHandler
 {
     public function __construct(
         private readonly Principal $principal,
