@@ -57,6 +57,11 @@ tests/Unit, tests/Integration, tests/E2E   docs/testing.md 参照
 - リリース計画は GitHub の milestone にある。`gh issue list --milestone <version>` で見る。`icebox` ラベルの付いた issue は計画に含めない（「icebox」）
 - 設計の議論は issue のコメントで行う
 - クラス間の呼び出しや public メソッド、interface のメソッドを足すときは、呼ぶ側に要求される知識が増えるかを確かめる。インターフェースの変更は、合意している方向性から導けるものだけにする。考え方は [docs/design.md](docs/design.md)
+- 依存は、それを使うクラスがコンストラクタで宣言して受け取る。考え方は [docs/design.md](docs/design.md)「依存は、使うところが宣言する」
+  - 別のオブジェクトに渡すためだけに、コンストラクタで依存を受け取らない
+  - サービスを使う場所で `new` しない。`Container::getInstance()` を呼ぶ箇所を増やさない
+  - リクエストやイベントなど実行時の値は、コンテナに入れず、メソッドの引数で渡す
+  - テストで差し替えるときは、コンテナに bind する。差し替えのために、中継するクラスのコンストラクタを広げない
 
 ## issue の管理
 
