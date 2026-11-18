@@ -165,6 +165,6 @@ wp-resta で API を書くときは、vendor/tenjuu99/wp-resta/README.md の「�
 
 ## wp-resta 自体を開発する
 
-- AI エージェント向けの指示: [AGENT.md](AGENT.md)
+- AI エージェント向けの指示: [AGENTS.md](AGENTS.md)
 - 設計の考え方: [docs/design.md](docs/design.md)
 - テストの実行と Docker での動作確認: [docs/testing.md](docs/testing.md)

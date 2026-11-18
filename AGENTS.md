@@ -1,4 +1,4 @@
-# AGENT.md
+# AGENTS.md
 
 wp-resta を開発する AI アシスタント向けの指示。保証される挙動は [docs/spec.md](docs/spec.md)、設計の考え方は [docs/design.md](docs/design.md)、使いかたは [README.md](README.md) にあり、ここには書かない。
 
