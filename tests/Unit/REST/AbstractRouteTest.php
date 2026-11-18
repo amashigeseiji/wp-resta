@@ -860,10 +860,10 @@ class AbstractRouteTest extends TestCase
 
         $args = $this->args($route);
 
-        // regex はコアの知らないキーなので、string 型は pattern にも展開する。コアは部分一致なのでアンカーを付ける
+        // regex は JSON Schema に無いキーなので、string 型は pattern にも展開する。pattern は部分一致で照合する規則なのでアンカーを付ける
         $this->assertSame('^(?:(a|b))$', $args['kind']['pattern']);
         $this->assertSame('^(?:[a-z]+)$', $args['first_name']['pattern']);
-        // integer はコアが type で検証する。pattern は string 型にしか効かないので付けない
+        // pattern は string 型の制約なので、integer には付けない
         $this->assertArrayNotHasKey('pattern', $args['id']);
         $this->assertArrayNotHasKey('pattern', $args['page']);
         // 'string' は制約なし（regex null）なので pattern も出さない（#81）
@@ -871,7 +871,7 @@ class AbstractRouteTest extends TestCase
         $this->assertArrayNotHasKey('pattern', $args['name']);
         $this->assertArrayNotHasKey('pattern', $args['nick']);
 
-        // コアは type があれば sanitize_params() 経由で検証するので、validate_callback は付けない
+        // 検証は wp-resta が行うので、validate_callback は付けない
         foreach ($args as $name => $arg) {
             $this->assertArrayNotHasKey('validate_callback', $arg, $name);
         }
@@ -895,7 +895,7 @@ class AbstractRouteTest extends TestCase
 
         // 利用側が明示した pattern はそのまま
         $this->assertSame('a|b', $args['kind']['pattern']);
-        // type が無い定義はコアが検証しないので pattern を足しても意味がなく、触らない
+        // pattern は string 型の制約なので、type が無い定義には足さない
         $this->assertArrayNotHasKey('pattern', $args['untyped']);
     }
 
@@ -916,8 +916,7 @@ class AbstractRouteTest extends TestCase
 
         $args = $this->args($route);
 
-        // コアに渡すと preg_match() の失敗が「不一致」として 400 になり、定義ミスが入力エラーに見えてしまう。
-        // pattern を付けずに invokeCallback() の 500 + ログの経路に任せる
+        // コンパイルできない regex は、pattern として出さない。定義ミスなので、リクエスト時に 500 とログになる
         $this->assertArrayNotHasKey('pattern', $args['broken']);
         $this->assertArrayNotHasKey('pattern', $args['all_delimiters']);
         $this->assertSame('^(?:[a-z]+)$', $args['ok']['pattern']);
