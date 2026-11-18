@@ -12,6 +12,10 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   - 代替: ステータスとヘッダは `return $this->response($body, $status, $headers)`、エラーは `HttpException`、ルートの既定ヘッダは `HEADERS` 定数
   - `protected int $status = 201;` のようにクラス宣言で既定値を変えていたルートは、callback から `$this->response($body, 201)` を返す
   - callback の中に `$this->status = 404;` が残っていると、効かないうえに PHP が動的プロパティの非推奨を警告する
+- `RouteInterface` と `AbstractRoute` の `validate(BoundParameters $params)` を削除した（#133）。非推奨の期間は挟まない。実行前に wp-resta が行う検証は、callback の引数や `URL_PARAMS` の宣言から導いたものだけになる
+  - 代替: 複数のパラメータにまたがる検証や DB を引く検証は、callback の中に書く。拒否は、これまでと同じく `InvalidParameterException` などの `HttpException` を投げる
+  - `validate()` をオーバーライドしていたルートは、エラーにならず、呼ばれなくなるだけなので、処理を callback に移す。`authorize()` より前に拒否していた入力は、`authorize()` の後で拒否されることになる
+  - `RouteInterface` を直接実装しているルートは、`validate()` を書かなくてよくなる
 - TypeScript の型生成を削除した（#108）。`Wp\Resta\CodeGen\*`、`scripts/generate-types.php`、`composer generate:types` が無くなる。実験的な実装で、非推奨の期間は挟まない。OpenAPI から TypeScript への変換を自前で持つと、スキーマ側を直すたびに TypeScript 側も直すことになり、同じことは標準のツールでできる
   - 代替: OpenAPI を書き出し、[openapi-typescript](https://openapi-ts.dev/) などで型を生成する。手順は [docs/frontend.md](docs/frontend.md)。`ApiEndpoints['GET /path']` で引いていた型は、`paths['/path']['get']` で引ける
 

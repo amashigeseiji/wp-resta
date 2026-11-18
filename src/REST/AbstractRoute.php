@@ -194,16 +194,6 @@ abstract class AbstractRoute implements RouteInterface
     }
 
     /**
-     * 宣言された制約を通った後の、手続き的な検証のフック。既定は何もしない。
-     *
-     * 複数のパラメータにまたがる検証や、DB を引く検証の置き場所。
-     * 拒否するときは InvalidParameterException などの HttpException を投げる。
-     */
-    public function validate(BoundParameters $params): void
-    {
-    }
-
-    /**
      * ルート単位の認可。既定は全リクエストを許可する。
      *
      * 拒否するときは UnauthorizedException（401）か ForbiddenException（403）を投げる。

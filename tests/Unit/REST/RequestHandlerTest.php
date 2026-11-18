@@ -20,7 +20,7 @@ use Wp\Resta\REST\RequestHandler;
 use Wp\Resta\REST\RouteInvocationEvent;
 
 /**
- * RequestHandler は WP 非依存のパイプライン: validate → validate フック → authorize → callback → RouteInvocationEvent
+ * RequestHandler は WP 非依存のパイプライン: validate → authorize → callback → RouteInvocationEvent
  */
 class RequestHandlerTest extends TestCase
 {
@@ -49,10 +49,6 @@ class RequestHandlerTest extends TestCase
             protected const ROUTE = 'item/[id]';
             /** @var string[] */
             public array $trace = [];
-            public function validate(BoundParameters $params): void
-            {
-                $this->trace[] = 'validate:' . var_export($params->get('id'), true);
-            }
             public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 $this->trace[] = 'authorize:' . var_export($params->get('id'), true);
@@ -68,23 +64,19 @@ class RequestHandlerTest extends TestCase
         $response = $this->handler()->handle($route, new TestRestaRequest('/t/item/42', $route));
 
         $this->assertSame(['id' => 42], $response->getData());
-        $this->assertSame(['validate:42', 'authorize:42', 'callback'], $route->trace, 'authorize() が見る値は型変換済み');
+        $this->assertSame(['authorize:42', 'callback'], $route->trace, 'authorize() が見る値は型変換済み');
     }
 
-    public function testValidateHookCanRejectWith400(): void
+    public function testCallbackCanRejectCrossParameterInputWith400(): void
     {
+        // 複数のパラメータにまたがる検証は callback の中に書く
         $route = new class extends AbstractRoute {
-            public bool $called = false;
-            public function validate(BoundParameters $params): void
-            {
-                if ($params->get('from') > $params->get('to')) {
-                    throw new InvalidParameterException('from', 'from must be <= to');
-                }
-            }
             public function callback(int $from = 0, int $to = 0): array
             {
-                $this->called = true;
-                return [];
+                if ($from > $to) {
+                    throw new InvalidParameterException('from', 'from must be <= to');
+                }
+                return ['from' => $from, 'to' => $to];
             }
         };
 
@@ -92,7 +84,6 @@ class RequestHandlerTest extends TestCase
 
         $this->assertSame(400, $response->getStatusCode());
         $this->assertSame('from must be <= to', $response->getData()['data']['params']['from']);
-        $this->assertFalse($route->called);
     }
 
     public function testDeniedRequestDoesNotResolveCallbackDependencies(): void
