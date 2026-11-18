@@ -103,7 +103,7 @@ Functions\expect('register_rest_route')->once()->with('myapi', Mockery::type('st
 
 ## E2E
 
-`docker-compose.yml` の WordPress にプラグインとして wp-resta を有効化し、`tests/E2E/Api/` から Guzzle で叩く。WP コアの検証・型変換・認証を含めて確認したいケースはここに書く。Unit で再現できるものは Unit に書く。
+`docker-compose.yml` の WordPress にプラグインとして wp-resta を有効化し、`tests/E2E/Api/` から Guzzle で叩く。WordPress を通したときの応答（ルートの照合、認証など）を確認したいケースはここに書く。Unit で再現できるものは Unit に書く。
 
 ### Docker で動作確認する
 

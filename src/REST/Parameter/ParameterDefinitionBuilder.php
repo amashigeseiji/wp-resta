@@ -192,9 +192,12 @@ final class ParameterDefinitionBuilder
     }
 
     /**
-     * string 型で regex があれば、WP コアにも pattern として渡して同じ制約を検証させる。
-     * コアの rest_validate_json_schema_pattern() は部分一致で照合するため、全体一致にしてから渡す。
-     * 明示された pattern は尊重する。コンパイルできない regex は pattern を付けず、wp-resta 側で 500 とログにする
+     * register_rest_route() に渡す arg を整える。
+     *
+     * - sanitize_callback を null にして、WP コアの検証と型変換を止める。検証と型変換は RouteParameters::validate() が行う
+     * - string 型で regex があれば、pattern としても出す。コアはこの pattern で検証しない。OPTIONS とインデックスに出る、
+     *   API を使う側に向けたメタデータである。JSON Schema の pattern は部分一致で照合する規則なので、全体一致にしてから出す
+     * - 明示された pattern は尊重する。コンパイルできない regex は pattern を付けず、wp-resta 側で 500 とログにする
      *
      * @param array<string, mixed> $arg
      * @return array<string, mixed>
@@ -202,7 +205,7 @@ final class ParameterDefinitionBuilder
     private static function withCorePattern(array $arg): array
     {
         if (!array_key_exists('sanitize_callback', $arg)) {
-            // 型変換は RouteParameters::validate() が行う。コアの rest_parse_request_arg による変換を止めて、
+            // コアの rest_parse_request_arg による検証と型変換を止めて、
             // RestaRequestInterface::getUrlParam() がクライアントの送った値をそのまま返すようにする
             $arg['sanitize_callback'] = null;
         }

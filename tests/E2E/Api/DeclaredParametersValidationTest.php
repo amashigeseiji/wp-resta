@@ -4,14 +4,13 @@ namespace Test\Resta\E2E\Api;
 use Test\Resta\Support\E2E\AbstractE2ETestCase;
 
 /**
- * URL_PARAMS の regex が pattern として WP コアに渡り、callback の引数に無い
- * クエリパラメータでもコア側で検証されることを確認する E2E テスト。
+ * URL_PARAMS で宣言したパラメータが、callback の引数に無くても検証されることを確認する E2E テスト。
  *
  * /example/search の callback は WP_REST_Request を受け取るだけで、
- * keyword / order / path を引数に持たない。wp-resta 側の resolveArguments() の
- * 検証は通らないので、400 になるならコアの rest_validate_request_arg によるもの。
+ * keyword / order / path を引数に持たない。検証するのは wp-resta で、宣言されたパラメータをすべて見る。
+ * WordPress コアは検証しない（args に sanitize_callback => null を渡しているため）。
  */
-class CoreArgsValidationTest extends AbstractE2ETestCase
+class DeclaredParametersValidationTest extends AbstractE2ETestCase
 {
     public function testValidQueryParametersPassThrough(): void
     {
@@ -39,7 +38,7 @@ class CoreArgsValidationTest extends AbstractE2ETestCase
         );
     }
 
-    public function testQueryParameterNotInCallbackSignatureIsValidatedByCore(): void
+    public function testQueryParameterNotInCallbackSignatureIsValidated(): void
     {
         // アンカー無しだと (asc|desc) に部分一致して通ってしまう値
         $response = $this->get('/wp-json/example/search', ['order' => 'zzz-asc-zzz']);
@@ -88,9 +87,8 @@ class CoreArgsValidationTest extends AbstractE2ETestCase
         }
     }
 
-    public function testMultibyteStringIsAcceptedBothByCoreAndByWpResta(): void
+    public function testMultibyteStringIsAccepted(): void
     {
-        // コアの pattern 検証（u 付き）と wp-resta の検証（u 付き）が揃っているので、
         // callback の引数で受けるかどうかに関係なく 'string' は日本語を受け付ける
         $response = $this->get('/wp-json/example/search', ['keyword' => '日本語']);
         $this->assertResponseCode(200, $response);
@@ -101,20 +99,20 @@ class CoreArgsValidationTest extends AbstractE2ETestCase
         $this->assertSame('日本語', $this->getJsonResponse($response)['data']['name']);
     }
 
-    public function testInvalidUtf8IsRejectedBothByCoreAndByWpResta(): void
+    public function testInvalidUtf8IsRejected(): void
     {
-        // regex を持つパラメータは、不正な UTF-8 をコアの pattern 検証と wp-resta の検証の両方で 400 にする
+        // regex を持つパラメータは、callback の引数で受けるかどうかに関係なく、不正な UTF-8 を 400 にする
         foreach (['/wp-json/example/search' => 'path', '/wp-json/example/sample/1' => 'a_or_b'] as $uri => $param) {
             $response = $this->get($uri, [$param => "\xff\xfe"]);
             $this->assertResponseCode(400, $response, $uri);
         }
     }
 
-    public function testSlashInRegexWorksAsCorePattern(): void
+    public function testSlashInRegexWorks(): void
     {
         $response = $this->get('/wp-json/example/search', ['path' => 'Foo/Bar']);
 
-        // 大文字は [a-z/]+ に一致しない。/ を含む regex がコア側で壊れていれば常に 400 になるので、
+        // 大文字は [a-z/]+ に一致しない。/ を含む regex の組み立てが壊れていれば常に 400 になるので、
         // 上の testValidQueryParametersPassThrough と合わせて正しく動いていることが分かる
         $this->assertResponseCode(400, $response);
         $this->assertArrayHasKey('path', $this->getJsonResponse($response)['data']['params']);

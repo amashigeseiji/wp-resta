@@ -8,8 +8,8 @@ use Wp\Resta\REST\Attributes\RouteMeta;
 /**
  * callback の引数でパラメータを受け取らず、WP_REST_Request から直接読む例。
  *
- * URL_PARAMS の regex は pattern として WP コアの args にも渡されるので、
- * callback の引数に無いパラメータでも、コアが dispatch 前に検証して 400 を返す。
+ * URL_PARAMS で宣言したパラメータは、callback の引数に無くても wp-resta が検証し、合わなければ 400 を返す。
+ * WP_REST_Request から読む値は、型変換の前の、クライアントが送ったままの値である。
  */
 #[RouteMeta(
     description: "クエリパラメータを WP_REST_Request から直接読むサンプル",
