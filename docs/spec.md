@@ -12,7 +12,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ## 設計原則
 
-- **wp-resta は DSL である。** ルートクラスの宣言から、登録・検証・OpenAPI を導出する。利用者に WordPress REST API の語彙（`register_rest_route()` の引数、`permission_callback`、`WP_Error`）を直接書かせない
+- **wp-resta は DSL である。** Route クラスの宣言から、登録・検証・OpenAPI を導出する。Route クラスを書くのに、WordPress の型（`WP_REST_Response`、`WP_Error` など）は要らない
 - **ルートは WordPress 無しでテストできる。** ルートの実行は `RestaRequestInterface` だけに依存する
 - **WordPress との境界は薄い変換層に限定する。** WordPress の型・関数・フックを wp-resta の型に変換する箇所以外で WordPress に依存しない
 - **プロセスの状態は WordPress が持つ。** WordPress のフックを起点にした状態を wp-resta は管理しない
