@@ -122,7 +122,7 @@ Docker を使って簡単に動作確認環境をセットアップできます�
 - WordPress: http://localhost:8080
 - 管理画面: http://localhost:8080/wp-admin (admin / admin)
 - サンプルAPI: http://localhost:8080/wp-json/example/sample/1
-- Swagger UI: http://localhost:8080/wp-admin/admin.php?page=resta-swagger-ui
+- Swagger UI: http://localhost:8080/wp-admin/admin.php?page=wp-resta
 
 環境を停止するには：
 
