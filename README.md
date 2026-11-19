@@ -60,6 +60,10 @@ require_once __DIR__ . '/vendor/autoload.php';
     ],
 ```
 
+- `capability` を指定すると、管理画面のメニューも同じ capability を持つ人にだけ見えます。省略したときのメニューは `edit_pages` です
+- 既定の `resta/v1` と `/schema` は、今後のバージョンで変わることがあります。URL に依存するときは、`namespace` と `route` を明示してください
+- プラグインとして利用する場合、設定ファイルはオートローダーより先に読まれます。`fn () => new \Wp\Resta\Hooks\SwaggerOptions(...)` のようにクロージャで書いてください
+
 ### プラグインで利用する場合
 
 WordPress のプラグインとしても利用できます。

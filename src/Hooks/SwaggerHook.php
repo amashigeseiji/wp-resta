@@ -55,16 +55,18 @@ final class SwaggerHook extends HookProvider
                 add_menu_page(
                     'REST API doc',
                     'REST API doc',
-                    'edit_pages',
+                    // スキーマを読めない人にメニューだけ見える、ということが起きないように揃える
+                    $this->options->capability ?? 'edit_pages',
                     'wp-resta',
                     function () {
                         wp_enqueue_style('rest-api-doc', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css', [], self::VERSION);
                         wp_enqueue_script('rest-api-doc-swagger', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js', [], self::VERSION);
                         wp_enqueue_script('rest-api-doc-swagger-preset', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js', [], self::VERSION);
                         // テンプレートが読む。パーマリンク設定が「基本」でも rest_url() が正しい形を返す
-                        $schemaUrl = rest_url($this->options->namespace . $this->options->route);
-                        // capability を指定していると、cookie 認証には nonce が要る
-                        $nonce = wp_create_nonce('wp_rest');
+                        $schemaUrl = rest_url($this->schemaPath());
+                        // capability を指定していると、cookie 認証には nonce が要る。指定していなければ付けない。
+                        // cookie が届かないリクエストに nonce だけが付くと、WordPress は 403 を返す
+                        $nonce = $this->options->capability === null ? null : wp_create_nonce('wp_rest');
                         require plugin_dir_path(__FILE__) . '../OpenApi/template/swagger.php';
                     },
                     'dashicons-book',
@@ -72,5 +74,13 @@ final class SwaggerHook extends HookProvider
                 );
             });
         }
+    }
+
+    /**
+     * rest_url() に渡すパス。register_rest_route() と同じように、前後の / の有無を問わない
+     */
+    private function schemaPath(): string
+    {
+        return trim($this->options->namespace, '/') . '/' . ltrim($this->options->route, '/');
     }
 }

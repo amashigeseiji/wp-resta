@@ -9,7 +9,9 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 ### 追加
 
 - `SwaggerHook` がスキーマを出す場所と相手を、`SwaggerOptions` で決められるようにした（#158）。`dependencies` に `SwaggerOptions::class => new SwaggerOptions(namespace: 'myapp/v1', route: '/schema', capability: 'edit_pages')` のように bind する。bind しなければ、`/wp-json/resta/v1/schema` で誰にでも返す
-  - `capability` を指定すると、その capability を持つ相手にだけ返す。判定は `Principal` に聞くので、`Principal` を差し替えたサイトではほかのルートと同じ基準になる。管理画面の Swagger UI は、スキーマの取得に `X-WP-Nonce` を付ける
+  - `capability` を指定すると、その capability を持つ相手にだけ返す。判定は `Principal` に聞くので、`Principal` を差し替えたサイトではほかのルートと同じ基準になる。管理画面の Swagger UI は、スキーマの取得にだけ `X-WP-Nonce` を付ける。`capability` を指定していなければ付けない
+  - `capability` を指定すると、管理画面のメニュー「REST API doc」も同じ capability を持つ相手にだけ見える。指定しなければ、これまでどおり `edit_pages`
+  - `namespace` と `route` は、前後の `/` の有無を問わない
 
 ### 変更
 

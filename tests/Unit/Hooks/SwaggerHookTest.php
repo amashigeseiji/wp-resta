@@ -4,6 +4,7 @@ namespace Test\Resta\Unit\Hooks;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\Hooks\SwaggerHook;
@@ -93,6 +94,54 @@ class SwaggerHookTest extends TestCase
         $this->assertFalse(($denied['permission_callback'])());
     }
 
+    public function testMenuUsesEditPagesByDefaultAndPageHasNoNonce(): void
+    {
+        Functions\expect('wp_create_nonce')->never();
+
+        [$capability, $html] = $this->menuPageOf($this->hook());
+
+        $this->assertSame('edit_pages', $capability);
+        $this->assertStringContainsString('const schemaUrl = "https://example.com/wp-json/resta/v1/schema";', $html);
+        // 誰でも取得できるスキーマには nonce を付けない
+        $this->assertStringContainsString('const nonce = null;', $html);
+    }
+
+    public function testMenuFollowsCapabilityAndPageHasNonce(): void
+    {
+        Functions\when('wp_create_nonce')->justReturn('abc123');
+
+        [$capability, $html] = $this->menuPageOf(
+            $this->hook(options: new SwaggerOptions(capability: 'manage_options'))
+        );
+
+        // スキーマを読める人にだけメニューを見せる
+        $this->assertSame('manage_options', $capability);
+        $this->assertStringContainsString('const nonce = "abc123";', $html);
+    }
+
+    #[DataProvider('slashVariants')]
+    public function testSchemaUrlDoesNotDependOnSlashes(string $namespace, string $route): void
+    {
+        [, $html] = $this->menuPageOf(
+            $this->hook(options: new SwaggerOptions(namespace: $namespace, route: $route))
+        );
+
+        $this->assertStringContainsString('const schemaUrl = "https://example.com/wp-json/myapp/v1/schema";', $html);
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function slashVariants(): array
+    {
+        return [
+            '既定と同じ形' => ['myapp/v1', '/schema'],
+            'route の先頭に / が無い' => ['myapp/v1', 'schema'],
+            'namespace の末尾に / がある' => ['myapp/v1/', '/schema'],
+            'namespace の先頭に / がある' => ['/myapp/v1', 'schema'],
+        ];
+    }
+
     private function hook(
         ?ResponseSchema $schema = null,
         ?SwaggerOptions $options = null,
@@ -123,5 +172,44 @@ class SwaggerHookTest extends TestCase
         $hook->onRestApiInit();
 
         return $registered;
+    }
+
+    /**
+     * onInit() が登録したメニューの capability と、ページが出力する HTML
+     *
+     * @return array{string, string}
+     */
+    private function menuPageOf(SwaggerHook $hook): array
+    {
+        $capability = '';
+        $render = null;
+        Functions\when('is_admin')->justReturn(true);
+        Functions\when('is_user_logged_in')->justReturn(true);
+        Functions\when('add_action')->alias(fn (string $name, callable $callback) => $callback());
+        Functions\when('add_menu_page')->alias(
+            function (string $pageTitle, string $menuTitle, string $cap, string $slug, callable $callback) use (&$capability, &$render): void {
+                $capability = $cap;
+                $render = $callback;
+            }
+        );
+        Functions\when('wp_enqueue_style')->justReturn();
+        Functions\when('wp_enqueue_script')->justReturn();
+        Functions\when('plugin_dir_path')->alias(fn (string $file): string => dirname($file) . '/');
+        Functions\when('rest_url')->alias(fn (string $path): string => 'https://example.com/wp-json/' . $path);
+        Functions\when('wp_json_encode')->alias(
+            fn (mixed $value): string => (string) json_encode($value, JSON_UNESCAPED_SLASHES)
+        );
+
+        $hook->onInit();
+        $this->assertIsCallable($render);
+
+        ob_start();
+        try {
+            $render();
+        } finally {
+            $html = (string) ob_get_clean();
+        }
+
+        return [$capability, $html];
     }
 }
