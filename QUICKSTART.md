@@ -46,49 +46,51 @@ composer install
 | WordPress サイト | http://localhost:8080 | - |
 | WordPress 管理画面 | http://localhost:8080/wp-admin | admin / admin |
 | REST API ルート | http://localhost:8080/wp-json | - |
-| Swagger UI | http://localhost:8080/wp-admin/admin.php?page=resta-swagger-ui | admin / admin |
+| Swagger UI | http://localhost:8080/wp-admin/admin.php?page=wp-resta | admin / admin |
 
 ## サンプル API エンドポイント
 
-### 1. サンプル API（パラメータ付き）
+サンプルは、記事と下書きを題材にした 1 つの小さな API です。実装は `src/REST/Example/` にあります。
+
+### 1. 記事の一覧
 
 ```bash
-curl "http://localhost:8080/wp-json/example/sample/1?name=test&a_or_b=a"
+curl "http://localhost:8080/wp-json/example/posts?per_page=5&sort=asc"
 ```
 
-**機能:** URL パラメータとクエリパラメータのテスト、WordPress データベースアクセスのデモ
+**機能:** 公開されている記事の一覧。クエリパラメータの検証と型変換、キャッシュのヘッダ
 
-### 2. 投稿一覧 API
-
-```bash
-curl "http://localhost:8080/wp-json/example/posts"
-```
-
-**機能:** WordPress の投稿データを取得
-
-### 3. 投稿詳細 API
+### 2. 記事 1 件
 
 ```bash
 curl "http://localhost:8080/wp-json/example/post/1"
 ```
 
-**機能:** 指定 ID の投稿詳細を取得
+**機能:** 指定 ID の記事。無ければ 404
 
-### 4. 静的レスポンス API
-
-```bash
-curl "http://localhost:8080/wp-json/example/samplestatic"
-```
-
-**機能:** 静的な値を返すシンプルな API
-
-### 5. Feed API
+### 3. 下書きの一覧と作成
 
 ```bash
-curl "http://localhost:8080/wp-json/example/feed/1"
+curl -i "http://localhost:8080/wp-json/example/drafts"
 ```
 
-**機能:** PSR-7 レスポンスのデモ
+**機能:** `edit_posts` を持つユーザーだけが使える操作。ログインしていないので 401 が返ります。GET が一覧、POST が作成です
+
+### 4. 下書き 1 件
+
+```bash
+curl -i "http://localhost:8080/wp-json/example/draft/1"
+```
+
+**機能:** その下書きを編集できるユーザーだけが読める。ログインしていないので 401 が返ります
+
+### 5. 静的なレスポンス
+
+```bash
+curl "http://localhost:8080/wp-json/example/version"
+```
+
+**機能:** callback を書かず、決まった値を返す
 
 ## 開発ワークフロー
 
@@ -189,7 +191,7 @@ docker compose exec wpcli wp rewrite flush --hard
 ## 次のステップ
 
 1. **サンプルコードを確認:** `src/REST/Example/Routes/` ディレクトリのサンプル実装を参照
-2. **Swagger UI を確認:** http://localhost:8080/wp-admin/admin.php?page=resta-swagger-ui で API ドキュメントを確認
+2. **Swagger UI を確認:** http://localhost:8080/wp-admin/admin.php?page=wp-resta で API ドキュメントを確認
 3. **独自の API を作成:** README.md の「How to develop」セクションを参照して、独自のエンドポイントを作成
 
 ## 参考資料

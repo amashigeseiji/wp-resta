@@ -1,6 +1,6 @@
 # DI
 
-Route クラスに Service クラスなどを注入する書きかた。保証される挙動は [spec.md](spec.md)「DI」にある。
+Route クラスに Service クラスなどを注入する書きかた。保証される挙動は [spec.md](spec.md)「DI」にある。手本は `src/REST/Example/Routes/Posts.php` と `src/REST/Example/Services/PostService.php`。
 
 簡易なDIを用意しています。
 

@@ -6,6 +6,13 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ## [Unreleased]
 
+### 変更
+
+- サンプル（`src/REST/Example/`）を、記事と下書きを題材にした 1 つの小さな API に書き直した（#120）。Route クラスは `Hello` / `Posts` / `Post` / `Drafts` / `Draft` / `Version` の 6 つで、WordPress を呼ぶ処理は `Services/PostService` に置いている。それぞれのテストを `tests/Unit/REST/Example/Routes/` に足した
+  - `Sample` / `SampleStatic` / `SimpleApi` / `Search` / `Items` / `Notes` / `Secret` / `Feed` と、`Hoge` / `Fuga` を削除した。サンプルを `routeDirectory` に登録しているサイトでは、`/wp-json/example/` 配下の URL が変わる
+  - `Posts` はページ送り・並び順・タグの引数を受けるようになり、`Drafts` は GET にも `edit_posts` が要るようになった
+  - サンプルは `docs/spec.md` の約束に含まれない。wp-resta 本体の挙動は変わらない
+
 ## [0.13.1] - 2026-11-20
 
 `SwaggerHook` が OpenAPI のスキーマを返す場所を REST ルートに移し、場所と相手を設定できるようにしたリリース。**`/rest-api/schema` は返らなくなる。** curl などで取得していた場合は、URL を `/wp-json/resta/v1/schema` に書きかえる。`/rest-api/schema` は `docs/spec.md` の約束に含まれないので、非推奨の期間は挟んでいない。Route クラスの書きかたと、ルートの挙動は変わらない。

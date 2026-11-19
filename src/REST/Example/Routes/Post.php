@@ -4,40 +4,36 @@ namespace Wp\Resta\REST\Example\Routes;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Attributes\RouteMeta;
-use Wp\Resta\REST\Example\Schemas\Post as SchemasPost;
+use Wp\Resta\REST\Example\Schemas\Post as PostSchema;
+use Wp\Resta\REST\Example\Services\PostService;
 use Wp\Resta\REST\Exception\HttpException;
 
+/**
+ * 公開されている記事 1 件。
+ *
+ * ROUTE の [id] は callback の引数 int $id で宣言する。戻り値が body で、戻り値型がレスポンスのスキーマになる。
+ * 見つからないときは例外で 404 を返す
+ */
 #[RouteMeta(
-    description: "サンプルです",
-    tags: ["サンプルAPI"]
+    description: "公開されている記事を 1 件返します",
+    tags: ["記事"]
 )]
 #[Envelope]
 class Post extends AbstractRoute
 {
     protected const ROUTE = 'post/[id]';
-    protected const URL_PARAMS = [
-        'id' => 'integer',
-    ];
 
-    /**
-     * 戻り値が body で、戻り値型がレスポンスのスキーマになる。見つからないときは例外で 404 を返す
-     */
-    public function callback(int $id): SchemasPost
+    public function __construct(private readonly PostService $posts)
     {
-        $post = get_post($id);
+    }
+
+    public function callback(int $id): PostSchema
+    {
+        $post = $this->posts->findPublished($id);
         if ($post === null) {
             throw new HttpException('Post not found', 404, 'rest_post_invalid_id');
         }
 
-        return new SchemasPost(
-            ID: $post->ID,
-            post_author: $post->post_author,
-            post_date: $post->post_date,
-            post_date_gmt: $post->post_date_gmt,
-            post_content: $post->post_content,
-            post_title: $post->post_title,
-            post_status: $post->post_status,
-            post_name: $post->post_name,
-        );
+        return $post;
     }
 }

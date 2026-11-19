@@ -4,38 +4,42 @@ namespace Wp\Resta\REST\Example\Routes;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Cache;
 use Wp\Resta\REST\Attributes\Envelope;
+use Wp\Resta\REST\Attributes\Param;
+use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Schemas\Post;
-use WP_Query;
+use Wp\Resta\REST\Example\Services\PostService;
+use Wp\Resta\REST\Example\Sort;
 
+/**
+ * 公開されている記事の一覧。
+ *
+ * クエリパラメータは callback の引数で宣言する。引数の型が検証と型変換になり、デフォルト値があれば省略できる。
+ * 範囲のような制約は #[Param] で足す。記事を取り出す処理は PostService に置き、コンストラクタで受け取る
+ */
+#[RouteMeta(
+    description: "公開されている記事の一覧を返します",
+    tags: ["記事"]
+)]
 #[Envelope]
 #[Cache(maxAge: 60)]
 class Posts extends AbstractRoute
 {
     protected const ROUTE = 'posts';
 
+    public function __construct(private readonly PostService $posts)
+    {
+    }
+
     /**
+     * @param string[] $tags タグのスラッグで絞り込む
      * @return Post[]
      */
-    public function callback(): array
-    {
-        $q = new WP_Query();
-        $posts = $q->query([
-            'post_type' => 'post',
-            'post_status' => 'publish',
-            'orderby' => 'modified',
-            'order' => 'DESC',
-            'posts_per_page' => 10
-        ]);
-
-        return array_map(fn($post) => new Post(
-            ID: $post->ID,
-            post_author: $post->post_author,
-            post_date: $post->post_date,
-            post_date_gmt: $post->post_date_gmt,
-            post_content: $post->post_content,
-            post_title: $post->post_title,
-            post_status: $post->post_status,
-            post_name: $post->post_name,
-        ), $posts);
+    public function callback(
+        int $page = 1,
+        #[Param(min: 1, max: 100)] int $per_page = 10,
+        Sort $sort = Sort::Desc,
+        array $tags = [],
+    ): array {
+        return $this->posts->published($page, $per_page, $sort, $tags);
     }
 }

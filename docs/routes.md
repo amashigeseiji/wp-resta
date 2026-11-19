@@ -2,7 +2,7 @@
 
 URL とパラメータ、callback、HTTP メソッドごとの処理、エラーレスポンスの書きかた。保証される挙動は [spec.md](spec.md) にある。最初のルートの作りかたは [README](../README.md) にある。
 
-実行できる手本は `src/REST/Example/Routes/` にある。`Hello.php`（`URL_PARAMS`）、`Items.php`（callback の引数と `#[Param]`）、`Notes.php`（GET と POST を分ける）。
+実行できる手本は `src/REST/Example/Routes/` にある。`Hello.php`（`URL_PARAMS`）、`Posts.php`（callback の引数と `#[Param]`）、`Drafts.php`（GET と POST を分ける）。
 
 ## URL定義とURL変数
 
@@ -134,7 +134,7 @@ protected const HEADERS = ['Cache-Control' => 'no-store'];
 
 ## 静的なルート
 
-リクエストによって変わらない値を返すだけなら、callback を書かずに、応答を `public readonly` の `body` プロパティで宣言できます。手本は `src/REST/Example/Routes/SampleStatic.php` です。
+リクエストによって変わらない値を返すだけなら、callback を書かずに、応答を `public readonly` の `body` プロパティで宣言できます。手本は `src/REST/Example/Routes/Version.php` です。
 
 ```php
 class Version extends AbstractRoute
