@@ -6,6 +6,10 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-19
+
+Route を書く側から見えるインターフェースを小さくした破壊的リリース。`RouteInterface` と `AbstractRoute` から `validate()` と `authorize()` が無くなり、0.12 で非推奨にした `$status` / `$body` / `$headers` プロパティも無くなった。値に依らない認可は `#[Authenticated]` / `#[Permission]` で操作ごとに宣言し、値に依る認可と複数のパラメータにまたがる検証は callback の中に書く。callback の無い静的なルートは `public readonly` の `body` プロパティで宣言でき、`@return` の array shape や入れ子の配列からレスポンスのスキーマが導出される。**`authorize()` をオーバーライドしていたルートは、書きかえないと認可なしで公開される。** 移行はこの節の「削除」「変更」の各項目に書いた代替のとおり。計画と判断の経緯は [milestone 0.13](https://github.com/amashigeseiji/wp-resta/milestone/2) の各 issue にある。
+
 ### 削除
 
 - `AbstractRoute` の `$status` / `$body` / `$headers` プロパティを削除した（#105）。0.12 で非推奨にしていたもの。callback の中での代入を戻り値に変換する処理と、非推奨の警告も無くなる
@@ -198,7 +202,8 @@ URL 変数の検証まわりの不具合修正と、エラーレスポンスの�
 - `RegisterRestRoutes` の routes オブジェクトを一階層にする（#39）
 - ライセンスを AGPL にする（#41）
 
-[Unreleased]: https://github.com/amashigeseiji/wp-resta/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/amashigeseiji/wp-resta/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/amashigeseiji/wp-resta/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.3...v0.12.0
 [0.11.3]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.1...v0.11.2
