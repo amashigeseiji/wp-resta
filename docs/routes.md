@@ -74,7 +74,7 @@ protected const ROUTE = 'posts/[id]';
 public function callback(
     int $id,
     #[Param(min: 1, max: 100)] int $per_page = 10,
-    Sort $sort = Sort::Asc,        // backed enum → asc / desc だけ受け付け、enum のインスタンスで届く
+    Order $order = Order::Desc,    // backed enum → asc / desc だけ受け付け、enum のインスタンスで届く
     bool $published = true,        // true / false / 1 / 0
     array $tags = [],              // ?tags[]=a&tags[]=b でも ?tags=a,b でも
     #[Param(pattern: '[a-z-]+')] string $slug = '',
@@ -139,17 +139,22 @@ protected const HEADERS = ['Cache-Control' => 'no-store'];
 ```php
 class Version extends AbstractRoute
 {
-    public readonly VersionInfo $body;
+    protected const ROUTE = 'version';
 
-    public function __construct(VersionService $service)
+    /**
+     * @var array{version: string}
+     */
+    public readonly array $body;
+
+    public function __construct()
     {
-        $this->body = $service->current();
+        $this->body = ['version' => '1.0'];
     }
 }
 ```
 
 - `body` の値が、ステータス 200 のレスポンスボディになります。既定のヘッダは `HEADERS` 定数で宣言します
-- プロパティの型が、callback の戻り値型と同じようにスキーマになります。配列の要素の型は `@var Post[]` のように docblock で書けます
+- プロパティの型が、callback の戻り値型と同じようにスキーマになります。配列の形は `@var array{version: string}` や `@var Post[]` のように docblock で書けます。スキーマクラスを型にすることもできます
 - `body` はコンストラクタで確定させます。`readonly` なので、あとから書き換えようとすると PHP がエラーにします
 - callback（`callback()` や `get()` / `post()` など）と `body` の両方を書くことはできません。どちらも無いクラスも、ルートとして登録できません
 
