@@ -28,11 +28,6 @@ interface RouteInterface
     public function getOperations(): array;
 
     /**
-     * 宣言された制約を通った後の、手続き的な検証のフック。拒否は HttpException を投げる
-     */
-    public function validate(BoundParameters $params): void;
-
-    /**
      * ルート単位の認可。拒否は UnauthorizedException / ForbiddenException を投げる
      */
     public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void;

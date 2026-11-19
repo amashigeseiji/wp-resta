@@ -34,7 +34,6 @@ class RequestHandler
             $operation = $route->getOperation($request->getMethod()) ?? throw new RouteNotFoundException();
             // 宣言されたパラメータすべてを検証する。callback の引数にあるかどうかは関係ない
             $params = $operation->getParameters()->validate($request);
-            $route->validate($params);
             // バリデーションの後に認可するので、authorize() が見る値は制約を通った後の値
             $route->authorize($request, $params, $this->principal);
 

@@ -25,14 +25,17 @@ public function authorize(RestaRequestInterface $request, BoundParameters $param
 
 `Principal` は WordPress の現在のユーザーに対応し、`can()` は `current_user_can()` と同じ引数を取ります。cookie + nonce でも Application Passwords でも、WordPress が認証した結果がそのまま見えます。`authorize()` は URL変数の検証が通った後、`callback` の前に呼ばれるので、`$params` には型変換済みの値が入っています。
 
-複数のパラメータにまたがる検証や DB を引く検証は `validate()` に書きます。型と正規表現の検証が通った後、`authorize()` の前に呼ばれます。
+複数のパラメータにまたがる検証や DB を引く検証は、callback の中に書きます。callback が呼ばれるのは、型と正規表現の検証と `authorize()` が通った後です。
 
 ```php
-public function validate(BoundParameters $params): void
+use Wp\Resta\REST\Exception\InvalidParameterException;
+
+public function callback(int $from = 0, int $to = 0): array
 {
-    if ($params->get('from') > $params->get('to')) {
+    if ($from > $to) {
         throw new InvalidParameterException('from', 'from must be <= to');   // 400
     }
+    // ...
 }
 ```
 

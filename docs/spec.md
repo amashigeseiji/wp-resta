@@ -67,7 +67,6 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ### バリデーション
 
 - 宣言された制約を満たさない入力は 400 になり、callback は呼ばれない。callback の引数で受け取るかどうかに関係なく、宣言されたパラメータはすべて検証される
-- ルートは `validate(BoundParameters $params)` をオーバーライドして、型変換後の値に対する手続き的な検証を書ける。拒否は `HttpException` を投げる
 
 ### 認可
 
@@ -75,7 +74,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - 拒否は例外で表す。`UnauthorizedException` は 401、`ForbiddenException` は 403 になり、callback は呼ばれない
 - `Principal` は認証状態（`isAuthenticated()`）と capability（`can()`）を答える。WordPress 上では現在のユーザーに対応し、認証方式（cookie + nonce、Application Passwords など）には依存しない。設定の `dependencies` で差し替えられる
 - 認可はバリデーションの後に行われる。`authorize()` が受け取る `$params` は宣言した制約を満たし、型変換済みの値
-- `validate()` / `authorize()` はルート単位で、受け取る `$params` は選ばれた操作の宣言で束縛した値。`authorize()` を操作ごとに分けるなら `$request->getMethod()` で分岐する
+- `authorize()` はルート単位で、受け取る `$params` は選ばれた操作の宣言で束縛した値。`authorize()` を操作ごとに分けるなら `$request->getMethod()` で分岐する
 
 ### callback
 
