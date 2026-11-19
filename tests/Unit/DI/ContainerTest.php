@@ -116,8 +116,8 @@ class ContainerTest extends TestCase
     public function testScalarParameterWithoutDefaultNamesClassAndParameter(): void
     {
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage(ClassWithRequiredScalar::class . '::__construct()');
-        $this->expectExceptionMessage('$perPage');
+        // expectExceptionMessage() は呼ぶたびに上書きされるので、クラスと引数を 1 つの文字列で確かめる
+        $this->expectExceptionMessage(ClassWithRequiredScalar::class . '::__construct() の引数 $perPage');
 
         Container::getInstance()->get(ClassWithRequiredScalar::class);
     }
