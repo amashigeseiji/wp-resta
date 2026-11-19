@@ -78,6 +78,50 @@ class ContainerTest extends TestCase
         $this->assertEquals('custom', $instance->value);
     }
 
+    public function testScalarParameterWithDefaultUsesDefault(): void
+    {
+        $instance = Container::getInstance()->get(ClassWithDefaults::class);
+
+        $this->assertInstanceOf(SimpleClass::class, $instance->dependency);
+        $this->assertSame(20, $instance->perPage);
+        $this->assertNull($instance->label);
+    }
+
+    public function testClassDependingOnClassWithDefaultsResolves(): void
+    {
+        $instance = Container::getInstance()->get(ClassDependingOnDefaults::class);
+
+        $this->assertSame(20, $instance->inner->perPage);
+    }
+
+    public function testBoundInstanceWinsOverDefaults(): void
+    {
+        $container = Container::getInstance();
+        $container->bind(ClassWithDefaults::class, new ClassWithDefaults(new SimpleClass(), perPage: 50));
+
+        $this->assertSame(50, $container->get(ClassDependingOnDefaults::class)->inner->perPage);
+    }
+
+    public function testFactoryParameterWithDefaultUsesDefault(): void
+    {
+        $container = Container::getInstance();
+        $container->bind(
+            ClassWithDefaults::class,
+            fn (SimpleClass $dependency, int $perPage = 5) => new ClassWithDefaults($dependency, $perPage)
+        );
+
+        $this->assertSame(5, $container->get(ClassWithDefaults::class)->perPage);
+    }
+
+    public function testScalarParameterWithoutDefaultNamesClassAndParameter(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        // expectExceptionMessage() は呼ぶたびに上書きされるので、クラスと引数を 1 つの文字列で確かめる
+        $this->expectExceptionMessage(ClassWithRequiredScalar::class . '::__construct() の引数 $perPage');
+
+        Container::getInstance()->get(ClassWithRequiredScalar::class);
+    }
+
     public function testGetThrowsExceptionForUndefinedClass()
     {
         $this->expectException(\Exception::class);
@@ -198,3 +242,22 @@ class TestImplementation implements TestInterface {}
 class AnotherImplementation implements TestInterface {}
 interface NonExistentInterface {}
 interface OnlyInterface {}
+
+class ClassWithDefaults
+{
+    public function __construct(
+        public readonly SimpleClass $dependency,
+        public readonly int $perPage = 20,
+        public readonly ?string $label = null,
+    ) {}
+}
+
+class ClassDependingOnDefaults
+{
+    public function __construct(public readonly ClassWithDefaults $inner) {}
+}
+
+class ClassWithRequiredScalar
+{
+    public function __construct(public readonly int $perPage) {}
+}

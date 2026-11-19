@@ -109,23 +109,37 @@ class Container
 
     /**
      * @param ReflectionFunctionAbstract $func
-     * @return object[]
+     * @return array<string, object>
      */
     private function resolveParameters(ReflectionFunctionAbstract $func): array
     {
         $args = [];
         foreach ($func->getParameters() as $param) {
-            /** @var ReflectionNamedType */
             $type = $param->getType();
-            if (!($type instanceof ReflectionNamedType)) {
-                throw new Exception('$' . $param->getName() . ' is invalid');
+            $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
+            if ($typeName !== null && (class_exists($typeName) || interface_exists($typeName))) {
+                $args[$param->name] = $this->get($typeName);
+                continue;
             }
-            $typeName = $type->getName();
-            if (!class_exists($typeName) && !interface_exists($typeName)) {
-                throw new RuntimeException("\"\${$typeName}\" cannot resolve.");
+            // クラスとして解決できない引数（スカラー、型なし、union など）は、既定値があればそれに任せる。
+            // $args は引数名をキーにしているので、入れなければ PHP が既定値を使う
+            if ($param->isDefaultValueAvailable()) {
+                continue;
             }
-            $args[$param->name] = $this->get($typeName);
+            throw new RuntimeException(sprintf(
+                '%s の引数 $%s%s を解決できません。クラスか interface の型を宣言するか、既定値を付けてください。',
+                $this->describe($func),
+                $param->getName(),
+                $type === null ? '' : "（{$type}）",
+            ));
         }
         return $args;
+    }
+
+    private function describe(ReflectionFunctionAbstract $func): string
+    {
+        return $func instanceof ReflectionMethod
+            ? "{$func->class}::{$func->getName()}()"
+            : 'factory';
     }
 }
