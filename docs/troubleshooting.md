@@ -4,7 +4,7 @@
 
 - WordPress のパーマリンク設定が「基本」だと REST API が `?rest_route=` 形式になり、`/wp-json/` が動かない。「投稿名」などに変更する
 - `routeDirectory` のディレクトリと名前空間プレフィックスが PSR-4 と一致しているか。`composer dump-autoload` を実行する
-- ルートクラスが `AbstractRoute` を継承しているか
+- Route クラスが `AbstractRoute` を継承しているか
 - `code` が `rest_no_route` で URL は合っているなら、その HTTP メソッドの操作が宣言されていない。`get()` だけのルートに POST している、`callback()` のルートで `getMethods()` に POST が無い、など
 
 ## URL パラメータが取れない
