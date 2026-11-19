@@ -31,7 +31,7 @@ abstract class AbstractE2ETestCase extends TestCase
     /**
      * Send GET request
      *
-     * @param string $uri URI path (e.g., '/wp-json/example/sample/1')
+     * @param string $uri URI path (e.g., '/wp-json/fixture/sample/1')
      * @param array<string, mixed> $query Query parameters
      * @param array<string, string> $headers Additional headers
      * @return ResponseInterface

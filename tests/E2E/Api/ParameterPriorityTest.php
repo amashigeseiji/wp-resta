@@ -10,8 +10,8 @@ use Test\Resta\Support\E2E\AbstractE2ETestCase;
  * add_filter('rest_request_parameter_order', ...) が正しく動作しているかを検証します。
  *
  * テストシナリオ:
- * - ルート定義: /example/sample/[id]
- * - リクエスト: /example/sample/1?id=30
+ * - ルート定義: /fixture/sample/[id]
+ * - リクエスト: /fixture/sample/1?id=30
  * - 期待される挙動:
  *   - フィルターあり（現在の実装）: URLパラメータ(1)が優先される
  *   - フィルターなし（WordPressデフォルト）: クエリパラメータ(30)が優先される
@@ -21,15 +21,15 @@ class ParameterPriorityTest extends AbstractE2ETestCase
     /**
      * URLパラメータがクエリパラメータより優先されることを確認
      *
-     * /example/sample/1?id=30 のようなリクエストで、
+     * /fixture/sample/1?id=30 のようなリクエストで、
      * 埋め込みパラメータ (1) がクエリパラメータ (id=30) より優先される
      */
     public function testUrlParameterTakesPriorityOverQueryParameter(): void
     {
-        // /example/sample/1?id=30 にアクセス
+        // /fixture/sample/1?id=30 にアクセス
         // URLパラメータ: id=1
         // クエリパラメータ: id=30
-        $response = $this->get('/wp-json/example/sample/1', [
+        $response = $this->get('/wp-json/fixture/sample/1', [
             'id' => '30',  // クエリパラメータとして id=30 を送信
             'name' => 'test',
             'a_or_b' => 'a',
@@ -55,8 +55,8 @@ class ParameterPriorityTest extends AbstractE2ETestCase
      */
     public function testUrlParameterPriorityWithDifferentIds(): void
     {
-        // /example/sample/999?id=123 にアクセス
-        $response = $this->get('/wp-json/example/sample/999', [
+        // /fixture/sample/999?id=123 にアクセス
+        $response = $this->get('/wp-json/fixture/sample/999', [
             'id' => '123',
         ]);
 
@@ -77,9 +77,9 @@ class ParameterPriorityTest extends AbstractE2ETestCase
      */
     public function testQueryParameterWorksWhenNoConflict(): void
     {
-        // /example/sample/5?name=test のように、
+        // /fixture/sample/5?name=test のように、
         // 競合しないクエリパラメータは正常に動作する
-        $response = $this->get('/wp-json/example/sample/5', [
+        $response = $this->get('/wp-json/fixture/sample/5', [
             'name' => 'test_name',
             'a_or_b' => 'b',
         ]);
@@ -101,8 +101,8 @@ class ParameterPriorityTest extends AbstractE2ETestCase
      */
     public function testUrlParameterPriorityWithLargeQueryValue(): void
     {
-        // /example/sample/1?id=999999 にアクセス
-        $response = $this->get('/wp-json/example/sample/1', [
+        // /fixture/sample/1?id=999999 にアクセス
+        $response = $this->get('/wp-json/fixture/sample/1', [
             'id' => '999999',
             'name' => 'edge_case',
         ]);
@@ -127,8 +127,8 @@ class ParameterPriorityTest extends AbstractE2ETestCase
      */
     public function testParameterPriorityInPostRoute(): void
     {
-        // /example/post/1?id=50 にアクセス
-        $response = $this->get('/wp-json/example/post/1', [
+        // /fixture/post/1?id=50 にアクセス
+        $response = $this->get('/wp-json/fixture/post/1', [
             'id' => '50',
         ]);
 
