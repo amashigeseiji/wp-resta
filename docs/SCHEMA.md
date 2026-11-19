@@ -936,7 +936,7 @@ public const SCHEMA = [
 生成された OpenAPI スキーマは以下の URL で確認できます：
 
 ```
-http://localhost:8080/rest-api/schema
+http://localhost:8080/wp-json/resta/v1/schema
 ```
 
 Swagger UI で視覚的に確認できます：

@@ -12,7 +12,7 @@
  *
  * WordPress を読み込まないので、設定ファイルと Route クラスのコンストラクタが
  * WordPress の関数や定数（ABSPATH など）を使っていると失敗する。その場合は、
- * 動いている WordPress の /rest-api/schema（SwaggerHook）から取得する
+ * 動いている WordPress の /wp-json/resta/v1/schema（SwaggerHook）から取得する
  */
 
 use Wp\Resta\Auth\Principal;

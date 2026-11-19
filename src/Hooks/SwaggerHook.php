@@ -1,6 +1,7 @@
 <?php
 namespace Wp\Resta\Hooks;
 
+use Wp\Resta\Auth\Principal;
 use Wp\Resta\Hooks\Attributes\AddAction;
 use Wp\Resta\OpenApi\ResponseSchema;
 
@@ -15,36 +16,57 @@ use Wp\Resta\OpenApi\ResponseSchema;
  *     'hooks' => [SwaggerHook::class],
  * ]);
  * </code>
+ *
+ * スキーマを出す場所と相手は {@see SwaggerOptions} で変えられる。
  */
 final class SwaggerHook extends HookProvider
 {
     const VERSION = '1.0';
 
-    public function __construct(private readonly ResponseSchema $schema) {}
+    public function __construct(
+        private readonly ResponseSchema $schema,
+        private readonly SwaggerOptions $options,
+        private readonly Principal $principal,
+    ) {}
+
+    /**
+     * スキーマを REST ルートとして返す。/wp-json/ が届くサイトなら、Web サーバーの設定を足さずに届く
+     */
+    #[AddAction('rest_api_init')]
+    public function onRestApiInit(): void
+    {
+        $capability = $this->options->capability;
+        register_rest_route($this->options->namespace, $this->options->route, [
+            'methods' => 'GET',
+            'callback' => fn () => $this->schema->responseSchema(),
+            // Principal に聞くので、Principal を差し替えたサイトでも、ほかのルートと基準が揃う
+            'permission_callback' => $capability === null
+                ? '__return_true'
+                : fn (): bool => $this->principal->can($capability),
+        ]);
+    }
 
     #[AddAction('init')]
     public function onInit(): void
     {
-        add_rewrite_tag('%rest_api_doc%', '([^&]+)');
-        add_rewrite_rule('^rest-api/schema/?', 'index.php?rest_api_doc=schema', 'top');
-        add_action('wp', function () {
-            if ( get_query_var('rest_api_doc') !== 'schema') {
-                return;
-            }
-            wp_send_json($this->schema->responseSchema());
-        });
         if (is_admin() && is_user_logged_in()) {
             // メニュー追加
             add_action('admin_menu', function () {
                 add_menu_page(
                     'REST API doc',
                     'REST API doc',
-                    'edit_pages',
+                    // スキーマを読めない人にメニューだけ見える、ということが起きないように揃える
+                    $this->options->capability ?? 'edit_pages',
                     'wp-resta',
                     function () {
                         wp_enqueue_style('rest-api-doc', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css', [], self::VERSION);
                         wp_enqueue_script('rest-api-doc-swagger', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js', [], self::VERSION);
                         wp_enqueue_script('rest-api-doc-swagger-preset', 'https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js', [], self::VERSION);
+                        // テンプレートが読む。パーマリンク設定が「基本」でも rest_url() が正しい形を返す
+                        $schemaUrl = rest_url($this->schemaPath());
+                        // capability を指定していると、cookie 認証には nonce が要る。指定していなければ付けない。
+                        // cookie が届かないリクエストに nonce だけが付くと、WordPress は 403 を返す
+                        $nonce = $this->options->capability === null ? null : wp_create_nonce('wp_rest');
                         require plugin_dir_path(__FILE__) . '../OpenApi/template/swagger.php';
                     },
                     'dashicons-book',
@@ -52,5 +74,13 @@ final class SwaggerHook extends HookProvider
                 );
             });
         }
+    }
+
+    /**
+     * rest_url() に渡すパス。register_rest_route() と同じように、前後の / の有無を問わない
+     */
+    private function schemaPath(): string
+    {
+        return trim($this->options->namespace, '/') . '/' . ltrim($this->options->route, '/');
     }
 }

@@ -6,6 +6,20 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ## [Unreleased]
 
+### 追加
+
+- `SwaggerHook` がスキーマを出す場所と相手を、`SwaggerOptions` で決められるようにした（#158）。`dependencies` に `SwaggerOptions::class => new SwaggerOptions(namespace: 'myapp/v1', route: '/schema', capability: 'edit_pages')` のように bind する。bind しなければ、`/wp-json/resta/v1/schema` で誰にでも返す
+  - `capability` を指定すると、その capability を持つ相手にだけ返す。判定は `Principal` に聞くので、`Principal` を差し替えたサイトではほかのルートと同じ基準になる。管理画面の Swagger UI は、スキーマの取得にだけ `X-WP-Nonce` を付ける。`capability` を指定していなければ付けない
+  - `capability` を指定すると、管理画面のメニュー「REST API doc」も同じ capability を持つ相手にだけ見える。指定しなければ、これまでどおり `edit_pages`
+  - `namespace` と `route` は、前後の `/` の有無を問わない
+
+### 変更
+
+- `SwaggerHook` が OpenAPI のスキーマを返す場所を、`/rest-api/schema` から REST ルート `/wp-json/resta/v1/schema` に移した（#158）。管理画面の Swagger UI もこちらを読む。`/wp-json/` と `/wp-admin/` 以外を Web サーバーで閉じているサイトでも Swagger UI がスキーマを読み込めるようになり、リライトルールの flush は要らなくなった
+  - `/rest-api/schema` と `?rest_api_doc=schema` は返らなくなる。curl などで取得していた場合は、URL を `/wp-json/resta/v1/schema` に書きかえる
+  - `plugin.php` は、有効化・無効化のときに `flush_rewrite_rules()` を呼ばなくなった
+  - 以前のリライトルールは、次にパーマリンク設定を保存するか `flush_rewrite_rules()` を実行するまで DB に残る。残っているあいだ `/rest-api/schema` は 404 にならず、リダイレクトされる
+
 ### 修正
 
 - コンストラクタに既定値つきのスカラー引数（`int $perPage = 20` など）を持つクラスを、DI コンテナが解決できるようにした（#159）。これまでは `RuntimeException: "$int" cannot resolve.` になっていた。`dependencies` の factory の引数も同じ。解決できないときの例外のメッセージに、クラスと引数の名前が出る

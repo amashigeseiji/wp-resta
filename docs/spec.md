@@ -149,7 +149,7 @@ WordPress に依存するのは次の役割だけ。
 - クラス: `WP_REST_Request`、`WP_REST_Response`、`WP_HTTP_Response`、`WP_Error`
 - フック: `init`、`rest_api_init`、`rest_request_parameter_order`
 - `register_rest_route()` の引数: `args` の `type` / `required` / `pattern` / `sanitize_callback`、`permission_callback`
-- 任意の `SwaggerHook` はこれに加えて管理画面とリライトルールの API を使う
+- 任意の `SwaggerHook` は、スキーマの REST ルートを自分で `register_rest_route()` に登録する。これに加えて管理画面と nonce の API を使う
 
 ## 互換性ポリシー
 
