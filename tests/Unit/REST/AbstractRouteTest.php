@@ -18,7 +18,6 @@ use Wp\Resta\REST\Exception\HttpException;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\TestRestaRequest;
-use Wp\Resta\REST\Parameter\BoundParameters;
 use Wp\Resta\REST\RequestHandler;
 
 class AbstractRouteTest extends TestCase
@@ -61,9 +60,9 @@ class AbstractRouteTest extends TestCase
     /**
      * パイプラインを通す。invoke() の撤去後、ルートの実行は RequestHandler が担う
      */
-    private function handle(AbstractRoute $route, RestaRequestInterface $request, ?Principal $principal = null): RestaResponseInterface
+    private function handle(AbstractRoute $route, RestaRequestInterface $request): RestaResponseInterface
     {
-        return (new RequestHandler($principal ?? new TestPrincipal(), new Dispatcher()))->handle($route, $request);
+        return (new RequestHandler(new Dispatcher()))->handle($route, $request);
     }
 
     /**
@@ -1067,74 +1066,12 @@ class AbstractRouteTest extends TestCase
 
     // --- 認可（#61） ---
 
-    public function testAuthorizeDefaultsToAllow()
+    public function testForbiddenExceptionFromCallbackReturns403InWpErrorShape()
     {
         $route = new class extends AbstractRoute {
             public function callback(): array
-            {
-                return ['ok' => true];
-            }
-        };
-
-        $response = $this->handle($route, $this->requestWith([]));
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame(['ok' => true], $response->getData());
-    }
-
-    public function testAuthorizeReceivesPrincipalGivenToRequestHandler()
-    {
-        // 主体は RequestHandler のコンストラクタで渡す。Container への bind は要らない
-        $route = new class extends AbstractRoute {
-            public ?Principal $seen = null;
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-            {
-                $this->seen = $principal;
-            }
-            public function callback(): array
-            {
-                return [];
-            }
-        };
-
-        $this->handle($route, $this->requestWith([]));
-
-        $this->assertInstanceOf(TestPrincipal::class, $route->seen);
-        $this->assertFalse($route->seen->isAuthenticated());
-    }
-
-    public function testAuthorizeUsesPrincipalGivenToRequestHandler()
-    {
-        $route = new class extends AbstractRoute {
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-            {
-                if (!$principal->can('edit_posts')) {
-                    throw new ForbiddenException();
-                }
-            }
-            public function callback(): array
-            {
-                return ['ok' => true];
-            }
-        };
-
-        $response = $this->handle($route, $this->requestWith([]), new TestPrincipal(authenticated: true, capabilities: ['edit_posts']));
-
-        $this->assertSame(200, $response->getStatusCode());
-    }
-
-    public function testForbiddenExceptionFromAuthorizeReturns403InWpErrorShape()
-    {
-        $route = new class extends AbstractRoute {
-            public bool $called = false;
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
             {
                 throw new ForbiddenException();
-            }
-            public function callback(): array
-            {
-                $this->called = true;
-                return [];
             }
         };
 
@@ -1146,21 +1083,14 @@ class AbstractRouteTest extends TestCase
             'message' => 'Sorry, you are not allowed to do that.',
             'data' => ['status' => 403],
         ], $response->getData());
-        $this->assertFalse($route->called, '拒否されたら callback は呼ばれない');
     }
 
-    public function testUnauthorizedExceptionFromAuthorizeReturns401()
+    public function testUnauthorizedExceptionFromCallbackReturns401()
     {
         $route = new class extends AbstractRoute {
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-            {
-                if (!$principal->isAuthenticated()) {
-                    throw new UnauthorizedException();
-                }
-            }
             public function callback(): array
             {
-                return [];
+                throw new UnauthorizedException();
             }
         };
 
@@ -1171,67 +1101,20 @@ class AbstractRouteTest extends TestCase
         $this->assertSame(401, $response->getData()['data']['status']);
     }
 
-    public function testValidationRunsBeforeAuthorize()
+    public function testCallbackReceivesPrincipalBoundToContainer()
     {
-        // WP コアと同じ順序。制約を満たさない入力は認可より先に 400 になり、authorize() は呼ばれない
+        // 主体は、必要とする Route が callback の引数で宣言して受け取る。テストではコンテナに bind する
         $route = new class extends AbstractRoute {
-            protected const URL_PARAMS = ['id' => 'integer'];
-            public bool $authorized = false;
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
+            public function callback(Principal $principal): array
             {
-                $this->authorized = true;
-                throw new ForbiddenException();
-            }
-            public function callback(int $id): array
-            {
-                return ['id' => $id];
+                return ['authenticated' => $principal->isAuthenticated()];
             }
         };
-
-        $response = $this->handle($route, $this->requestWith(['id' => 'abc']));
-
-        $this->assertSame(400, $response->getStatusCode());
-        $this->assertFalse($route->authorized);
-    }
-
-    public function testAuthorizeSeesValidatedUrlParameter()
-    {
-        // 順序がバリデーション → 認可なので、authorize() の中で見る値は制約を通った後のもの
-        $route = new class extends AbstractRoute {
-            protected const URL_PARAMS = ['id' => 'integer'];
-            public mixed $seen = null;
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-            {
-                $this->seen = $request->getUrlParam('id');
-            }
-            public function callback(int $id): array
-            {
-                return ['id' => $id];
-            }
-        };
-
-        $this->handle($route, $this->requestWith(['id' => '42']));
-
-        $this->assertSame('42', $route->seen);
-    }
-
-    public function testAuthorizeAppliesToRouteWithoutCallback()
-    {
-        $route = new class extends AbstractRoute {
-            public readonly string $body;
-            public function __construct()
-            {
-                $this->body = 'static';
-            }
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-            {
-                throw new ForbiddenException();
-            }
-        };
+        Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true));
 
         $response = $this->handle($route, $this->requestWith([]));
 
-        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame(['authenticated' => true], $response->getData());
     }
 }
 

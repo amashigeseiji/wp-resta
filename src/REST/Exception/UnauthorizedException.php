@@ -4,7 +4,7 @@ namespace Wp\Resta\REST\Exception;
 /**
  * 認証が必要なルートに未認証でアクセスした
  *
- * WordPress コアの rest_not_logged_in と同じ形式で 401 を返す。認可のアトリビュートの拒否と、authorize() や callback から投げる例外。
+ * WordPress コアの rest_not_logged_in と同じ形式で 401 を返す。認可のアトリビュートの拒否と、callback から投げる例外。
  */
 class UnauthorizedException extends HttpException
 {

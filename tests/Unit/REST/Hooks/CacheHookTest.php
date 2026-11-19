@@ -38,7 +38,7 @@ class CacheHookTest extends TestCase
         if ($userListener !== null) {
             $dispatcher->addListener(RouteInvocationEvent::class, $userListener);
         }
-        return (new RequestHandler($principal, $dispatcher))
+        return (new RequestHandler($dispatcher))
             ->handle($route, new TestRestaRequest('/x', $route, $method, $headers));
     }
 
@@ -202,7 +202,7 @@ class CacheHookTest extends TestCase
         $principal = new TestPrincipal();
         $dispatcher = new Dispatcher();
         $dispatcher->addSubscriber(new CacheHook($principal));
-        $error = (new RequestHandler($principal, $dispatcher))->handle($route, new TestRestaRequest('/x?fail=1', $route));
+        $error = (new RequestHandler($dispatcher))->handle($route, new TestRestaRequest('/x?fail=1', $route));
         $this->assertSame(404, $error->getStatusCode());
         $this->assertArrayNotHasKey('ETag', $error->getHeaders(), 'エラーには付かない');
     }

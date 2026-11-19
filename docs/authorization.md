@@ -1,6 +1,6 @@
 # 認可
 
-ログイン状態や capability でルートの利用を制限する書きかた。保証される挙動は [spec.md](spec.md)「認可」にある。手本は `src/REST/Example/Routes/Drafts.php`（アトリビュート）と `src/REST/Example/Routes/Secret.php`（`authorize()`）。
+ログイン状態や capability でルートの利用を制限する書きかた。保証される挙動は [spec.md](spec.md)「認可」にある。手本は `src/REST/Example/Routes/Drafts.php`（アトリビュート）と `src/REST/Example/Routes/Secret.php`（callback の中の判定）。
 
 ## アトリビュートで宣言する
 
@@ -33,30 +33,30 @@ class Drafts extends AbstractRoute
 
 ## リクエストの値を見て判定する
 
-「この投稿を編集できる人だけ」のように、リクエストの値に依る判定は、アトリビュートでは書けません。`authorize()` をオーバーライドします。既定はすべてのリクエストを許可します。
+「この投稿を編集できる人だけ」のように、リクエストの値に依る判定は、アトリビュートでは書けません。callback の中で確かめます。`Principal` を callback の引数に宣言すると、現在のユーザーを受け取れます。
 
 ```php
 use Wp\Resta\Auth\Principal;
+use Wp\Resta\REST\Attributes\Authenticated;
 use Wp\Resta\REST\Exception\ForbiddenException;
-use Wp\Resta\REST\Exception\UnauthorizedException;
-use Wp\Resta\REST\Http\RestaRequestInterface;
 
-use Wp\Resta\REST\Parameter\BoundParameters;
-
-public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
+#[Authenticated]   // 未認証は 401
+public function put(int $id, string $title, Principal $principal): array
 {
-    if (!$principal->isAuthenticated()) {
-        throw new UnauthorizedException();   // 401
-    }
-    if (!$principal->can('edit_post', $params->get('id'))) {
+    if (!$principal->can('edit_post', $id)) {
         throw new ForbiddenException();      // 403
     }
+    // ...
 }
 ```
 
-`Principal` は WordPress の現在のユーザーに対応し、`can()` は `current_user_can()` と同じ引数を取ります。cookie + nonce でも Application Passwords でも、WordPress が認証した結果がそのまま見えます。`authorize()` は URL変数の検証が通った後、`callback` の前に呼ばれるので、`$params` には型変換済みの値が入っています。
+- ログイン済みかどうかは値に依らないので、`#[Authenticated]` で宣言します。OpenAPI に `security` が出るのは、アトリビュートを付けた操作だけです
+- 拒否は例外で表します。`ForbiddenException` は 403、`UnauthorizedException` は 401 になります
+- `Principal` を使わない Route は、引数に宣言しなくてかまいません
 
-複数のパラメータにまたがる検証や DB を引く検証は、callback の中に書きます。callback が呼ばれるのは、型と正規表現の検証と `authorize()` が通った後です。
+`Principal` は WordPress の現在のユーザーに対応し、`can()` は `current_user_can()` と同じ引数を取ります。cookie + nonce でも Application Passwords でも、WordPress が認証した結果がそのまま見えます。callback が呼ばれるのは URL変数の検証が通った後なので、`$id` には型変換済みの値が入っています。
+
+複数のパラメータにまたがる検証や DB を引く検証も、callback の中に書きます。
 
 ```php
 use Wp\Resta\REST\Exception\InvalidParameterException;
@@ -72,7 +72,7 @@ public function callback(int $from = 0, int $to = 0): array
 
 ## 認証方式を変えるとき
 
-WordPress のユーザーに対応づかない独自の認証を使う場合は、`Principal` の実装を書いて `dependencies` で差し替えます。アトリビュートも `authorize()` も、差し替えた実装に聞きます。
+WordPress のユーザーに対応づかない独自の認証を使う場合は、`Principal` の実装を書いて `dependencies` で差し替えます。アトリビュートも、callback が引数で受け取る `Principal` も、差し替えた実装になります。
 
 OpenAPI の `security` が指す認証方式は、何も書かなければ WordPress 標準の cookie + nonce（`X-WP-Nonce` ヘッダ）です。Application Passwords を使うサイトや、`Principal` を差し替えたサイトは、設定の `securitySchemes` に実際の方式を書きます。
 

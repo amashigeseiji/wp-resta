@@ -3,7 +3,6 @@ namespace Test\Resta\Unit\REST;
 
 use LogicException;
 use PHPUnit\Framework\TestCase;
-use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Param;
@@ -19,7 +18,7 @@ class OperationTest extends TestCase
 {
     private function handle(AbstractRoute $route, string $path, string $method = 'GET'): RestaResponseInterface
     {
-        return (new RequestHandler(new TestPrincipal(), new Dispatcher()))
+        return (new RequestHandler(new Dispatcher()))
             ->handle($route, new TestRestaRequest($path, $route, $method));
     }
 

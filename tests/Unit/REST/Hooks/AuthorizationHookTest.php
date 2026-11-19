@@ -30,8 +30,7 @@ class AuthorizationHookTest extends TestCase
     {
         $dispatcher = new Dispatcher();
         $dispatcher->addSubscriber(new AuthorizationHook($principal ?? new TestPrincipal()));
-        // RequestHandler に渡す主体は authorize() 用。アトリビュートの認可は購読者が受け取った主体を見る
-        return (new RequestHandler(new TestPrincipal(), $dispatcher))
+        return (new RequestHandler($dispatcher))
             ->handle($route, new TestRestaRequest($url, $route, $method));
     }
 
@@ -157,7 +156,7 @@ class AuthorizationHookTest extends TestCase
         $dispatcher->addSubscriber($container->get(AuthorizationHook::class));
         $route = $this->permissionRoute();
 
-        $response = (new RequestHandler(new TestPrincipal(), $dispatcher))->handle($route, new TestRestaRequest('/x', $route));
+        $response = (new RequestHandler($dispatcher))->handle($route, new TestRestaRequest('/x', $route));
 
         $this->assertSame(200, $response->getStatusCode());
     }

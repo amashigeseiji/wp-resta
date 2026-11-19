@@ -2,7 +2,6 @@
 namespace Test\Resta\Unit\REST;
 
 use PHPUnit\Framework\TestCase;
-use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Http\TestRestaRequest;
@@ -21,7 +20,7 @@ class HelloWorldSimpleTest extends TestCase
         };
 
         $request = new TestRestaRequest('/myroute/helloworld', $route);
-        $response = (new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request);
+        $response = (new RequestHandler(new Dispatcher()))->handle($route, $request);
 
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('Hello, world!', $response->getData());
@@ -34,7 +33,7 @@ class HelloWorldSimpleTest extends TestCase
         };
 
         $request = new TestRestaRequest('/myroute/helloworld', $route);
-        $response = (new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, $request);
+        $response = (new RequestHandler(new Dispatcher()))->handle($route, $request);
 
         $this->assertEquals('Hello, world!', $response->getData());
     }

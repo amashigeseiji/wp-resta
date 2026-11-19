@@ -14,8 +14,27 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   - callback の中に `$this->status = 404;` が残っていると、効かないうえに PHP が動的プロパティの非推奨を警告する
 - `RouteInterface` と `AbstractRoute` の `validate(BoundParameters $params)` を削除した（#133）。非推奨の期間は挟まない。実行前に wp-resta が行う検証は、callback の引数や `URL_PARAMS` の宣言から導いたものだけになる
   - 代替: 複数のパラメータにまたがる検証や DB を引く検証は、callback の中に書く。拒否は、これまでと同じく `InvalidParameterException` などの `HttpException` を投げる
-  - `validate()` をオーバーライドしていたルートは、エラーにならず、呼ばれなくなるだけなので、処理を callback に移す。`authorize()` より前に拒否していた入力は、`authorize()` の後で拒否されることになる
+  - `validate()` をオーバーライドしていたルートは、エラーにならず、呼ばれなくなるだけなので、処理を callback に移す
   - `RouteInterface` を直接実装しているルートは、`validate()` を書かなくてよくなる
+- `RouteInterface` と `AbstractRoute` の `authorize()` を削除した（#145）。非推奨の期間は挟まない。`RequestHandler` のコンストラクタは `(DispatcherInterface)` になり、`Principal` を受け取らない。`authorize()` があるために、認可を持たない Route とそのテストまで `Principal` を知ることになっていた
+  - 代替: ログイン済みか、capability を持つかは、操作のメソッドに `#[Authenticated]` / `#[Permission]` を付ける。「この投稿を編集できる人だけ」のようにリクエストの値に依る認可は、callback の中に書く。`Principal` は callback の引数に宣言して受け取り、拒否はこれまでと同じく `UnauthorizedException` / `ForbiddenException` を投げる
+
+    ```php
+    #[Authenticated]
+    public function put(int $id, string $title, Principal $principal): Post
+    {
+        if (!$principal->can('edit_post', $id)) {
+            throw new ForbiddenException();
+        }
+        // ...
+    }
+    ```
+
+  - `authorize()` をオーバーライドしていたルートは、エラーにならず、呼ばれなくなるだけである。**書きかえないと、認可なしで公開される**
+  - テストの `new RequestHandler(new TestPrincipal(), new Dispatcher())` は、`new RequestHandler(new Dispatcher())` に書きかえる。callback が受け取る主体は `Container::getInstance()->bind(Principal::class, new TestPrincipal(...))` で指定し、`tearDown()` でコンテナをリセットする
+  - 「バリデーションの後に認可」という順序の約束は無くなる。callback の中の判定は、これまでどおりバリデーションの後に実行される
+  - `RouteInterface` を直接実装しているルートは、`authorize()` を書かなくてよくなる
+  - サンプルの `example/secret` は `example/secret/[id]` になった
 - TypeScript の型生成を削除した（#108）。`Wp\Resta\CodeGen\*`、`scripts/generate-types.php`、`composer generate:types` が無くなる。実験的な実装で、非推奨の期間は挟まない。OpenAPI から TypeScript への変換を自前で持つと、スキーマ側を直すたびに TypeScript 側も直すことになり、同じことは標準のツールでできる
   - 代替: OpenAPI を書き出し、[openapi-typescript](https://openapi-ts.dev/) などで型を生成する。手順は [docs/frontend.md](docs/frontend.md)。`ApiEndpoints['GET /path']` で引いていた型は、`paths['/path']['get']` で引ける
 
@@ -30,7 +49,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   }
   ```
 
-- 認可のアトリビュート `#[Authenticated]` / `#[Permission($capability)]` を追加した（#139）。操作のメソッド（`callback()` / `get()` / `post()` など）に付ける。`permission_callback` の `'is_user_logged_in'` と `fn () => current_user_can('edit_posts')` に当たる。`#[Authenticated]` は未認証で 401、`#[Permission]` は未認証で 401、capability が無ければ 403。操作ごとに付けられるので、「GET は公開、POST は `edit_posts` が必要」を `$request->getMethod()` の分岐なしに書ける。`authorize()` はそのまま使える
+- 認可のアトリビュート `#[Authenticated]` / `#[Permission($capability)]` を追加した（#139）。操作のメソッド（`callback()` / `get()` / `post()` など）に付ける。`permission_callback` の `'is_user_logged_in'` と `fn () => current_user_can('edit_posts')` に当たる。`#[Authenticated]` は未認証で 401、`#[Permission]` は未認証で 401、capability が無ければ 403。操作ごとに付けられるので、「GET は公開、POST は `edit_posts` が必要」を `$request->getMethod()` の分岐なしに書ける
 
   ```php
   #[Permission('edit_posts')]

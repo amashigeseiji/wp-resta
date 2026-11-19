@@ -8,19 +8,20 @@ use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Authenticated;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Exception\ForbiddenException;
 use Wp\Resta\REST\Exception\InvalidParameterException;
+use Wp\Resta\REST\Hooks\AuthorizationHook;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
 use Wp\Resta\REST\Http\RestaRequestInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
 use Wp\Resta\REST\Http\TestRestaRequest;
-use Wp\Resta\REST\Parameter\BoundParameters;
 use Wp\Resta\REST\RequestHandler;
 use Wp\Resta\REST\RouteInvocationEvent;
 
 /**
- * RequestHandler は WP 非依存のパイプライン: validate → authorize → callback → RouteInvocationEvent
+ * RequestHandler は WP 非依存のパイプライン: validate → BeforeCallbackEvent → callback → RouteInvocationEvent
  */
 class RequestHandlerTest extends TestCase
 {
@@ -38,33 +39,34 @@ class RequestHandlerTest extends TestCase
         parent::tearDown();
     }
 
-    private function handler(?Principal $principal = null): RequestHandler
+    private function handler(): RequestHandler
     {
-        return new RequestHandler($principal ?? new TestPrincipal(), $this->dispatcher);
+        return new RequestHandler($this->dispatcher);
     }
 
-    public function testPipelineOrderIsValidateThenAuthorizeThenCallback(): void
+    public function testCallbackDecidesWithValidatedValueAndBoundPrincipal(): void
     {
+        // 値に依る認可は callback の中に書く。Principal は引数で宣言して受け取り、テストではコンテナに bind する
         $route = new class extends AbstractRoute {
             protected const ROUTE = 'item/[id]';
-            /** @var string[] */
-            public array $trace = [];
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
+            public function callback(int $id, Principal $principal): array
             {
-                $this->trace[] = 'authorize:' . var_export($params->get('id'), true);
-            }
-            public function callback(int $id): array
-            {
-                $this->trace[] = 'callback';
+                if (!$principal->can('edit_post', $id)) {
+                    throw new ForbiddenException();
+                }
                 return ['id' => $id];
             }
         };
         $route->setNamespace('t');
 
-        $response = $this->handler()->handle($route, new TestRestaRequest('/t/item/42', $route));
+        Container::getInstance()->bind(Principal::class, new TestPrincipal());
+        $denied = $this->handler()->handle($route, new TestRestaRequest('/t/item/42', $route));
+        $this->assertSame(403, $denied->getStatusCode());
+        $this->assertSame('rest_forbidden', $denied->getData()['code']);
 
-        $this->assertSame(['id' => 42], $response->getData());
-        $this->assertSame(['authorize:42', 'callback'], $route->trace, 'authorize() が見る値は型変換済み');
+        Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true, capabilities: ['edit_post']));
+        $allowed = $this->handler()->handle($route, new TestRestaRequest('/t/item/42', $route));
+        $this->assertSame(['id' => 42], $allowed->getData());
     }
 
     public function testCallbackCanRejectCrossParameterInputWith400(): void
@@ -88,12 +90,10 @@ class RequestHandlerTest extends TestCase
 
     public function testDeniedRequestDoesNotResolveCallbackDependencies(): void
     {
-        // DI の解決は認可の後。未認証のリクエストでサービスを組み立てない
+        // DI の解決は、認可のアトリビュートの判定の後。未認証のリクエストでサービスを組み立てない
+        $this->dispatcher->addSubscriber(new AuthorizationHook(new TestPrincipal()));
         $route = new class extends AbstractRoute {
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-            {
-                throw new ForbiddenException();
-            }
+            #[Authenticated]
             public function callback(\stdClass $neverResolved): array
             {
                 return [];
@@ -107,7 +107,7 @@ class RequestHandlerTest extends TestCase
 
         $response = $this->handler()->handle($route, new TestRestaRequest('/x', $route));
 
-        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame(401, $response->getStatusCode());
         $this->assertFalse($resolved);
     }
 
@@ -159,13 +159,9 @@ class RequestHandlerTest extends TestCase
             }
         });
         $route = new class extends AbstractRoute {
-            public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-            {
-                throw new ForbiddenException();
-            }
             public function callback(): array
             {
-                return [];
+                throw new ForbiddenException();
             }
         };
         $request = new TestRestaRequest('/x', $route);
@@ -220,7 +216,7 @@ class RequestHandlerTest extends TestCase
     public function testRequestHandlerCanBeExtended(): void
     {
         // DI で組み立てるクラスは、差し替えられる状態にしておく（docs/design.md）
-        $handler = new class(new TestPrincipal(), new Dispatcher()) extends RequestHandler {
+        $handler = new class(new Dispatcher()) extends RequestHandler {
         };
         $route = new class extends AbstractRoute {
             public function callback(): string

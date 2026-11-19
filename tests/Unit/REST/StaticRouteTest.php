@@ -3,7 +3,6 @@ namespace Test\Resta\Unit\REST;
 
 use LogicException;
 use PHPUnit\Framework\TestCase;
-use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Http\RestaResponseInterface;
@@ -17,7 +16,7 @@ class StaticRouteTest extends TestCase
 {
     private function handle(AbstractRoute $route): RestaResponseInterface
     {
-        return (new RequestHandler(new TestPrincipal(), new Dispatcher()))->handle($route, new TestRestaRequest('/x', $route));
+        return (new RequestHandler(new Dispatcher()))->handle($route, new TestRestaRequest('/x', $route));
     }
 
     public function testBodyPropertyIsReturnedWithStatus200AndDefaultHeaders(): void

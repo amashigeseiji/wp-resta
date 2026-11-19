@@ -31,7 +31,6 @@ composer require --dev phpunit/phpunit
 
 ```php
 use PHPUnit\Framework\TestCase;
-use Wp\Resta\Auth\TestPrincipal;
 use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
@@ -43,7 +42,7 @@ class MyRouteTest extends TestCase
     {
         $route = new MyRoute();
         $route->setNamespace('myapi');
-        $handler = new RequestHandler(new TestPrincipal(), new Dispatcher());
+        $handler = new RequestHandler(new Dispatcher());
 
         $request = new TestRestaRequest('/myapi/myroute/123', $route);
         $response = $handler->handle($route, $request);
@@ -60,7 +59,7 @@ class MyRouteTest extends TestCase
 - リクエストヘッダは第 4 引数。`new TestRestaRequest('/myapi/posts', $route, 'GET', ['If-None-Match' => '"abc"'])`。`getHeader()` は名前の大文字小文字を区別しない
 - 400 / 500 の検証は `getStatusCode()` と `getData()['code']` を見る（形は spec.md「エラーレスポンス」）
 - `TestRestaRequest` の値はクライアントが送った文字列のまま。宣言した型への変換は `RequestHandler` の中で行われるので、本番と同じ値が callback に届く
-- `authorize()` を持つルートは `new TestPrincipal(authenticated: true, capabilities: ['edit_posts'])` を `RequestHandler` に渡して主体を固定する。引数なしの `TestPrincipal` は未認証で、401 / 403 の検証に使える
+- callback の引数で `Principal` を受け取るルートは、`Container::getInstance()->bind(Principal::class, new TestPrincipal(authenticated: true, capabilities: ['edit_posts']))` で主体を固定する。引数なしの `TestPrincipal` は未認証で、何の capability も持たない。bind したテストは `tearDown()` でリセットする（「Container のリセット」）
 - `#[Authenticated]` / `#[Permission]` の認可まで確かめるときは、`Dispatcher` に `addSubscriber(new AuthorizationHook($principal))` を足す。足さなければ、アトリビュートがあっても検査されず、callback がそのまま実行される。主体は `AuthorizationHook` に渡したものが使われる
 - `#[Envelope]` の包みや自作のリスナーまで含めて確認したいときは、`Dispatcher` に `addSubscriber(new EnvelopeHook())` などを足してから `RequestHandler` に渡す。`#[Cache]` は `addSubscriber(new CacheHook($principal))`
 

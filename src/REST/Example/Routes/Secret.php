@@ -3,38 +3,31 @@ namespace Wp\Resta\REST\Example\Routes;
 
 use Wp\Resta\Auth\Principal;
 use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Authenticated;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Exception\ForbiddenException;
-use Wp\Resta\REST\Exception\UnauthorizedException;
-use Wp\Resta\REST\Http\RestaRequestInterface;
-use Wp\Resta\REST\Parameter\BoundParameters;
 
 /**
- * authorize() で認可を宣言するサンプル。ログイン済みで edit_posts を持つユーザーだけが使える
+ * リクエストの値を見て認可するサンプル。ログイン済みで、その投稿を編集できるユーザーだけが使える。
+ * ログイン済みかどうかはアトリビュートで宣言し、値に依る判定は callback の中に書く
  */
 #[RouteMeta(
-    description: "認可のサンプルです。edit_posts 権限が必要です",
+    description: "認可のサンプルです。ログインと、その投稿の編集権限が必要です",
     tags: ["サンプルAPI"]
 )]
 class Secret extends AbstractRoute
 {
-    protected const ROUTE = 'secret';
-
-    public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-    {
-        if (!$principal->isAuthenticated()) {
-            throw new UnauthorizedException();
-        }
-        if (!$principal->can('edit_posts')) {
-            throw new ForbiddenException();
-        }
-    }
+    protected const ROUTE = 'secret/[id]';
 
     /**
      * @return array{message: string}
      */
-    public function callback(): array
+    #[Authenticated]
+    public function callback(int $id, Principal $principal): array
     {
+        if (!$principal->can('edit_post', $id)) {
+            throw new ForbiddenException();
+        }
         return ['message' => 'This is a secret.'];
     }
 }

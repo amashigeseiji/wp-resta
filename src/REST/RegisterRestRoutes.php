@@ -82,7 +82,7 @@ class RegisterRestRoutes
                 $endpoints[] = [
                     'methods' => $operation->getMethods(),
                     'callback' => $callback,
-                    // 認可は RequestHandler の中で authorize() が行う（spec「HTTP 実行のパイプライン」）。
+                    // 認可は RequestHandler のパイプラインの中で行う（spec「HTTP 実行のパイプライン」）。
                     // WP コアに渡す permission_callback は常に許可で、WP 5.5 以降の必須引数を満たすためだけにある
                     'permission_callback' => '__return_true',
                     'args' => $operation->getParameters()->toCoreArgs(),
