@@ -3,7 +3,9 @@ namespace Wp\Resta\REST\Schemas;
 
 use ReflectionClass;
 use ReflectionNamedType;
+use ReflectionProperty;
 use ReflectionType;
+use Wp\Resta\OpenApi\PhpDocToOpenApiSchema;
 use Wp\Resta\OpenApi\PhpTypeToOpenApiSchema;
 use Wp\Resta\REST\Attributes\Schema\Property;
 
@@ -25,6 +27,8 @@ abstract class ObjectType extends BaseSchema
 
             $name = $reflectionProperty->name;
             $type = $reflectionProperty->getType();
+            // 配列のプロパティは、docblock に書かれた形を読む。無ければ要素の型が任意の配列
+            $typeSchema = self::arraySchemaFromDocblock($reflectionProperty) ?? self::typeToSchema($type);
 
             // 1. #[Property] Attribute がある場合（後方互換性）
             $attributes = $reflectionProperty->getAttributes(Property::class);
@@ -33,11 +37,11 @@ abstract class ObjectType extends BaseSchema
                 $propSchema = $prop->toArray();
                 // type が定義されていない場合は型から推論する
                 if (!array_key_exists('type', $propSchema)) {
-                    $propSchema = array_merge(self::typeToSchema($type), $propSchema);
+                    $propSchema = array_merge($typeSchema, $propSchema);
                 }
             } else {
                 // 2. プロパティの型から自動推論
-                $propSchema = self::typeToSchema($type);
+                $propSchema = $typeSchema;
             }
 
             // 3. metadata() から追加情報を取得
@@ -66,6 +70,35 @@ abstract class ObjectType extends BaseSchema
         $description['$id'] = self::getSchemaId();
 
         return $description;
+    }
+
+    /**
+     * 型が array のプロパティの、docblock に書かれた形。
+     * プロパティの @var を読む。コンストラクタで宣言したプロパティは、コンストラクタの @param も読む
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function arraySchemaFromDocblock(ReflectionProperty $property): ?array
+    {
+        $type = $property->getType();
+        if (!$type instanceof ReflectionNamedType || $type->getName() !== 'array') {
+            return null;
+        }
+        $class = $property->getDeclaringClass();
+        $docComment = $property->getDocComment();
+        if ($docComment !== false) {
+            $schema = PhpDocToOpenApiSchema::fromReturnOrVar($docComment, $class);
+            if ($schema !== null) {
+                return $schema;
+            }
+        }
+        if ($property->isPromoted()) {
+            $constructorDoc = $class->getConstructor()?->getDocComment();
+            if (is_string($constructorDoc)) {
+                return PhpDocToOpenApiSchema::fromParam($constructorDoc, $property->name, $class);
+            }
+        }
+        return null;
     }
 
     /**

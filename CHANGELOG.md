@@ -63,6 +63,7 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   - `list<T>`、`non-empty-list<T>` は `T[]` と同じ。`Post[][]`、`array<string, Post[]>` のような入れ子も解決する
   - `'asc'|'desc'` は `enum`、`T|null` と `?T` は `anyOf` に null、`T|U` は `anyOf`、`mixed` は `{}`
   - 解決できない型があると、その位置だけが `{}`（任意の値）になる。解決できた部分は捨てない
+  - `ObjectType` の配列のプロパティも、同じ規則で docblock から導出する。プロパティの `@var` を読み、コンストラクタで宣言したプロパティはコンストラクタの `@param` も読む。これまでは docblock を読まず、要素の型を出すには `#[Property]` か `metadata()` にスキーマを書く必要があった。`#[Property]` と `metadata()` に書いたキーは、これまでどおり優先される
   - これまで導出できていた形の出力は変わらない。要素の型が出ていなかった形（上の array shape や入れ子、`@return int[]|string[]` のような union）は、導出された形に変わる
 - OpenAPI を JSON ファイルに書き出す `scripts/generate-openapi.php` を追加した（#108）。WordPress を起動せずに動くので、フロントエンドのビルドや CI で使える。`php vendor/tenjuu99/wp-resta/scripts/generate-openapi.php <config-file> [output-file] [server-url]`
 

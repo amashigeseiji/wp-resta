@@ -114,6 +114,55 @@ class User extends ObjectType {
 | `array` | `array` |
 | ObjectType継承クラス | `$ref` |
 
+### 配列のプロパティ
+
+配列のプロパティは、docblock に書いた形がスキーマになります。読みかたは callback の `@return` と同じです（「[array shape と入れ子](#array-shape-と入れ子)」の表）。
+
+```php
+class PostList extends ObjectType {
+    /** @var Post[] */
+    public array $items;
+
+    /** @var array{order: 'asc'|'desc', total: int} */
+    public array $paging;
+}
+```
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "items": {"type": "array", "items": {"$ref": "#/components/schemas/Post"}},
+    "paging": {
+      "type": "object",
+      "properties": {
+        "order": {"type": "string", "enum": ["asc", "desc"]},
+        "total": {"type": "integer"}
+      },
+      "required": ["order", "total"]
+    }
+  },
+  "required": ["items", "paging"]
+}
+```
+
+コンストラクタで宣言したプロパティは、コンストラクタの `@param` に書けます。
+
+```php
+class PostList extends ObjectType {
+    /**
+     * @param Post[] $items
+     */
+    public function __construct(
+        public int $page,
+        public array $items,
+    ) {}
+}
+```
+
+- docblock が無い配列のプロパティは、要素の型が任意の配列（`{type: array, items: {}}`）になります
+- `metadata()` や `#[Property]` に書いたキーは、docblock から読んだものを上書きします
+
 ### metadata() - 追加情報の定義
 
 `description`や`example`などの追加情報を定義できます：

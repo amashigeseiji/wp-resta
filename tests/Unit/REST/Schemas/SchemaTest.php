@@ -233,4 +233,131 @@ class SchemaTest extends TestCase
         // metadata から items が追加される
         $this->assertArrayHasKey('items', $described['properties']['tags']);
     }
+
+    public function testObjectTypeReadsArrayShapeOfPropertyFromVar()
+    {
+        // 配列のプロパティは、callback の @return と同じ規則で docblock から形を読む（#102）
+        $described = DocblockList::describe();
+
+        $this->assertSame(
+            ['type' => 'array', 'items' => ['$ref' => DocblockItem::getSchemaId()]],
+            $described['properties']['items']
+        );
+        $this->assertSame(
+            [
+                'type' => 'object',
+                'properties' => [
+                    'order' => ['type' => 'string', 'enum' => ['asc', 'desc']],
+                    'tags' => ['type' => 'array', 'items' => ['type' => 'string']],
+                ],
+                'required' => ['order'],
+            ],
+            $described['properties']['paging']
+        );
+        $this->assertSame(
+            ['type' => 'object', 'additionalProperties' => ['type' => 'integer']],
+            $described['properties']['counts']
+        );
+    }
+
+    public function testObjectTypeNullableArrayPropertyKeepsShapeAndIsNotRequired()
+    {
+        $described = DocblockList::describe();
+
+        // null はこれまでどおり required から外すことで表し、スキーマには出さない
+        $this->assertSame(['type' => 'array', 'items' => ['type' => 'string']], $described['properties']['labels']);
+        $this->assertNotContains('labels', $described['required']);
+    }
+
+    public function testObjectTypeArrayPropertyWithoutDocblockIsUntypedArray()
+    {
+        $described = DocblockList::describe();
+
+        $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $described['properties']['raw']);
+        // 配列の形でない docblock は読まない
+        $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $described['properties']['odd']);
+    }
+
+    public function testObjectTypeReadsPromotedPropertyFromConstructorParam()
+    {
+        $described = DocblockPromoted::describe();
+
+        $this->assertSame(
+            ['type' => 'array', 'items' => ['$ref' => DocblockItem::getSchemaId()]],
+            $described['properties']['items']
+        );
+        $this->assertSame(['type' => 'array', 'items' => ['type' => 'integer']], $described['properties']['ids']);
+        $this->assertSame(['type' => 'integer'], $described['properties']['page']);
+    }
+
+    public function testObjectTypeExplicitSchemaWinsOverDocblock()
+    {
+        $described = DocblockExplicit::describe();
+
+        // metadata() と #[Property] に書いたキーは、docblock から読んだものを上書きする
+        $this->assertSame(
+            ['type' => 'array', 'items' => ['type' => 'string', 'format' => 'uri'], 'description' => 'URL の一覧'],
+            $described['properties']['urls']
+        );
+        $this->assertSame(
+            ['type' => 'array', 'items' => ['type' => 'integer'], 'minItems' => 1],
+            $described['properties']['ids']
+        );
+    }
+}
+
+class DocblockItem extends ObjectType
+{
+    public int $id;
+}
+
+class DocblockList extends ObjectType
+{
+    /** @var DocblockItem[] */
+    public array $items;
+
+    /** @var array{order: 'asc'|'desc', tags?: list<string>} */
+    public array $paging;
+
+    /** @var array<string, int> */
+    public array $counts;
+
+    /** @var string[]|null */
+    public ?array $labels;
+
+    public array $raw;
+
+    /** @var string */
+    public array $odd;
+}
+
+class DocblockPromoted extends ObjectType
+{
+    /**
+     * @param DocblockItem[] $items
+     */
+    public function __construct(
+        public int $page,
+        public array $items,
+        /** @var int[] */
+        public array $ids,
+    ) {
+    }
+}
+
+class DocblockExplicit extends ObjectType
+{
+    /** @var string[] */
+    public array $urls;
+
+    /** @var int[] */
+    #[Property(['minItems' => 1])]
+    public array $ids;
+
+    public static function metadata(): array
+    {
+        return [
+            'urls' => ['items' => ['type' => 'string', 'format' => 'uri'], 'description' => 'URL の一覧'],
+        ];
+    }
 }
