@@ -2,7 +2,6 @@
 namespace Wp\Resta\REST;
 
 use Throwable;
-use Wp\Resta\Auth\Principal;
 use Wp\Resta\DI\Container;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\REST\Exception\HttpException;
@@ -15,15 +14,14 @@ use Wp\Resta\REST\Http\SimpleRestaResponse;
 /**
  * HTTP 実行のパイプライン（spec「HTTP 実行のパイプライン」）。WordPress に依存しない。
  *
- * ルートは宣言（操作、パラメータ、callback、認可フック）を提供するだけで、実行の順序はここが持つ。
- * 操作の選択 → バリデーション → 認可 → BeforeCallbackEvent → callback → RouteInvocationEvent の順で、どの段階で止まっても
+ * ルートは宣言（操作、パラメータ、callback）を提供するだけで、実行の順序はここが持つ。
+ * 操作の選択 → バリデーション → BeforeCallbackEvent → callback → RouteInvocationEvent の順で、どの段階で止まっても
  * エラーレスポンスの形は同じ。WordPress からは RegisterRestRoutes が WP_REST_Request を変換して呼び、
  * テストからは TestRestaRequest を渡して直接呼ぶ。
  */
 class RequestHandler
 {
     public function __construct(
-        private readonly Principal $principal,
         private readonly DispatcherInterface $dispatcher,
     ) {}
 
@@ -34,8 +32,6 @@ class RequestHandler
             $operation = $route->getOperation($request->getMethod()) ?? throw new RouteNotFoundException();
             // 宣言されたパラメータすべてを検証する。callback の引数にあるかどうかは関係ない
             $params = $operation->getParameters()->validate($request);
-            // バリデーションの後に認可するので、authorize() が見る値は制約を通った後の値
-            $route->authorize($request, $params, $this->principal);
             // 認可のアトリビュートは、このイベントの購読者（AuthorizationHook）が解釈する。拒否は HttpException で届く
             $this->dispatcher->dispatch(new BeforeCallbackEvent($request, $route, $operation));
 

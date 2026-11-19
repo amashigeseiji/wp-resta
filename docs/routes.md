@@ -186,7 +186,7 @@ $ curl -X DELETE http://example.com/wp-json/myroute/notes/1   # 404 rest_no_rout
 
 ## エラーレスポンス
 
-URL変数の値が regex に一致しない、または required な値が無い場合は 400 を返します。認可のアトリビュートや `authorize()` で拒否した場合は 401 または 403 を返します（[authorization.md](authorization.md)）。ボディは WordPress コアの `WP_Error` と同じ形（`code` / `message` / `data.status`）です。
+URL変数の値が regex に一致しない、または required な値が無い場合は 400 を返します。認可のアトリビュートや callback の中の判定で拒否した場合は 401 または 403 を返します（[authorization.md](authorization.md)）。ボディは WordPress コアの `WP_Error` と同じ形（`code` / `message` / `data.status`）です。
 
 ```json
 {"code": "rest_invalid_param", "message": "Invalid parameter(s): id", "data": {"status": 400, "params": {"id": "id is invalid."}}}

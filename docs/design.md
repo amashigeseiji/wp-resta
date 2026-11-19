@@ -201,7 +201,7 @@ DI コンテナを使う理由は、オブジェクトを生成する義務を�
 - 受け取るクラスは、それを自分で使うか。渡すだけか
 - これはサービスか、実行時の値か
 
-実例: [#145](https://github.com/amashigeseiji/wp-resta/issues/145)（`RequestHandler` が、`authorize()` に渡すためだけに `Principal` を受けている）。
+実例: [#145](https://github.com/amashigeseiji/wp-resta/issues/145)（`RequestHandler` が、`authorize()` に渡すためだけに `Principal` を受けていた）。
 
 ## インターフェースを変えるとき
 

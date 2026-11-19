@@ -96,7 +96,7 @@ class RegisterRestRoutesTest extends TestCase
 
     public function testPermissionCallbackPassedToCoreAlwaysAllows(): void
     {
-        // 認可は invoke() の authorize() が行う（#61）。WP コアに渡す permission_callback は常に許可
+        // 認可は RequestHandler のパイプラインの中で行う（#61）。WP コアに渡す permission_callback は常に許可
         $this->assertNotEmpty($this->registered);
         foreach ($this->registered as $route => $endpoints) {
             foreach ($endpoints as $key => $endpoint) {

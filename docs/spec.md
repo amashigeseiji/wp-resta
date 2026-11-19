@@ -52,7 +52,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ## HTTP 実行のパイプライン
 
-リクエストは認証、操作の選択、バリデーション、認可、callback の順に段階を通る。バリデーションを通った入力だけが認可と callback に渡り、callback の結果がレスポンスになる。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
+リクエストは認証、操作の選択、バリデーションと認可のアトリビュートの判定、callback の順に段階を通る。バリデーションと認可のアトリビュートの判定を通ったリクエストだけが callback に渡り、callback の結果がレスポンスになる。リクエストの値に依る認可は callback の中で行うので、その拒否は callback が始まった後に起きる。どの段階で止まっても、エラーの形は「エラーレスポンス」のとおり。ルートインスタンスの状態はリクエストをまたいで持ち越されない。
 
 パイプラインは WordPress 無しで実行できる。`RequestHandler::handle(RouteInterface, RestaRequestInterface)` がその入口で、`TestRestaRequest` が URL 文字列からリクエストを作る（[testing.md](testing.md)）。ルートは宣言だけを持ち、実行の順序は `RequestHandler` が持つ。
 
@@ -74,11 +74,8 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 - アトリビュートは操作ごと。付いていない操作には何もしない。静的なルート（`body` プロパティ）には付けられない
 - アトリビュートの付いた操作は、OpenAPI に `security` が出る。指す方式は設定の `securitySchemes` で、複数あれば「どれか 1 つで通る」として並ぶ。必要な capability は OpenAPI に出ない
 - アトリビュートによる認可とバリデーションの順序は約束しない。未認証で、かつパラメータが不正なリクエストが 400 と 401 のどちらになるかは決まっていない
-- ルートは `authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal)` をオーバーライドして認可を宣言する。既定は全リクエストを許可する
-- 拒否は例外で表す。`UnauthorizedException` は 401、`ForbiddenException` は 403 になり、callback は呼ばれない
-- `Principal` は認証状態（`isAuthenticated()`）と capability（`can()`）を答える。WordPress 上では現在のユーザーに対応し、認証方式（cookie + nonce、Application Passwords など）には依存しない。設定の `dependencies` で差し替えられる
-- 認可はバリデーションの後に行われる。`authorize()` が受け取る `$params` は宣言した制約を満たし、型変換済みの値
-- `authorize()` はルート単位で、受け取る `$params` は選ばれた操作の宣言で束縛した値。`authorize()` を操作ごとに分けるなら `$request->getMethod()` で分岐する
+- リクエストの値に依る認可は、callback の中で書く。callback から `UnauthorizedException` を投げると 401、`ForbiddenException` を投げると 403 になる
+- `Principal` は認証状態（`isAuthenticated()`）と capability（`can()`）を答える。callback の引数に宣言すれば受け取れる。WordPress 上では現在のユーザーに対応し、認証方式（cookie + nonce、Application Passwords など）には依存しない。設定の `dependencies` で差し替えられる
 
 ### callback
 

@@ -1,13 +1,10 @@
 <?php
 namespace Wp\Resta\REST;
 
-use Wp\Resta\Auth\Principal;
-use Wp\Resta\REST\Http\RestaRequestInterface;
 use ReflectionProperty;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 use Wp\Resta\REST\Http\SimpleRestaResponse;
 use LogicException;
-use Wp\Resta\REST\Parameter\BoundParameters;
 use Wp\Resta\REST\Parameter\ParameterDefinitionBuilder;
 
 abstract class AbstractRoute implements RouteInterface
@@ -191,16 +188,6 @@ abstract class AbstractRoute implements RouteInterface
     public function getMethods(): string
     {
         return 'GET';
-    }
-
-    /**
-     * ルート単位の認可。既定は全リクエストを許可する。
-     *
-     * 拒否するときは UnauthorizedException（401）か ForbiddenException（403）を投げる。
-     * バリデーションの後に呼ばれるので、$params は型変換済みの値。
-     */
-    public function authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal): void
-    {
     }
 
     /**

@@ -12,8 +12,8 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 
 1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する。spec.md は現行の挙動を書いている
 2. [docs/design.md](docs/design.md): 設計の考え方。設計に関わる変更や提案をするときは必ず読む
-3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → パラメータの検証 → `authorize()` → `BeforeCallbackEvent`（内部。認可のアトリビュート） → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
-4. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）、`Drafts.php`（認可のアトリビュート）
+3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → パラメータの検証 → `BeforeCallbackEvent`（内部。認可のアトリビュート） → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`）だけを持つ
+4. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）、`Drafts.php`（認可のアトリビュート）、`Secret.php`（callback の中の認可）
 5. 目的別: [README.md](README.md)「文書の案内」に、使う人向けの文書の一覧がある。[docs/routes.md](docs/routes.md)（Route クラスの書きかた）、[docs/wordpress.md](docs/wordpress.md)（`register_rest_route()` との対応）、[docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## 構成
@@ -24,7 +24,7 @@ src/
   Config.php                init() の設定キー
   DI/Container.php          シングルトンの DI コンテナ（autowiring）
   REST/
-    AbstractRoute.php       ルート基底。宣言のみ: getOperations()（get()/post()… か callback()、無ければ body プロパティから導出）、authorize() フック、response()
+    AbstractRoute.php       ルート基底。宣言のみ: getOperations()（get()/post()… か callback()、無ければ body プロパティから導出）、response()
     Operation.php           1 操作 = HTTP メソッド + Callback + RouteParameters。内部の値オブジェクト
     RequestHandler.php      パイプライン。WP 非依存。テストもこれを通す
     Callback.php            callback の定義。シグニチャを読む、resolve()（引数の束縛 + DI）、invoke()
