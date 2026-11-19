@@ -13,7 +13,7 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する。spec.md は現行の挙動を書いている
 2. [docs/design.md](docs/design.md): 設計の考え方。設計に関わる変更や提案をするときは必ず読む
 3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → パラメータの検証 → `BeforeCallbackEvent`（内部。認可のアトリビュート） → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`）だけを持つ
-4. `src/REST/Example/Routes/`: 実装サンプル。記事と下書きを題材にした 1 つの小さな API。`Posts.php`（一覧、パラメータ、Service の注入）、`Post.php`（スキーマ、404）、`Drafts.php`（GET と POST、認可のアトリビュート）、`Draft.php`（callback の中の認可）、`Version.php`（静的なルート）。テストは `tests/Unit/REST/Example/Routes/`。E2E が叩くのはここではなく `tests/E2E/Fixtures/`
+4. `src/REST/Example/Routes/`: 実装サンプル。記事と下書きを題材にした 1 つの小さな API。`Posts.php`（一覧、パラメータ）、`Post.php`（スキーマ、404）、`LatestPosts.php`（クエリの組み立てを `Services/LatestPostsQuery.php` に分けてテストで固定する）、`Drafts.php`（GET と POST、認可のアトリビュート）、`Draft.php`（callback の中の認可）、`Version.php`（静的なルート）。テストは `tests/Unit/REST/Example/`。E2E が叩くのはここではなく `tests/E2E/Fixtures/`
 5. 目的別: [README.md](README.md)「文書の案内」に、使う人向けの文書の一覧がある。[docs/routes.md](docs/routes.md)（Route クラスの書きかた）、[docs/wordpress.md](docs/wordpress.md)（`register_rest_route()` との対応）、[docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## 構成

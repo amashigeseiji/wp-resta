@@ -1,11 +1,13 @@
 <?php
 namespace Wp\Resta\REST\Example\Routes;
 
+use RuntimeException;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Permission;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Schemas\Post;
-use Wp\Resta\REST\Example\Services\PostService;
+use WP_Post;
+use WP_Query;
 
 /**
  * 下書きの一覧と作成。
@@ -21,22 +23,29 @@ class Drafts extends AbstractRoute
 {
     protected const ROUTE = 'drafts';
 
-    public function __construct(private readonly PostService $posts)
-    {
-    }
-
     /**
      * @return Post[]
      */
     #[Permission('edit_posts')]
     public function get(): array
     {
-        return $this->posts->drafts();
+        return Post::fromWpPosts((new WP_Query())->query([
+            'post_type' => 'post',
+            'post_status' => 'draft',
+            'orderby' => 'modified',
+            'order' => 'DESC',
+            'posts_per_page' => 10,
+        ]));
     }
 
     #[Permission('edit_posts')]
     public function post(string $title): Post
     {
-        return $this->posts->createDraft($title);
+        $post = get_post(wp_insert_post(['post_title' => $title, 'post_status' => 'draft']));
+        if (!$post instanceof WP_Post) {
+            throw new RuntimeException('Failed to create a draft');
+        }
+
+        return Post::fromWpPost($post);
     }
 }

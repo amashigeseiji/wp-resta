@@ -2,6 +2,7 @@
 namespace Wp\Resta\REST\Example\Schemas;
 
 use Wp\Resta\REST\Schemas\ObjectType;
+use WP_Post;
 
 class Post extends ObjectType
 {
@@ -17,6 +18,41 @@ class Post extends ObjectType
         public string $post_status,
         public string $post_name,
     ) {
+    }
+
+    /**
+     * WordPress の投稿から作る。レスポンスに載せる項目は、ここで決まる
+     */
+    public static function fromWpPost(WP_Post $post): self
+    {
+        return new self(
+            ID: $post->ID,
+            post_author: $post->post_author,
+            post_date: $post->post_date,
+            post_date_gmt: $post->post_date_gmt,
+            post_content: $post->post_content,
+            post_title: $post->post_title,
+            post_status: $post->post_status,
+            post_name: $post->post_name,
+        );
+    }
+
+    /**
+     * WP_Query::query() の結果から作る
+     *
+     * @param array<mixed> $posts
+     * @return self[]
+     */
+    public static function fromWpPosts(array $posts): array
+    {
+        $result = [];
+        foreach ($posts as $post) {
+            if ($post instanceof WP_Post) {
+                $result[] = self::fromWpPost($post);
+            }
+        }
+
+        return $result;
     }
 
     public static function metadata(): array

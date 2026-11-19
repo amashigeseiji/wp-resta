@@ -5,8 +5,8 @@ use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Envelope;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Example\Schemas\Post as PostSchema;
-use Wp\Resta\REST\Example\Services\PostService;
 use Wp\Resta\REST\Exception\HttpException;
+use WP_Post;
 
 /**
  * 公開されている記事 1 件。
@@ -23,17 +23,13 @@ class Post extends AbstractRoute
 {
     protected const ROUTE = 'post/[id]';
 
-    public function __construct(private readonly PostService $posts)
-    {
-    }
-
     public function callback(int $id): PostSchema
     {
-        $post = $this->posts->findPublished($id);
-        if ($post === null) {
+        $post = get_post($id);
+        if (!$post instanceof WP_Post || $post->post_type !== 'post' || $post->post_status !== 'publish') {
             throw new HttpException('Post not found', 404, 'rest_post_invalid_id');
         }
 
-        return $post;
+        return PostSchema::fromWpPost($post);
     }
 }

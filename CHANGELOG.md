@@ -8,9 +8,9 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ### 変更
 
-- サンプル（`src/REST/Example/`）を、記事と下書きを題材にした 1 つの小さな API に書き直した（#120）。Route クラスは `Hello` / `Posts` / `Post` / `Drafts` / `Draft` / `Version` の 6 つで、WordPress を呼ぶ処理は `Services/PostService` に置いている。それぞれのテストを `tests/Unit/REST/Example/Routes/` に足した
+- サンプル（`src/REST/Example/`）を、記事と下書きを題材にした 1 つの小さな API に書き直した（#120）。Route クラスは `Hello` / `Posts` / `Post` / `LatestPosts` / `Drafts` / `Draft` / `Version` の 7 つ。`LatestPosts` は、クエリの組み立てを `Services/LatestPostsQuery` に分けて、発行するクエリをテストで固定する例になっている。テストを `tests/Unit/REST/Example/` に足した
   - `Sample` / `SampleStatic` / `SimpleApi` / `Search` / `Items` / `Notes` / `Secret` / `Feed` と、`Hoge` / `Fuga` を削除した。サンプルを `routeDirectory` に登録しているサイトでは、`/wp-json/example/` 配下の URL が変わる
-  - `Posts` はページ送り・並び順・タグの引数を受けるようになり、`Drafts` は GET にも `edit_posts` が要るようになった
+  - `Posts` はページ送りと並びの向きの引数を受けるようになり、`Drafts` は GET にも `edit_posts` が要るようになった
   - サンプルは `docs/spec.md` の約束に含まれない。wp-resta 本体の挙動は変わらない
 
 ## [0.13.1] - 2026-11-20

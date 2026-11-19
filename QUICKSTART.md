@@ -55,7 +55,7 @@ composer install
 ### 1. 記事の一覧
 
 ```bash
-curl "http://localhost:8080/wp-json/example/posts?per_page=5&sort=asc"
+curl "http://localhost:8080/wp-json/example/posts?per_page=5&order=asc"
 ```
 
 **機能:** 公開されている記事の一覧。クエリパラメータの検証と型変換、キャッシュのヘッダ
@@ -68,7 +68,15 @@ curl "http://localhost:8080/wp-json/example/post/1"
 
 **機能:** 指定 ID の記事。無ければ 404
 
-### 3. 下書きの一覧と作成
+### 3. 最新の記事（表示中の記事を除く）
+
+```bash
+curl "http://localhost:8080/wp-json/example/posts/latest?exclude=1"
+```
+
+**機能:** 最新の記事を 5 件。`exclude` の記事は除く。除く ID に依らず、同じクエリを発行する
+
+### 4. 下書きの一覧と作成
 
 ```bash
 curl -i "http://localhost:8080/wp-json/example/drafts"
@@ -76,7 +84,7 @@ curl -i "http://localhost:8080/wp-json/example/drafts"
 
 **機能:** `edit_posts` を持つユーザーだけが使える操作。ログインしていないので 401 が返ります。GET が一覧、POST が作成です
 
-### 4. 下書き 1 件
+### 5. 下書き 1 件
 
 ```bash
 curl -i "http://localhost:8080/wp-json/example/draft/1"
@@ -84,7 +92,7 @@ curl -i "http://localhost:8080/wp-json/example/draft/1"
 
 **機能:** その下書きを編集できるユーザーだけが読める。ログインしていないので 401 が返ります
 
-### 5. 静的なレスポンス
+### 6. 静的なレスポンス
 
 ```bash
 curl "http://localhost:8080/wp-json/example/version"

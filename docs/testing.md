@@ -27,7 +27,7 @@ PHPUnit が要る。
 composer require --dev phpunit/phpunit
 ```
 
-実行できる手本は `tests/Unit/REST/Example/Routes/` にある。`HelloTest.php`（いちばん小さい形）、`PostsTest.php`（Service のモック）、`DraftsTest.php`（認可のアトリビュート）、`DraftTest.php`（callback の引数の `Principal`）。
+実行できる手本は `tests/Unit/REST/Example/` にある。`Routes/HelloTest.php`（いちばん小さい形）、`Routes/PostsTest.php`（宣言した検証）、`Routes/DraftsTest.php`（認可のアトリビュート）、`Routes/DraftTest.php`（callback の引数の `Principal`）、`Services/LatestPostsQueryTest.php`（発行するクエリを固定する）。検証と認可は callback の前に行われるので、callback が WordPress を呼ぶルートでも、拒否される場合は WordPress 無しで確かめられる。
 
 ルートの実行（検証、認可、callback、`RouteInvocationEvent`）は `RequestHandler` が行い、WordPress に依存しない。`TestRestaRequest` が URL 文字列をルート定義に照らしてパラメータに分解するので、WordPress 無しで本番と同じパイプラインを通せる。
 

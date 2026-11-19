@@ -7,7 +7,7 @@ use Test\Resta\Support\E2E\AbstractE2ETestCase;
  * src/REST/Example の手本が、実際の WordPress の上で動くことを確かめる。
  *
  * 手本の Route クラスは tests/Unit/REST/Example/ が WordPress 無しで確かめている。
- * ここで確かめるのは、WordPress の関数を呼ぶ PostService と、ルートの登録である。
+ * ここで確かめるのは、callback の中の WordPress の呼び出しと、ルートの登録である。
  * 本体の挙動は、tests/E2E/Fixtures のルートで確かめる
  */
 class ExampleApiTest extends AbstractE2ETestCase
@@ -26,18 +26,29 @@ class ExampleApiTest extends AbstractE2ETestCase
 
     public function testPostsPerPageLimitsTheList(): void
     {
-        $response = $this->get('/wp-json/example/posts', ['per_page' => 1, 'sort' => 'asc']);
+        $response = $this->get('/wp-json/example/posts', ['per_page' => 1, 'order' => 'asc']);
 
         $this->assertResponseCode(200, $response);
         $this->assertCount(1, $this->getJsonResponse($response)['data']);
     }
 
-    public function testPostsWithUnknownTagIsEmpty(): void
+    public function testLatestPostsExcludesGivenIds(): void
     {
-        $response = $this->get('/wp-json/example/posts', ['tags' => 'no-such-tag-in-this-site']);
+        $all = $this->getJsonResponse($this->get('/wp-json/example/posts/latest'))['data'];
+        $this->assertNotEmpty($all);
+        $this->assertLessThanOrEqual(5, count($all));
 
-        $this->assertResponseCode(200, $response);
-        $this->assertSame([], $this->getJsonResponse($response)['data']);
+        $first = $all[0]['ID'];
+        $rest = $this->getJsonResponse($this->get('/wp-json/example/posts/latest', ['exclude' => $first]))['data'];
+
+        $this->assertNotContains($first, array_column($rest, 'ID'));
+    }
+
+    public function testLatestPostsRejectsTooManyExcludedIds(): void
+    {
+        $response = $this->get('/wp-json/example/posts/latest', ['exclude' => implode(',', range(1, 11))]);
+
+        $this->assertResponseCode(400, $response);
     }
 
     public function testPostReturnsOnePost(): void
