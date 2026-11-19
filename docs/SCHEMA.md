@@ -38,12 +38,13 @@ public function callback(int $id): Post {
 
 ### 2. PHPDocアノテーション - 配列の自動推論
 
-ObjectTypeの配列やプリミティブ型の配列を返す場合、PHPDocから自動推論されます。
+配列を返す場合、要素の型や array shape が PHPDoc から自動推論されます。
 
 ```php
 /**
  * @return Post[]        // ObjectTypeの配列
  * @return string[]      // プリミティブ型の配列
+ * @return array{page: int, items: Post[]}  // array shape
  */
 public function callback(): array {
     return [...];
@@ -382,22 +383,59 @@ class GetPosts extends AbstractRoute {
 - エイリアス: `use Foo\Bar\Baz as Qux;`
 - グループuse: `use Foo\Bar\{Baz, Qux};`
 
+### array shape と入れ子
+
+`@return` に書いた配列の形は、入れ子の中まで解決されます。ページングの包みのように、その Route でしか使わない形は、クラスを作らずに `@return` だけで宣言できます。
+
+```php
+/**
+ * @return array{page: int, items: Post[], order: 'asc'|'desc', next?: string|null}
+ */
+public function callback(int $page = 1): array {
+    return [...];
+}
+```
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page": {"type": "integer"},
+    "items": {"type": "array", "items": {"$ref": "#/components/schemas/Post"}},
+    "order": {"type": "string", "enum": ["asc", "desc"]},
+    "next": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+  },
+  "required": ["page", "items", "order"]
+}
+```
+
+| `@return` | スキーマ |
+|---|---|
+| `T[]`、`array<T>`、`array<int, T>`、`list<T>`、`non-empty-list<T>` | `{type: array, items: T}` |
+| `array<string, T>` | `{type: object, additionalProperties: T}` |
+| `array{k: T, j?: U}` | `{type: object, properties: {...}, required: [k]}`。`?` 付きのキーは `required` に入りません |
+| `'a'\|'b'` | `{type: string, enum: [a, b]}`。整数のリテラルは `type: integer` |
+| `T\|null`、`?T` | `{anyOf: [T, {type: null}]}` |
+| `T\|U` | `{anyOf: [T, U]}` |
+| `mixed` | `{}`（任意の値） |
+
+- `T` の位置には、プリミティブ型、ObjectType のサブクラス（`$ref` になります）、上の表の形を、入れ子にして書けます
+- 解決できない型（ObjectType でないクラスなど）があると、その位置だけが `{}`（任意の値）になります。解決できた部分はそのまま出ます
+- `@return` は PHPStan が実装と照合するので、OpenAPI も実装と食い違いにくくなります
+
 ### 自動推論の対応範囲
 
 自動推論は以下に対応しています：
 - **ObjectTypeのサブクラス**（単一オブジェクトまたは配列）
 - **プリミティブ型**（`string`, `int`, `bool`, `float`, および nullable型）
-- **プリミティブ型の配列**（`string[]`, `int[]`, `array<bool>`など）
+- **`@return` に書いた配列の形**（`string[]`、`list<Post>`、`array<string, Post[]>`、`array{page: int, items: Post[]}` など。入れ子も解決されます）
 
 以下のケースではSCHEMA定数が必要です：
 
-- Union型（`Post|string`など、ただし nullable型 `?string` は対応済み）
-- 複雑なネスト構造（オブジェクトの中に配列、など）
-- `oneOf`/`anyOf`/`allOf`（nullable型以外）
-- `additionalProperties`などの高度な機能
-- 詳細な制約（`minItems`, `maxItems`, `pattern`, `format`など）
-
-対応していない `@return` の形（`array{page: int, items: Post[]}` のような array shape、`Post[][]` や `array<string, Post[]>` のような入れ子、`list<Post>`）では、不正確なスキーマを出すのではなく「型が無い」ことが分かる出力になります。キーが文字列の形（array shape、`array<string, ...>`）は `{type: object, additionalProperties: {}}`（TypeScript では `Record<string, unknown>`）、リストは `{type: array, items: {}}`（`unknown[]`）です。正確な形が必要なら SCHEMA 定数で宣言してください。
+- 戻り値型（docblock ではなく PHP の型）の Union型（`Post|string`など。nullable型 `?string` と、`RestaResponseInterface` との union は対応済み）
+- `oneOf`/`allOf`
+- 詳細な制約（`minItems`, `maxItems`, `pattern`, `format`など）や、プロパティの説明
+- キーの無い array shape（`array{int, string}`）。値が任意の object として出ます
 
 → 詳細は「[SCHEMA定数 - 完全な制御](#schema定数---完全な制御)」を参照
 

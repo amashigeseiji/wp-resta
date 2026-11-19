@@ -1,10 +1,14 @@
 <?php
 namespace Wp\Resta\REST\Schemas;
 
+use PHPStan\PhpDocParser\Ast\ConstExpr\ConstExprIntegerNode;
+use PHPStan\PhpDocParser\Ast\ConstExpr\ConstExprStringNode;
 use PHPStan\PhpDocParser\Ast\Type\ArrayShapeNode;
 use PHPStan\PhpDocParser\Ast\Type\ArrayTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\ConstTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\NullableTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use PHPStan\PhpDocParser\Ast\Type\UnionTypeNode;
 use PHPStan\PhpDocParser\Lexer\Lexer;
@@ -47,7 +51,7 @@ class SchemaInference
      *
      * 優先順位：
      * 1. callback の戻り値の型（DTO クラス / プリミティブ型 / array など）
-     * 2. callback の PHPDoc @return アノテーション（配列型・array shape など）
+     * 2. 戻り値の型が array のとき、callback の PHPDoc @return アノテーション（配列型・array shape・その入れ子）
      * 3. 上記いずれからもスキーマを決定できない場合のみ null（プリミティブ型 / array の戻り値型は type 情報としてフォールバック推論される）
      *
      * @return array<string, mixed>|null
@@ -75,19 +79,16 @@ class SchemaInference
                 }
             } else {
                 // 3. プリミティブ型（string, int, bool, float など）
-                $primitiveType = $this->mapPrimitiveType($returnType->getName());
+                $primitiveType = PhpTypeToOpenApiSchema::primitiveToOpenApiType($returnType->getName());
                 if ($primitiveType !== null) {
                     $schema = ['type' => $primitiveType];
                 }
             }
             // nullable型の場合
             if ($nullable && $schema) {
-                return [
-                    'anyOf' => [
-                        $schema,
-                        ['type' => 'null'],
-                    ],
-                ];
+                // docblock の union から来た anyOf には、入れ子にせず null を並べる
+                $members = array_keys($schema) === ['anyOf'] ? $schema['anyOf'] : [$schema];
+                return ['anyOf' => [...$members, ['type' => 'null']]];
             }
 
             return $schema;
@@ -133,12 +134,8 @@ class SchemaInference
     /**
      * PHPDoc の @return アノテーションから配列スキーマを推論
      *
-     * 対応する形式：
-     * - Post[]
-     * - array<Post>
-     * - array<int, Post>
-     * - array<string, Post>
-     * - 上記と null / RestaResponseInterface の union（Post[]|RestaResponseInterface）。戻り値型と同じ扱い
+     * 戻り値型が array のときに読む。null と RestaResponseInterface は戻り値型の側で扱うので、ここでは除く。
+     * 残りが配列の形（T[]、array<...>、list<...>、array{...}、array）でなければ推論しない
      *
      * @return array<string, mixed>|null
      */
@@ -159,25 +156,28 @@ class SchemaInference
                 $tag->value instanceof \PHPStan\PhpDocParser\Ast\PhpDoc\ReturnTagValueNode
                 || $tag->value instanceof \PHPStan\PhpDocParser\Ast\PhpDoc\VarTagValueNode
             ) {
-                $returnType = $tag->value->type;
-                if ($returnType instanceof UnionTypeNode) {
-                    $returnType = $this->bodyTypeNode($returnType);
+                $members = $this->bodyTypeNodes($tag->value->type);
+                if ($members === []) {
+                    continue;
                 }
-
-                // Post[] 形式
-                if ($returnType instanceof ArrayTypeNode) {
-                    return $this->inferFromArrayTypeNode($returnType);
+                foreach ($members as $member) {
+                    $isArray = $member instanceof ArrayTypeNode
+                        || $member instanceof GenericTypeNode
+                        || $member instanceof ArrayShapeNode
+                        || ($member instanceof IdentifierTypeNode && $member->name === 'array');
+                    if (!$isArray) {
+                        return null;
+                    }
                 }
-
-                // array<Post> または array<string, Post> 形式
-                if ($returnType instanceof GenericTypeNode) {
-                    return $this->inferFromGenericTypeNode($returnType);
+                if (count($members) > 1) {
+                    return $this->unionSchema($members);
                 }
-                // array shape（array{page: int, items: Post[]}）はキーが文字列の object。プロパティの解決は未対応（#102）なので、
-                // 値が任意の object として出す。{type: object} だけだと「キーを持たない object」と読まれる（#101）
-                if ($returnType instanceof ArrayShapeNode) {
+                $schema = $this->schemaOf($members[0]);
+                if ($schema === null && $members[0] instanceof ArrayShapeNode) {
+                    // キー無しの shape（array{T, U}）は扱わない。これまでどおり値が任意の object として出す（#101）
                     return PhpTypeToOpenApiSchema::untypedObject();
                 }
+                return $schema;
             }
         }
 
@@ -185,13 +185,21 @@ class SchemaInference
     }
 
     /**
-     * PHPDoc の union のうち、レスポンスボディの形を表す側の型。
-     * bodyType() と同じく null と RestaResponseInterface を除き、1 つに決まらなければ null
+     * PHPDoc の型のうち、レスポンスボディの形を表す側の型。
+     * bodyType() と同じく null と RestaResponseInterface を除く
+     *
+     * @return list<TypeNode>
      */
-    private function bodyTypeNode(UnionTypeNode $union): ?TypeNode
+    private function bodyTypeNodes(TypeNode $type): array
     {
+        if ($type instanceof NullableTypeNode) {
+            return $this->bodyTypeNodes($type->type);
+        }
+        if (!$type instanceof UnionTypeNode) {
+            return [$type];
+        }
         $candidates = [];
-        foreach ($union->types as $member) {
+        foreach ($type->types as $member) {
             if ($member instanceof IdentifierTypeNode) {
                 if ($member->name === 'null') {
                     continue;
@@ -203,108 +211,177 @@ class SchemaInference
             }
             $candidates[] = $member;
         }
-        return count($candidates) === 1 ? $candidates[0] : null;
+        return $candidates;
     }
 
     /**
-     * ArrayTypeNode (Post[]) からスキーマを生成
+     * PHPDoc の型 1 つをスキーマにする。入れ子は再帰で解決する。
+     * 解決できない型は null。呼び出し側は、その位置を任意（{}）にして、解決できた部分を残す
      *
-     * @param ArrayTypeNode $typeNode
-     * @return array<string, mixed>|null
+     * @return array<string, mixed>|\stdClass|null
      */
-    private function inferFromArrayTypeNode(ArrayTypeNode $typeNode): ?array
+    private function schemaOf(TypeNode $type): array|\stdClass|null
     {
-        // Post[] の Post 部分を取得
-        $elementType = $typeNode->type;
-
-        if ($elementType instanceof IdentifierTypeNode) {
-            return $this->resolveIdentifierTypeNode($elementType);
+        // T[]
+        if ($type instanceof ArrayTypeNode) {
+            return ['type' => 'array', 'items' => $this->schemaOrAny($type->type)];
         }
-
+        // array<T>、array<K, T>、list<T>
+        if ($type instanceof GenericTypeNode) {
+            return $this->genericSchema($type);
+        }
+        // array{k: T, j?: U}
+        if ($type instanceof ArrayShapeNode) {
+            return $this->shapeSchema($type);
+        }
+        // T|U、'a'|'b'
+        if ($type instanceof UnionTypeNode) {
+            return $this->unionSchema($type->types);
+        }
+        // ?T
+        if ($type instanceof NullableTypeNode) {
+            $schema = $this->schemaOf($type->type);
+            return $schema === null ? null : ['anyOf' => [$schema, ['type' => 'null']]];
+        }
+        // 'a'、1
+        if ($type instanceof ConstTypeNode) {
+            $literal = self::literalOf($type);
+            return $literal === null ? null : ['type' => $literal[0], 'enum' => [$literal[1]]];
+        }
+        if ($type instanceof IdentifierTypeNode) {
+            if ($type->name === 'mixed') {
+                return new \stdClass();
+            }
+            if ($type->name === 'array') {
+                return PhpTypeToOpenApiSchema::untypedArray();
+            }
+            $primitive = PhpTypeToOpenApiSchema::primitiveToSchema($type->name);
+            if ($primitive !== null) {
+                return $primitive;
+            }
+            // ObjectType のサブクラスは $ref（スキーマの再利用）
+            $className = $this->resolveClassName($type->name);
+            if ($className && is_subclass_of($className, ObjectType::class)) {
+                return ['$ref' => $className::getSchemaId()];
+            }
+        }
         return null;
     }
 
     /**
-     * GenericTypeNode (array<Post>) からスキーマを生成
+     * 解決できない型を、任意の値のスキーマ {} にする。PHP の空配列は JSON で [] になるので stdClass
      *
-     * @param GenericTypeNode $typeNode
+     * @return array<string, mixed>|\stdClass
+     */
+    private function schemaOrAny(TypeNode $type): array|\stdClass
+    {
+        return $this->schemaOf($type) ?? new \stdClass();
+    }
+
+    /**
+     * array<T>、array<int, T>、list<T>、non-empty-list<T> は配列、array<string, T> は値が T の object
+     *
      * @return array<string, mixed>|null
      */
-    private function inferFromGenericTypeNode(GenericTypeNode $typeNode): ?array
+    private function genericSchema(GenericTypeNode $type): ?array
     {
-        // array<...> の array 部分を確認
-        if (!($typeNode->type instanceof IdentifierTypeNode) || $typeNode->type->name !== 'array') {
+        $name = $type->type->name;
+        $arguments = $type->genericTypes;
+
+        if (in_array($name, ['list', 'non-empty-list'], true) && count($arguments) === 1) {
+            return ['type' => 'array', 'items' => $this->schemaOrAny($arguments[0])];
+        }
+        if (!in_array($name, ['array', 'non-empty-array'], true)) {
             return null;
         }
+        if (count($arguments) === 1) {
+            return ['type' => 'array', 'items' => $this->schemaOrAny($arguments[0])];
+        }
+        if (count($arguments) !== 2) {
+            return null;
+        }
+        [$key, $value] = $arguments;
+        if ($key instanceof IdentifierTypeNode && $key->name === 'string') {
+            return ['type' => 'object', 'additionalProperties' => $this->schemaOrAny($value)];
+        }
+        return ['type' => 'array', 'items' => $this->schemaOrAny($value)];
+    }
 
-        // ジェネリック引数を取得
-        $genericTypes = $typeNode->genericTypes;
-
-        $isObject = false;
-        switch (count($genericTypes)) {
-        case 1: // array<Post>
-            $type = $genericTypes[0];
-            break;
-        case 2: // array<int, Post> または array<string, Post>
-            $type = $genericTypes[1];
-            if ($genericTypes[0] instanceof IdentifierTypeNode) {
-                $isObject = $genericTypes[0]->name === 'string';
+    /**
+     * array{k: T, j?: U} は object。? 付きのキーは required に入れない。
+     * キー無しの要素や整数のキーを含む shape は扱わない
+     *
+     * @return array<string, mixed>|null
+     */
+    private function shapeSchema(ArrayShapeNode $shape): ?array
+    {
+        $properties = [];
+        $required = [];
+        foreach ($shape->items as $item) {
+            $key = $item->keyName;
+            if ($key instanceof IdentifierTypeNode) {
+                $name = $key->name;
+            } elseif ($key instanceof ConstExprStringNode) {
+                $name = $key->value;
+            } else {
+                return null;
             }
-            break;
-        default: // 未対応、実質的にはない
+            $properties[$name] = $this->schemaOrAny($item->valueType);
+            if (!$item->optional) {
+                $required[] = $name;
+            }
+        }
+        if ($properties === []) {
             return null;
         }
-        $schema = $type instanceof IdentifierTypeNode ? $this->resolveIdentifierTypeNode($type, $isObject) : null;
-        if ($schema === null && $isObject) {
-            // array<string, Post[]> や array<string, array{...}> のように値の型を解決できなくても、
-            // キーが文字列なら object であることは分かる。呼び出し元の配列のフォールバックに乗せない（#101）
-            return PhpTypeToOpenApiSchema::untypedObject();
+        $schema = ['type' => 'object', 'properties' => $properties];
+        if ($required !== []) {
+            $schema['required'] = $required;
         }
         return $schema;
     }
 
     /**
-     * PHP プリミティブ型を JSON Schema 型にマッピング
+     * union は anyOf。リテラルは、文字列と整数それぞれ 1 つの enum にまとめる。
+     * まとめた結果が 1 つなら、anyOf で包まない
      *
-     * @param string $phpType PHP の型名
-     * @return string|null JSON Schema の型名、または null（プリミティブ型でない場合）
+     * @param array<TypeNode> $types
+     * @return array<string, mixed>|\stdClass
      */
-    private function mapPrimitiveType(string $phpType): ?string
+    private function unionSchema(array $types): array|\stdClass
     {
-        return PhpTypeToOpenApiSchema::primitiveToOpenApiType($phpType);
+        $members = [];
+        /** @var array<string, int> $enumAt リテラルの型 => $members の位置 */
+        $enumAt = [];
+        foreach ($types as $type) {
+            $literal = $type instanceof ConstTypeNode ? self::literalOf($type) : null;
+            if ($literal === null) {
+                $members[] = $this->schemaOrAny($type);
+                continue;
+            }
+            [$literalType, $value] = $literal;
+            if (!isset($enumAt[$literalType])) {
+                $enumAt[$literalType] = count($members);
+                $members[] = ['type' => $literalType, 'enum' => []];
+            }
+            $members[$enumAt[$literalType]]['enum'][] = $value;
+        }
+        return count($members) === 1 ? $members[0] : ['anyOf' => $members];
     }
 
     /**
-     * @todo このメソッドで解決されるのはいまのところ PHP primitive か ObjectType のサブクラスのみ
-     * 配列などの場合再帰的な処理が必要になる
+     * 文字列か整数のリテラルの、スキーマの型と値。それ以外は null
      *
-     * @return array<string, mixed>|null
+     * @return array{0: 'string'|'integer', 1: string|int}|null
      */
-    private function resolveIdentifierTypeNode(IdentifierTypeNode $type, bool $isObject = false): ?array
+    private static function literalOf(ConstTypeNode $type): ?array
     {
-        $key = $isObject ? 'additionalProperties' : 'items';
-        // プリミティブ型の場合
-        $primitiveType = $this->mapPrimitiveType($type->name);
-        if ($primitiveType !== null) {
-            return [
-                'type' => $isObject ? 'object' : 'array',
-                $key => [
-                    'type' => $primitiveType,
-                ],
-            ];
+        $expr = $type->constExpr;
+        if ($expr instanceof ConstExprStringNode) {
+            return ['string', $expr->value];
         }
-
-        // ObjectType のサブクラスの場合
-        $className = $this->resolveClassName($type->name);
-        if ($className && is_subclass_of($className, ObjectType::class)) {
-            // $ref を使用（スキーマの再利用）
-            $schemaId = $className::getSchemaId();
-            return [
-                'type' => $isObject ? 'object' : 'array',
-                $key => [
-                    '$ref' => $schemaId,
-                ],
-            ];
+        if ($expr instanceof ConstExprIntegerNode) {
+            return ['integer', (int) $expr->value];
         }
         return null;
     }

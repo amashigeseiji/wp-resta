@@ -48,7 +48,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ### 宣言から導出されるもの
 
 - ルートの登録と入力の検証。宣言していない制約は検証されない
-- OpenAPI 定義。path の下に操作ごとの operation が出る。parameters には宣言した型、必須かどうか、enum、デフォルト値、最小値・最大値、配列の要素型が載る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出される。`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される。認可のアトリビュートを付けた操作には `security` が出る（「認可」）
+- OpenAPI 定義。path の下に操作ごとの operation が出る。parameters には宣言した型、必須かどうか、enum、デフォルト値、最小値・最大値、配列の要素型が載る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出される。戻り値型が `array` のときは、docblock の `@return` に書いた形（`Post[]`、`list<Post>`、`array<string, Post>`、`array{page: int, items: Post[]}`、リテラルの union、それらの入れ子）から導出される。解決できない型があると、その位置だけが任意の値になる。`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される。認可のアトリビュートを付けた操作には `security` が出る（「認可」）
 
 ## HTTP 実行のパイプライン
 
