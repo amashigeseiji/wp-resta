@@ -206,4 +206,33 @@ class ConfigTest extends TestCase
         $this->assertEquals(['AdapterA', 'AdapterB'], $config->adapters);
     }
 
+    // --- securitySchemes ---
+
+    public function testSecuritySchemesDefaultsToCookieNonce(): void
+    {
+        $config = new Config([]);
+
+        $this->assertSame(
+            ['cookieNonce' => ['type' => 'apiKey', 'in' => 'header', 'name' => 'X-WP-Nonce']],
+            $config->securitySchemes,
+        );
+    }
+
+    public function testSecuritySchemesReplacesTheDefault(): void
+    {
+        // 足すのではなく置き換える。cookie + nonce も使うサイトは両方書く
+        $schemes = ['applicationPassword' => ['type' => 'http', 'scheme' => 'basic']];
+
+        $config = new Config(['securitySchemes' => $schemes]);
+
+        $this->assertSame($schemes, $config->securitySchemes);
+    }
+
+    public function testExplicitEmptySecuritySchemesStaysEmpty(): void
+    {
+        $config = new Config(['securitySchemes' => []]);
+
+        $this->assertSame([], $config->securitySchemes);
+    }
+
 }

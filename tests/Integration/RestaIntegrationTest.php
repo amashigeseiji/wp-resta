@@ -287,6 +287,28 @@ class RestaIntegrationTest extends TestCase
         $this->assertInstanceOf(\Wp\Resta\Auth\WpPrincipal::class, Container::getInstance()->get(\Wp\Resta\Auth\Principal::class));
     }
 
+    public function testRestaInitRegistersAuthorizationHook(): void
+    {
+        // 認可のアトリビュートは、init() が登録した購読者が、bind された Principal に聞いて解釈する
+        Functions\when('add_action')->justReturn();
+        Functions\when('add_filter')->justReturn();
+        (new Resta())->init(array_merge($this->baseConfig(), [
+            'dependencies' => [\Wp\Resta\Auth\Principal::class => new \Wp\Resta\Auth\TestPrincipal()],
+        ]));
+        $route = new class extends \Wp\Resta\REST\AbstractRoute {
+            #[\Wp\Resta\REST\Attributes\Authenticated]
+            public function callback(): string
+            {
+                return 'ok';
+            }
+        };
+
+        $response = Container::getInstance()->get(\Wp\Resta\REST\RequestHandler::class)
+            ->handle($route, new \Wp\Resta\REST\Http\TestRestaRequest('/x', $route));
+
+        $this->assertSame(401, $response->getStatusCode());
+    }
+
     public function testUserDependenciesCanReplacePrincipal(): void
     {
         // WordPress のユーザーに対応づかない認証を使う利用者は dependencies で Principal を差し替えられる

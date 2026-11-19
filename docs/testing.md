@@ -61,6 +61,7 @@ class MyRouteTest extends TestCase
 - 400 / 500 の検証は `getStatusCode()` と `getData()['code']` を見る（形は spec.md「エラーレスポンス」）
 - `TestRestaRequest` の値はクライアントが送った文字列のまま。宣言した型への変換は `RequestHandler` の中で行われるので、本番と同じ値が callback に届く
 - `authorize()` を持つルートは `new TestPrincipal(authenticated: true, capabilities: ['edit_posts'])` を `RequestHandler` に渡して主体を固定する。引数なしの `TestPrincipal` は未認証で、401 / 403 の検証に使える
+- `#[Authenticated]` / `#[Permission]` の認可まで確かめるときは、`Dispatcher` に `addSubscriber(new AuthorizationHook($principal))` を足す。足さなければ、アトリビュートがあっても検査されず、callback がそのまま実行される。主体は `AuthorizationHook` に渡したものが使われる
 - `#[Envelope]` の包みや自作のリスナーまで含めて確認したいときは、`Dispatcher` に `addSubscriber(new EnvelopeHook())` などを足してから `RequestHandler` に渡す。`#[Cache]` は `addSubscriber(new CacheHook($principal))`
 
 ## DI のモック

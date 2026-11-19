@@ -9,6 +9,7 @@ use Wp\Resta\EventDispatcher\Dispatcher;
 use Wp\Resta\EventDispatcher\DispatcherInterface;
 use Wp\Resta\Kernel\WpKernelAdapter;
 use Wp\Resta\REST\RegisterRestRoutes;
+use Wp\Resta\REST\Hooks\AuthorizationHook;
 use Wp\Resta\REST\Hooks\CacheHook;
 use Wp\Resta\REST\Hooks\EnvelopeHook;
 
@@ -24,6 +25,7 @@ class Resta
      *    hooks?: array<class-string<\Wp\Resta\Hooks\HookProviderInterface>>,
      *    listeners?: array<class-string>,
      *    adapters?: array<class-string>,
+     *    securitySchemes?: array<string, array<string, mixed>>,
      * } $restaConfig
      */
     public function init(array $restaConfig) : void
@@ -63,6 +65,7 @@ class Resta
 
         // フレームワーク内部リスナーを登録。CacheHook は最終的なボディから ETag を計算するので、
         // 自身の priority で EnvelopeHook と利用者の購読者より後に走る
+        $dispatcher->addSubscriber($container->get(AuthorizationHook::class));
         $dispatcher->addSubscriber(new EnvelopeHook());
         $dispatcher->addSubscriber($container->get(CacheHook::class));
 

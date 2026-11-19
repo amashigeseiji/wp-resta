@@ -12,8 +12,8 @@ wp-resta を開発する AI アシスタント向けの指示。保証される�
 
 1. [docs/spec.md](docs/spec.md): 契約。挙動を変えるときは必ず読み、同じ PR で更新する。spec.md は現行の挙動を書いている
 2. [docs/design.md](docs/design.md): 設計の考え方。設計に関わる変更や提案をするときは必ず読む
-3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → パラメータの検証 → `authorize()` → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
-4. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）
+3. `src/REST/RequestHandler.php`: パイプライン（操作の選択 → パラメータの検証 → `authorize()` → `BeforeCallbackEvent`（内部。認可のアトリビュート） → callback → `RouteInvocationEvent`）。`src/REST/AbstractRoute.php` は宣言（`getOperations()`、フック）だけを持つ
+4. `src/REST/Example/Routes/`: 実装サンプル。`Sample.php`（パラメータ）、`Post.php`（スキーマ参照）、`Posts.php`（一覧）、`Drafts.php`（認可のアトリビュート）
 5. 目的別: [README.md](README.md)「文書の案内」に、使う人向けの文書の一覧がある。[docs/routes.md](docs/routes.md)（Route クラスの書きかた）、[docs/wordpress.md](docs/wordpress.md)（`register_rest_route()` との対応）、[docs/testing.md](docs/testing.md)、[docs/extending.md](docs/extending.md)（イベント、HookProvider）、[docs/SCHEMA.md](docs/SCHEMA.md)、[docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## 構成
@@ -32,8 +32,8 @@ src/
     RegisterRestRoutes.php  ルート収集と register_rest_route()。WP_REST_Request/Response の変換を呼ぶ。WP 境界
     Http/                   RestaRequestInterface、WpRestaRequest / WpRestaResponse（WP 境界）、TestRestaRequest
     Exception/              HttpException と 400 / 401 / 403 のサブクラス
-    Attributes/             RouteMeta、Envelope
-    Hooks/                  RouteInvocationEvent の組み込み購読者。EnvelopeHook（包む）、CacheHook（#[Cache] のヘッダと 304）
+    Attributes/             RouteMeta、Envelope、Cache、Param、Authenticated、Permission
+    Hooks/                  組み込みの購読者。AuthorizationHook（callback の前。#[Authenticated] / #[Permission]）、EnvelopeHook（包む）、CacheHook（#[Cache] のヘッダと 304）
     Example/                サンプルのルートとスキーマ
   Auth/                     Principal、WpPrincipal（WP 境界）、TestPrincipal
   Kernel/WpKernelAdapter.php  WP フック → Dispatcher イベント（wp.init、wp.rest_api_init）。WP 境界
