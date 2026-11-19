@@ -6,6 +6,10 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-20
+
+`SwaggerHook` が OpenAPI のスキーマを返す場所を REST ルートに移し、場所と相手を設定できるようにしたリリース。**`/rest-api/schema` は返らなくなる。** curl などで取得していた場合は、URL を `/wp-json/resta/v1/schema` に書きかえる。`/rest-api/schema` は `docs/spec.md` の約束に含まれないので、非推奨の期間は挟んでいない。Route クラスの書きかたと、ルートの挙動は変わらない。
+
 ### 追加
 
 - `SwaggerHook` がスキーマを出す場所と相手を、`SwaggerOptions` で決められるようにした（#158）。`dependencies` に `SwaggerOptions::class => new SwaggerOptions(namespace: 'myapp/v1', route: '/schema', capability: 'edit_pages')` のように bind する。bind しなければ、`/wp-json/resta/v1/schema` で誰にでも返す
@@ -220,7 +224,8 @@ URL 変数の検証まわりの不具合修正と、エラーレスポンスの�
 - `RegisterRestRoutes` の routes オブジェクトを一階層にする（#39）
 - ライセンスを AGPL にする（#41）
 
-[Unreleased]: https://github.com/amashigeseiji/wp-resta/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/amashigeseiji/wp-resta/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/amashigeseiji/wp-resta/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/amashigeseiji/wp-resta/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.3...v0.12.0
 [0.11.3]: https://github.com/amashigeseiji/wp-resta/compare/v0.11.2...v0.11.3
