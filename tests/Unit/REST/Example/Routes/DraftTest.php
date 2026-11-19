@@ -14,7 +14,7 @@ use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
 
 /**
- * callback の中で認可するルートのテストの手本。
+ * callback の中の認可を確かめる。
  *
  * callback の引数の Principal はコンテナから解決されるので、TestPrincipal を bind する。
  * Container はプロセスに 1 つなので、bind したテストは tearDown() でリセットする

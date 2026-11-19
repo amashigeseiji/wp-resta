@@ -8,7 +8,7 @@ use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
 
 /**
- * いちばん小さいテストの手本。Route クラスを new して、URL を渡し、応答を確かめる
+ * いちばん小さいテスト。Route クラスを new して、URL を渡し、応答を確かめる
  */
 class HelloTest extends TestCase
 {

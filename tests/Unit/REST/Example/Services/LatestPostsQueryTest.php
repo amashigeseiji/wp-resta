@@ -6,9 +6,7 @@ use Wp\Resta\REST\Example\Schemas\Post;
 use Wp\Resta\REST\Example\Services\LatestPostsQuery;
 
 /**
- * クエリの組み立てかたのテストの手本。
- *
- * このエンドポイントがどのクエリを発行し、何を返すかを、WordPress もモックも無しに固定する。
+  * このエンドポイントがどのクエリを発行し、何を返すかを、WordPress もモックも無しに固定する。
  * 引数を足したり条件を変えたりして、発行されるクエリが変われば、ここが落ちる
  */
 class LatestPostsQueryTest extends TestCase

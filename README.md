@@ -147,7 +147,9 @@ $ curl http://example.com/wp-json/myroute/helloworld
 
 ## 文書の案内
 
-やりたいことから、読む文書と手本を引けます。手本は `src/REST/Example/Routes/` にある、実際に動くコードです。記事と下書きを題材にした、1 つの小さな API になっています。手本のテストは `tests/Unit/REST/Example/` にあります。
+やりたいことから、読む文書と手本を引けます。手本は `src/REST/Example/Routes/` にある、実際に動くコードです。記事と下書きを題材にした、1 つの小さな API になっています。テストは `tests/Unit/REST/Example/` にあります。
+
+手本になるのは、Route クラスの宣言（URL、パラメータ、アトリビュート、HTTP メソッドごとの処理）と、テストの書きかたです。データの取りかた（`WP_Query` をどこに書くか、何に詰め替えて返すか）は一例で、決まった書きかたはありません。
 
 | やりたいこと | 読むもの | 手本 |
 |---|---|---|
@@ -173,7 +175,7 @@ wp-resta を使うプロジェクトの `AGENTS.md` や `CLAUDE.md` に、次を
 
 ```markdown
 wp-resta で API を書くときは、vendor/tenjuu99/wp-resta/README.md の「文書の案内」から読む。
-書きかたは vendor/tenjuu99/wp-resta/src/REST/Example/Routes/ をまねる。
+Route クラスの宣言とテストの書きかたは vendor/tenjuu99/wp-resta/src/REST/Example/Routes/ をまねる。データの取りかたは一例なので、このプロジェクトのやりかたに合わせる。
 何が保証されているかは vendor/tenjuu99/wp-resta/docs/spec.md で確かめる。
 ```
 

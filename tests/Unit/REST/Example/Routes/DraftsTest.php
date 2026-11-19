@@ -11,7 +11,7 @@ use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
 
 /**
- * 認可のアトリビュートのテストの手本。誰かが #[Permission] を消したら、ここが落ちる。
+ * 認可のアトリビュートを確かめる。誰かが #[Permission] を消したら、ここが落ちる。
  *
  * #[Permission] を解釈するのは AuthorizationHook なので、Dispatcher に足してから RequestHandler に渡す。
  * 誰からのリクエストとして扱うかは、TestPrincipal で決める。

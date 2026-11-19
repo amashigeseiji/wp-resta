@@ -35,6 +35,7 @@ class Posts extends AbstractRoute
         #[Param(min: 1, max: 100)] int $per_page = 10,
         Order $order = Order::Desc,
     ): array {
+        // データの取りかたに、決まった書きかたは無い。ここでは callback に直接書いている
         return Post::fromWpPosts((new WP_Query())->query([
             'post_type' => 'post',
             'post_status' => 'publish',

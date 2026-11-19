@@ -21,7 +21,8 @@ class Post extends ObjectType
     }
 
     /**
-     * WordPress の投稿から作る。レスポンスに載せる項目は、ここで決まる
+     * WordPress の投稿から作る。レスポンスに載せる項目は、ここで決まる。
+     * 詰め替えをどこに書くかは一例で、決まった書きかたは無い
      */
     public static function fromWpPost(WP_Post $post): self
     {

@@ -9,7 +9,7 @@ use Wp\Resta\REST\Http\TestRestaRequest;
 use Wp\Resta\REST\RequestHandler;
 
 /**
- * 宣言のテストの手本。このエンドポイントが受け取らない値を、クライアントから見える契約として固定する。
+ * このエンドポイントが受け取らない値を、クライアントから見える契約として固定する。
  *
  * 検証は callback の前に行われるので、callback が WordPress を呼ぶルートでも、WordPress 無しで確かめられる。
  * 受け取った値で何が返るかは、WordPress が要るので E2E で確かめる
