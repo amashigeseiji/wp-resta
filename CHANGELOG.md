@@ -58,6 +58,13 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
   - テストでアトリビュートの認可まで確かめるときは、`Dispatcher` に `addSubscriber(new AuthorizationHook($principal))` を足す
 - アトリビュートを付けた操作は、OpenAPI に `security` が出る（#139）。指す認証方式は、設定の `securitySchemes`（名前 => Security Scheme Object）で指定する。省略すると WordPress 標準の cookie + nonce（`X-WP-Nonce`）になる。方式の定義（`components.securitySchemes`）は、アトリビュートの付いた操作があるときにだけ出る。書けば置き換え、複数書けば「どれか 1 つで通る」として並び、空の配列なら `security` を出さない。必要な capability は OpenAPI に出ない
+- callback の `@return` に書いた array shape や入れ子の配列から、レスポンスのスキーマを導出する（#102）。これまでは最上位の 1 段だけを読み、`array{page: int, items: Post[]}` のような形は `SCHEMA` 定数にもう一度書く必要があった。静的なルートの `body` プロパティの `@var` も同じ
+  - `array{k: T, j?: U}` は `properties` と `required` を持つ object。`?` 付きのキーは `required` に入らない
+  - `list<T>`、`non-empty-list<T>` は `T[]` と同じ。`Post[][]`、`array<string, Post[]>` のような入れ子も解決する
+  - `'asc'|'desc'` は `enum`、`T|null` と `?T` は `anyOf` に null、`T|U` は `anyOf`、`mixed` は `{}`
+  - 解決できない型があると、その位置だけが `{}`（任意の値）になる。解決できた部分は捨てない
+  - `ObjectType` の配列のプロパティも、同じ規則で docblock から導出する。プロパティの `@var` を読み、コンストラクタで宣言したプロパティはコンストラクタの `@param` も読む。これまでは docblock を読まず、要素の型を出すには `#[Property]` か `metadata()` にスキーマを書く必要があった。`#[Property]` と `metadata()` に書いたキーは、これまでどおり優先される
+  - これまで導出できていた形の出力は変わらない。要素の型が出ていなかった形（上の array shape や入れ子、`@return int[]|string[]` のような union）は、導出された形に変わる
 - OpenAPI を JSON ファイルに書き出す `scripts/generate-openapi.php` を追加した（#108）。WordPress を起動せずに動くので、フロントエンドのビルドや CI で使える。`php vendor/tenjuu99/wp-resta/scripts/generate-openapi.php <config-file> [output-file] [server-url]`
 
 ### 変更
