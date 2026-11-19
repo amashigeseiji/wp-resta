@@ -300,12 +300,23 @@ public function callback(): array {
 }
 ```
 
-生成されるスキーマ：
+パターン1・2（`array<int, Type>` も同じ）で生成されるスキーマ：
 
 ```json
 {
   "type": "array",
   "items": {
+    "$ref": "#/components/schemas/Post"
+  }
+}
+```
+
+パターン3 はキーが文字列なので、配列ではなく object になります：
+
+```json
+{
+  "type": "object",
+  "additionalProperties": {
     "$ref": "#/components/schemas/Post"
   }
 }
@@ -339,7 +350,7 @@ public function callback(): array {
 }
 ```
 
-**パターン3: `array<int, type>`形式**
+**パターン3: `array<string, type>`形式**
 
 ```php
 /**
@@ -357,6 +368,17 @@ public function callback(): array {
   "type": "array",
   "items": {
     "type": "string"
+  }
+}
+```
+
+パターン3（`array<string, float>`）は object になります：
+
+```json
+{
+  "type": "object",
+  "additionalProperties": {
+    "type": "number"
   }
 }
 ```
