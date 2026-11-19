@@ -6,6 +6,10 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
 
 ## [Unreleased]
 
+### 修正
+
+- コンストラクタに既定値つきのスカラー引数（`int $perPage = 20` など）を持つクラスを、DI コンテナが解決できるようにした（#159）。これまでは `RuntimeException: "$int" cannot resolve.` になっていた。`dependencies` の factory の引数も同じ。解決できないときの例外のメッセージに、クラスと引数の名前が出る
+
 ## [0.13.0] - 2026-11-19
 
 Route を書く側から見えるインターフェースを小さくした破壊的リリース。`RouteInterface` と `AbstractRoute` から `validate()` と `authorize()` が無くなり、0.12 で非推奨にした `$status` / `$body` / `$headers` プロパティも無くなった。値に依らない認可は `#[Authenticated]` / `#[Permission]` で操作ごとに宣言し、値に依る認可と複数のパラメータにまたがる検証は callback の中に書く。callback の無い静的なルートは `public readonly` の `body` プロパティで宣言でき、`@return` の array shape や入れ子の配列からレスポンスのスキーマが導出される。**`authorize()` をオーバーライドしていたルートは、書きかえないと認可なしで公開される。** 移行はこの節の「削除」「変更」の各項目に書いた代替のとおり。計画と判断の経緯は [milestone 0.13](https://github.com/amashigeseiji/wp-resta/milestone/2) の各 issue にある。
