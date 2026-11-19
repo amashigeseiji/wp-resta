@@ -147,19 +147,22 @@ $ curl http://example.com/wp-json/myroute/helloworld
 
 ## 文書の案内
 
-やりたいことから、読む文書と手本を引けます。手本は `src/REST/Example/Routes/` にある、実際に動くコードです。
+やりたいことから、読む文書と手本を引けます。手本は `src/REST/Example/Routes/` にある、実際に動くコードです。記事と下書きを題材にした、1 つの小さな API になっています。テストは `tests/Unit/REST/Example/` にあります。
+
+手本になるのは、Route クラスの宣言（URL、パラメータ、アトリビュート、HTTP メソッドごとの処理）と、テストの書きかたです。データの取りかた（`WP_Query` をどこに書くか、何に詰め替えて返すか）は一例で、決まった書きかたはありません。
 
 | やりたいこと | 読むもの | 手本 |
 |---|---|---|
-| URL とパラメータを宣言する | [docs/routes.md](docs/routes.md) | `Hello.php`、`Items.php` |
-| 同じ URL で GET と POST を分ける | [docs/routes.md](docs/routes.md) | `Notes.php` |
+| URL とパラメータを宣言する | [docs/routes.md](docs/routes.md) | `Hello.php`、`Posts.php`、`Post.php` |
+| クエリの組み立てを分けて、テストで固定する | | `LatestPosts.php`、`src/REST/Example/Services/LatestPostsQuery.php` |
+| 同じ URL で GET と POST を分ける | [docs/routes.md](docs/routes.md) | `Drafts.php` |
 | ステータスやヘッダを指定する、エラーを返す | [docs/routes.md](docs/routes.md) | |
-| ログイン状態や権限で制限する | [docs/authorization.md](docs/authorization.md) | `Secret.php` |
+| ログイン状態や権限で制限する | [docs/authorization.md](docs/authorization.md) | `Drafts.php`、`Draft.php` |
 | キャッシュのヘッダを付ける | [docs/cache.md](docs/cache.md) | `Posts.php` |
 | レスポンスを `data` / `meta` で包む | [docs/envelope.md](docs/envelope.md) | `Post.php`、`Posts.php` |
-| レスポンスの形（スキーマ）を宣言する | [docs/SCHEMA.md](docs/SCHEMA.md) | `Post.php`、`Sample.php`、`SimpleApi.php` |
-| Service クラスを注入する | [docs/di.md](docs/di.md) | `Feed.php` |
-| Route クラスをテストする | [docs/testing.md](docs/testing.md) | |
+| レスポンスの形（スキーマ）を宣言する | [docs/SCHEMA.md](docs/SCHEMA.md) | `Post.php`、`Posts.php` |
+| Service クラスを注入する | [docs/di.md](docs/di.md) | `LatestPosts.php` |
+| Route クラスをテストする | [docs/testing.md](docs/testing.md) | `tests/Unit/REST/Example/` |
 | フロントエンドの TypeScript の型を生成する | [docs/frontend.md](docs/frontend.md) | |
 | イベントを購読する、WordPress のフックを登録する | [docs/extending.md](docs/extending.md) | `src/REST/Example/Hooks/` |
 | `register_rest_route()` との対応を知る | [docs/wordpress.md](docs/wordpress.md) | |
@@ -172,7 +175,7 @@ wp-resta を使うプロジェクトの `AGENTS.md` や `CLAUDE.md` に、次を
 
 ```markdown
 wp-resta で API を書くときは、vendor/tenjuu99/wp-resta/README.md の「文書の案内」から読む。
-書きかたは vendor/tenjuu99/wp-resta/src/REST/Example/Routes/ をまねる。
+Route クラスの宣言とテストの書きかたは vendor/tenjuu99/wp-resta/src/REST/Example/Routes/ をまねる。データの取りかたは一例なので、このプロジェクトのやりかたに合わせる。
 何が保証されているかは vendor/tenjuu99/wp-resta/docs/spec.md で確かめる。
 ```
 

@@ -1,6 +1,6 @@
 # 認可
 
-ログイン状態や capability でルートの利用を制限する書きかた。保証される挙動は [spec.md](spec.md)「認可」にある。手本は `src/REST/Example/Routes/Drafts.php`（アトリビュート）と `src/REST/Example/Routes/Secret.php`（callback の中の判定）。
+ログイン状態や capability でルートの利用を制限する書きかた。保証される挙動は [spec.md](spec.md)「認可」にある。手本は `src/REST/Example/Routes/Drafts.php`（アトリビュート）と `src/REST/Example/Routes/Draft.php`（callback の中の判定）。
 
 ## アトリビュートで宣言する
 

@@ -1,6 +1,6 @@
 # Envelope
 
-`#[Envelope]` でレスポンスを `data` / `meta` の形に包む書きかた。保証される挙動は [spec.md](spec.md)「レスポンス」にある。手本は `src/REST/Example/Routes/Post.php` と `Posts.php`。包まない例は `SimpleApi.php`。
+`#[Envelope]` でレスポンスを `data` / `meta` の形に包む書きかた。保証される挙動は [spec.md](spec.md)「レスポンス」にある。手本は `src/REST/Example/Routes/Post.php` と `Posts.php`。包まない例は `Drafts.php`。
 
 wp-resta では、REST API レスポンスを統一的な構造でラップする**Envelope Pattern**をサポートしています。
 
