@@ -46,7 +46,19 @@ require_once __DIR__ . '/vendor/autoload.php';
 ]);
 ```
 
-`SwaggerHook` は `/rest-api/schema` のリライトルールを追加するだけで flush は行いません。追加後は管理画面の「設定 > パーマリンク」で保存するか、`flush_rewrite_rules()` を一度実行してください。
+`SwaggerHook` は OpenAPI のスキーマを `/wp-json/resta/v1/schema` で返し、管理画面の Swagger UI はこれを読みます。スキーマは誰でも取得できます。
+
+場所と、取得できる相手を変えるときは、`dependencies` に `SwaggerOptions` を書きます。
+
+```php
+    'dependencies' => [
+        \Wp\Resta\Hooks\SwaggerOptions::class => new \Wp\Resta\Hooks\SwaggerOptions(
+            namespace: 'myapp/v1',       // /wp-json/myapp/v1/schema で返す
+            route: '/schema',
+            capability: 'edit_pages',    // この capability を持つ人にだけ返す。省略すると誰でも
+        ),
+    ],
+```
 
 ### プラグインで利用する場合
 
@@ -60,9 +72,6 @@ $ composer require composer/installers tenjuu99/wp-resta
 ```
 
 無事 wp-content/plugins 以下に展開できたら、管理画面からプラグインを有効化してください。
-
-プラグインとして有効化した場合は、`plugin.php` のアクティベーションフックで `flush_rewrite_rules()` が実行されるので、上記の flush は不要です。
-
 
 ## Example
 

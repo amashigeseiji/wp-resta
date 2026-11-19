@@ -10,10 +10,10 @@ wp-resta が出すのは OpenAPI までで、TypeScript の型は生成しない
 
 ### 動いている WordPress から取得する
 
-`SwaggerHook` を有効にしていれば、`/rest-api/schema` が OpenAPI の JSON を返す（[README.md](../README.md)）。
+`SwaggerHook` を有効にしていれば、`/wp-json/resta/v1/schema` が OpenAPI の JSON を返す（[README.md](../README.md)）。
 
 ```bash
-curl -s http://localhost:8080/rest-api/schema -o openapi.json
+curl -s http://localhost:8080/wp-json/resta/v1/schema -o openapi.json
 ```
 
 ### WordPress を起動せずに書き出す
