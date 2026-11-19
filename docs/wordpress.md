@@ -2,8 +2,6 @@
 
 WordPress の REST API を `register_rest_route()` で書いたことがある人に向けて、wp-resta がそれとどう対応するかを書く。保証される挙動は [spec.md](spec.md) にある。
 
-認可のアトリビュートなど、一部は 0.13 の書きかたで説明している。
-
 ## 出どころは `register_rest_route()`
 
 wp-resta は、`register_rest_route()` のシンタックスシュガーとして始まった。Route クラスはクラスの形をしているが、やっていることは `register_rest_route()` に渡す内容を宣言することである。`callback` という名前も、そこから来ている。
@@ -83,4 +81,4 @@ callback の中や、そこから使うサービスで、WordPress の関数を�
 対応から意図して離れている箇所が 2 つある。
 
 - **callback の引数と戻り値。** `register_rest_route()` の callback は `WP_REST_Request` を受け取り、`WP_REST_Response` か `WP_Error` を返す。wp-resta の callback は、型の付いたパラメータを受け取り、レスポンスの body を返す。引数と戻り値の型が、そのまま検証とスキーマになるからである。エラーは例外（`HttpException`）を投げる。レスポンスの形は `WP_Error` を返したときと同じになる
-- **`permission_callback` に当たるものが、関数ではない。** 許可制であることを、アトリビュートで宣言する。宣言から OpenAPI に 401 / 403 を出せるからである。リクエストの値を見て判定する場合は、callback の中で確かめる
+- **`permission_callback` に当たるものが、関数ではない。** 許可制であることを、アトリビュートで宣言する。宣言から、OpenAPI のその操作に `security` を出せるからである。リクエストの値を見て判定する場合は、callback の中で確かめる

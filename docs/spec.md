@@ -48,7 +48,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 ### 宣言から導出されるもの
 
 - ルートの登録と入力の検証。宣言していない制約は検証されない
-- OpenAPI 定義。path の下に操作ごとの operation が出る。parameters には宣言した型、必須かどうか、enum、デフォルト値、最小値・最大値、配列の要素型が載る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出される。`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される
+- OpenAPI 定義。path の下に操作ごとの operation が出る。parameters には宣言した型、必須かどうか、enum、デフォルト値、最小値・最大値、配列の要素型が載る。レスポンスの形は操作の callback の戻り値型かスキーマクラスから導出される。`#[RouteMeta]` の説明とタグが載る。`#[Envelope]` のルートは包まれた形で出力される。認可のアトリビュートを付けた操作には `security` が出る（「認可」）
 
 ## HTTP 実行のパイプライン
 
@@ -70,6 +70,10 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 
 ### 認可
 
+- 操作のメソッドに `#[Authenticated]` を付けると、未認証のリクエストは 401 になる。`#[Permission('edit_posts')]` を付けると、未認証は 401、認証済みでその capability が無ければ 403 になる。どちらも callback は呼ばれない
+- アトリビュートは操作ごと。付いていない操作には何もしない。静的なルート（`body` プロパティ）には付けられない
+- アトリビュートの付いた操作は、OpenAPI に `security` が出る。指す方式は設定の `securitySchemes` で、複数あれば「どれか 1 つで通る」として並ぶ。必要な capability は OpenAPI に出ない
+- アトリビュートによる認可とバリデーションの順序は約束しない。未認証で、かつパラメータが不正なリクエストが 400 と 401 のどちらになるかは決まっていない
 - ルートは `authorize(RestaRequestInterface $request, BoundParameters $params, Principal $principal)` をオーバーライドして認可を宣言する。既定は全リクエストを許可する
 - 拒否は例外で表す。`UnauthorizedException` は 401、`ForbiddenException` は 403 になり、callback は呼ばれない
 - `Principal` は認証状態（`isAuthenticated()`）と capability（`can()`）を答える。WordPress 上では現在のユーザーに対応し、認証方式（cookie + nonce、Application Passwords など）には依存しない。設定の `dependencies` で差し替えられる
@@ -127,6 +131,7 @@ wp-resta が利用者に約束することを書く。ここに書いてある�
 | `hooks` | WordPress フックをまとめた `HookProvider` のクラス |
 | `listeners` | イベントの購読者 |
 | `adapters` | WordPress ライフサイクルの橋渡し。省略すると `WpKernelAdapter` が使われる |
+| `securitySchemes` | 認可のアトリビュートを付けた操作の `security` が指す認証方式。OpenAPI の `components.securitySchemes` に出る。名前 => Security Scheme Object の配列で、中身は検証せずそのまま出る。書けば、省略時に出る方式を置き換える。空の配列なら `security` を出さない |
 
 ## WordPress との境界
 

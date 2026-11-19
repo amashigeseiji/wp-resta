@@ -16,7 +16,7 @@ use Wp\Resta\REST\Http\SimpleRestaResponse;
  * HTTP 実行のパイプライン（spec「HTTP 実行のパイプライン」）。WordPress に依存しない。
  *
  * ルートは宣言（操作、パラメータ、callback、認可フック）を提供するだけで、実行の順序はここが持つ。
- * 操作の選択 → バリデーション → 認可 → callback → RouteInvocationEvent の順で、どの段階で止まっても
+ * 操作の選択 → バリデーション → 認可 → BeforeCallbackEvent → callback → RouteInvocationEvent の順で、どの段階で止まっても
  * エラーレスポンスの形は同じ。WordPress からは RegisterRestRoutes が WP_REST_Request を変換して呼び、
  * テストからは TestRestaRequest を渡して直接呼ぶ。
  */
@@ -36,6 +36,8 @@ class RequestHandler
             $params = $operation->getParameters()->validate($request);
             // バリデーションの後に認可するので、authorize() が見る値は制約を通った後の値
             $route->authorize($request, $params, $this->principal);
+            // 認可のアトリビュートは、このイベントの購読者（AuthorizationHook）が解釈する。拒否は HttpException で届く
+            $this->dispatcher->dispatch(new BeforeCallbackEvent($request, $route, $operation));
 
             $callback = $operation->getCallback();
             $args = $callback->resolve($params, $request, Container::getInstance());

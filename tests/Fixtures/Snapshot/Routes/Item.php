@@ -5,12 +5,13 @@ use Test\Resta\Fixtures\Parameter\Sort;
 use Test\Resta\Fixtures\Snapshot\Schemas\Item as ItemSchema;
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Param;
+use Wp\Resta\REST\Attributes\Permission;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Http\RestaResponseInterface;
 
 /**
  * パスパラメータ、enum、default、min / max、配列の宣言を 1 つずつ持つルート。
- * GET と POST で操作を分ける
+ * GET と POST で操作を分ける。POST だけが許可制で、security は POST にだけ出る
  */
 #[RouteMeta(description: 'Snapshot item route', tags: ['snapshot'])]
 class Item extends AbstractRoute
@@ -31,6 +32,7 @@ class Item extends AbstractRoute
     }
 
     /** RestaResponseInterface との union でもスキーマは ItemSchema から推論される */
+    #[Permission('edit_posts')]
     public function post(int $id, string $name, ?string $note = null): ItemSchema|RestaResponseInterface
     {
         if ($id === 0) {

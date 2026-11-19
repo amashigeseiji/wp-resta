@@ -1,6 +1,10 @@
 <?php
 namespace Wp\Resta\OpenApi;
 
+use Wp\Resta\Config;
+use Wp\Resta\REST\Attributes\Authenticated;
+use Wp\Resta\REST\Attributes\Permission;
+use Wp\Resta\REST\Callback;
 use Wp\Resta\REST\RegisterRestRoutes;
 use Wp\Resta\REST\Attributes\RouteMeta;
 use Wp\Resta\REST\Attributes\Envelope;
@@ -13,7 +17,8 @@ class ResponseSchema
     public function __construct(
         private readonly Schemas $schemas,
         private readonly RegisterRestRoutes $routes,
-        private readonly SchemaInference $inference
+        private readonly SchemaInference $inference,
+        private readonly Config $config,
     ) {
     }
 
@@ -124,6 +129,12 @@ class ResponseSchema
                     ]
                 ];
 
+                // 認可のアトリビュートが付いた操作。設定された方式を「どれか 1 つで通る」として並べる
+                $security = $this->securityOf($operation->getCallback());
+                if ($security !== []) {
+                    $operationObject['security'] = $security;
+                }
+
                 // 'GET,POST' のように複数のメソッドを持つ操作は、メソッドごとに展開する
                 foreach ($operation->getMethodList() as $method) {
                     $paths[$path][strtolower($method)] = $operationObject;
@@ -135,11 +146,40 @@ class ResponseSchema
     }
 
     /**
+     * 操作の Security Requirement。認可のアトリビュートが無い操作と、方式が 1 つも設定されていないときは空
+     *
+     * @return list<array<string, array{}>>
+     */
+    private function securityOf(Callback $callback): array
+    {
+        if ($callback->getAttributes(Authenticated::class) === [] && $callback->getAttributes(Permission::class) === []) {
+            return [];
+        }
+        $security = [];
+        foreach (array_keys($this->config->securitySchemes) as $name) {
+            $security[] = [$name => []];
+        }
+        return $security;
+    }
+
+    /**
      * swagger json生成
      * @return array<string, mixed>
      */
     public function responseSchema(): array
     {
+        $paths = $this->getPaths();
+        // 方式の定義は、security で指す操作があるときにだけ出す。許可制の操作が無い API には要らない
+        $securitySchemes = [];
+        foreach ($paths as $operations) {
+            foreach ($operations as $operation) {
+                if (isset($operation['security'])) {
+                    $securitySchemes = $this->config->securitySchemes;
+                    break 2;
+                }
+            }
+        }
+
         return [
             'openapi' => '3.0.0',
             'info' => [
@@ -152,9 +192,10 @@ class ResponseSchema
                     'url' => rest_url(),
                 ],
             ],
-            'paths' => $this->getPaths(),
+            'paths' => $paths,
             'components' => [
-                'securitySchemes' => new \stdClass(), // Map なので空でも {} で出す
+                // Map なので空でも {} で出す
+                'securitySchemes' => $securitySchemes === [] ? new \stdClass() : $securitySchemes,
                 'schemas' => $this->schemas->schemas,
             ],
         ];

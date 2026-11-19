@@ -69,6 +69,24 @@ final class Callback
     }
 
     /**
+     * 操作のメソッドに付いたアトリビュート。body プロパティから作った callback には無い
+     *
+     * @template T of object
+     * @param class-string<T> $attributeClass
+     * @return list<T>
+     */
+    public function getAttributes(string $attributeClass): array
+    {
+        if ($this->property !== null) {
+            return [];
+        }
+        return array_map(
+            fn($attribute) => $attribute->newInstance(),
+            $this->reflection->getAttributes($attributeClass),
+        );
+    }
+
+    /**
      * callback を宣言しているクラス。docblock の型名を use 文で解決するときに使う。
      * fromMethod() で作った callback ならそのメソッドのクラス、fromProperty() ならそのプロパティのクラス
      *

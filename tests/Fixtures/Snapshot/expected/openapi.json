@@ -135,7 +135,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "cookieNonce": []
+                    }
+                ]
             }
         },
         "/snapshot/items": {
@@ -276,7 +281,13 @@
         }
     },
     "components": {
-        "securitySchemes": {},
+        "securitySchemes": {
+            "cookieNonce": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-WP-Nonce"
+            }
+        },
         "schemas": {
             "Item": {
                 "type": "object",

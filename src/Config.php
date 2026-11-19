@@ -18,9 +18,21 @@ class Config
     /** @var array<class-string> WordPress ライフサイクルの橋渡し。省略時は WpKernelAdapter */
     public readonly array $adapters;
     /**
+     * OpenAPI の components.securitySchemes にそのまま出す認証方式。名前 => Security Scheme Object。
+     * 省略時は WordPress 標準の cookie + nonce。中身は検証しない
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public readonly array $securitySchemes;
+    /**
      * @var array<string, mixed>
      */
     private readonly array $config;
+
+    /** securitySchemes を省略したときに出す方式 */
+    private const DEFAULT_SECURITY_SCHEMES = [
+        'cookieNonce' => ['type' => 'apiKey', 'in' => 'header', 'name' => 'X-WP-Nonce'],
+    ];
 
     /**
      * @template T
@@ -32,6 +44,7 @@ class Config
      *    hooks?: array<class-string<\Wp\Resta\Hooks\HookProviderInterface>>,
      *    listeners?: array<class-string>,
      *    adapters?: array<class-string>,
+     *    securitySchemes?: array<string, array<string, mixed>>,
      * } $config
      */
     public function __construct(array $config)
@@ -56,6 +69,8 @@ class Config
         $this->adapters = array_key_exists('adapters', $config)
             ? $this->normalizeStringArray($config['adapters'])
             : [WpKernelAdapter::class];
+        // 書けば置き換える。明示した空配列は「security を出さない」
+        $this->securitySchemes = $config['securitySchemes'] ?? self::DEFAULT_SECURITY_SCHEMES;
     }
 
     public function get(string $key) : mixed

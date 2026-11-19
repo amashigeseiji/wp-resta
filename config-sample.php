@@ -44,6 +44,11 @@ return [
     // 例: [LoggerInterface::class => MonologLogger::class]
     'dependencies' => [],
 
+    // OpenAPI に出す認証方式（オプション）
+    // 省略すると WordPress 標準の cookie + nonce が出る。書けば置き換える
+    // 例: ['applicationPassword' => ['type' => 'http', 'scheme' => 'basic']]
+    // 'securitySchemes' => [],
+
     // アダプター定義
     // WordPress に接続するためには必須
     'adapters' => [

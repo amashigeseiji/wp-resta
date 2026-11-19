@@ -30,6 +30,15 @@ v0.10.2 以前の履歴は [GitHub Releases](https://github.com/amashigeseiji/wp
   }
   ```
 
+- 認可のアトリビュート `#[Authenticated]` / `#[Permission($capability)]` を追加した（#139）。操作のメソッド（`callback()` / `get()` / `post()` など）に付ける。`permission_callback` の `'is_user_logged_in'` と `fn () => current_user_can('edit_posts')` に当たる。`#[Authenticated]` は未認証で 401、`#[Permission]` は未認証で 401、capability が無ければ 403。操作ごとに付けられるので、「GET は公開、POST は `edit_posts` が必要」を `$request->getMethod()` の分岐なしに書ける。`authorize()` はそのまま使える
+
+  ```php
+  #[Permission('edit_posts')]
+  public function post(string $title): PostBody
+  ```
+
+  - テストでアトリビュートの認可まで確かめるときは、`Dispatcher` に `addSubscriber(new AuthorizationHook($principal))` を足す
+- アトリビュートを付けた操作は、OpenAPI に `security` が出る（#139）。指す認証方式は、設定の `securitySchemes`（名前 => Security Scheme Object）で指定する。省略すると WordPress 標準の cookie + nonce（`X-WP-Nonce`）になる。方式の定義（`components.securitySchemes`）は、アトリビュートの付いた操作があるときにだけ出る。書けば置き換え、複数書けば「どれか 1 つで通る」として並び、空の配列なら `security` を出さない。必要な capability は OpenAPI に出ない
 - OpenAPI を JSON ファイルに書き出す `scripts/generate-openapi.php` を追加した（#108）。WordPress を起動せずに動くので、フロントエンドのビルドや CI で使える。`php vendor/tenjuu99/wp-resta/scripts/generate-openapi.php <config-file> [output-file] [server-url]`
 
 ### 変更
