@@ -6,7 +6,7 @@ use Test\Resta\Support\E2E\AbstractE2ETestCase;
 /**
  * URL_PARAMS で宣言したパラメータが、callback の引数に無くても検証されることを確認する E2E テスト。
  *
- * /example/search の callback は WP_REST_Request を受け取るだけで、
+ * /fixture/search の callback は WP_REST_Request を受け取るだけで、
  * keyword / order / path を引数に持たない。検証するのは wp-resta で、宣言されたパラメータをすべて見る。
  * WordPress コアは検証しない（args に sanitize_callback => null を渡しているため）。
  */
@@ -14,7 +14,7 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
 {
     public function testValidQueryParametersPassThrough(): void
     {
-        $response = $this->get('/wp-json/example/search', [
+        $response = $this->get('/wp-json/fixture/search', [
             'keyword' => 'hello',
             'order' => 'desc',
             'path' => 'foo/bar',
@@ -29,7 +29,7 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
 
     public function testOmittedOptionalParametersAreNull(): void
     {
-        $response = $this->get('/wp-json/example/search');
+        $response = $this->get('/wp-json/fixture/search');
 
         $this->assertResponseCode(200, $response);
         $this->assertSame(
@@ -41,7 +41,7 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
     public function testQueryParameterNotInCallbackSignatureIsValidated(): void
     {
         // アンカー無しだと (asc|desc) に部分一致して通ってしまう値
-        $response = $this->get('/wp-json/example/search', ['order' => 'zzz-asc-zzz']);
+        $response = $this->get('/wp-json/fixture/search', ['order' => 'zzz-asc-zzz']);
 
         $this->assertResponseCode(400, $response);
         $data = $this->getJsonResponse($response);
@@ -52,7 +52,7 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
     public function testEmptyStringIsAValueForUnconstrainedString(): void
     {
         // ?keyword= は省略ではなく空文字。'string' は制約なしなので空文字のまま届く（#81）
-        $response = $this->get('/wp-json/example/search', ['keyword' => '']);
+        $response = $this->get('/wp-json/fixture/search', ['keyword' => '']);
 
         $this->assertResponseCode(200, $response);
         $this->assertSame('', $this->getJsonResponse($response)['keyword']);
@@ -61,7 +61,7 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
     public function testEmptyStringIsRejectedByExplicitRegex(): void
     {
         // 非空を要求するのは regex の役目。order の (asc|desc) に空文字は一致しない
-        $response = $this->get('/wp-json/example/search', ['order' => '']);
+        $response = $this->get('/wp-json/fixture/search', ['order' => '']);
 
         $this->assertResponseCode(400, $response);
         $this->assertSame('rest_invalid_param', $this->getJsonResponse($response)['code']);
@@ -72,16 +72,16 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
         // パーマリンク形式はエンコードのまま、?rest_route= 形式はデコード済みで WP から届く。
         // どちらでも URL に書いた %2541 は 1 回だけデコードされて %41 になる
         // get() はクエリを組み立て直すので、URL を文字どおり送るために client を直接使う
-        $this->assertSame('Hello, %41!', $this->getJsonResponse($this->get('/wp-json/example/hello/%2541'))['message']);
-        $this->assertSame('Hello, %41!', $this->getJsonResponse($this->client->get('/?rest_route=/example/hello/%2541'))['message']);
-        $this->assertSame('Hello, 日本語!', $this->getJsonResponse($this->client->get('/?rest_route=/example/hello/' . rawurlencode('日本語')))['message']);
+        $this->assertSame('Hello, %41!', $this->getJsonResponse($this->get('/wp-json/fixture/hello/%2541'))['message']);
+        $this->assertSame('Hello, %41!', $this->getJsonResponse($this->client->get('/?rest_route=/fixture/hello/%2541'))['message']);
+        $this->assertSame('Hello, 日本語!', $this->getJsonResponse($this->client->get('/?rest_route=/fixture/hello/' . rawurlencode('日本語')))['message']);
     }
 
     public function testStringPathParameterAcceptsMultibyteAndSymbols(): void
     {
         // #81: 'string' のパスパラメータは [^/]+ で登録されるので、コアのルート照合（u なし）でも日本語が通る
         foreach (['日本語', 'foo-bar', 'a.b'] as $name) {
-            $response = $this->get('/wp-json/example/hello/' . rawurlencode($name));
+            $response = $this->get('/wp-json/fixture/hello/' . rawurlencode($name));
             $this->assertResponseCode(200, $response, $name);
             $this->assertSame("Hello, {$name}!", $this->getJsonResponse($response)['message']);
         }
@@ -90,11 +90,11 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
     public function testMultibyteStringIsAccepted(): void
     {
         // callback の引数で受けるかどうかに関係なく 'string' は日本語を受け付ける
-        $response = $this->get('/wp-json/example/search', ['keyword' => '日本語']);
+        $response = $this->get('/wp-json/fixture/search', ['keyword' => '日本語']);
         $this->assertResponseCode(200, $response);
         $this->assertSame('日本語', $this->getJsonResponse($response)['keyword']);
 
-        $response = $this->get('/wp-json/example/sample/1', ['name' => '日本語']);
+        $response = $this->get('/wp-json/fixture/sample/1', ['name' => '日本語']);
         $this->assertResponseCode(200, $response);
         $this->assertSame('日本語', $this->getJsonResponse($response)['data']['name']);
     }
@@ -102,7 +102,7 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
     public function testInvalidUtf8IsRejected(): void
     {
         // regex を持つパラメータは、callback の引数で受けるかどうかに関係なく、不正な UTF-8 を 400 にする
-        foreach (['/wp-json/example/search' => 'path', '/wp-json/example/sample/1' => 'a_or_b'] as $uri => $param) {
+        foreach (['/wp-json/fixture/search' => 'path', '/wp-json/fixture/sample/1' => 'a_or_b'] as $uri => $param) {
             $response = $this->get($uri, [$param => "\xff\xfe"]);
             $this->assertResponseCode(400, $response, $uri);
         }
@@ -110,7 +110,7 @@ class DeclaredParametersValidationTest extends AbstractE2ETestCase
 
     public function testSlashInRegexWorks(): void
     {
-        $response = $this->get('/wp-json/example/search', ['path' => 'Foo/Bar']);
+        $response = $this->get('/wp-json/fixture/search', ['path' => 'Foo/Bar']);
 
         // 大文字は [a-z/]+ に一致しない。/ を含む regex の組み立てが壊れていれば常に 400 になるので、
         // 上の testValidQueryParametersPassThrough と合わせて正しく動いていることが分かる

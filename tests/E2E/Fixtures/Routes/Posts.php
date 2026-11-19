@@ -1,0 +1,41 @@
+<?php
+namespace Test\Resta\E2E\Fixtures\Routes;
+
+use Wp\Resta\REST\AbstractRoute;
+use Wp\Resta\REST\Attributes\Cache;
+use Wp\Resta\REST\Attributes\Envelope;
+use Test\Resta\E2E\Fixtures\Schemas\FixturePost;
+use WP_Query;
+
+#[Envelope]
+#[Cache(maxAge: 60)]
+class Posts extends AbstractRoute
+{
+    protected const ROUTE = 'posts';
+
+    /**
+     * @return FixturePost[]
+     */
+    public function callback(): array
+    {
+        $q = new WP_Query();
+        $posts = $q->query([
+            'post_type' => 'post',
+            'post_status' => 'publish',
+            'orderby' => 'modified',
+            'order' => 'DESC',
+            'posts_per_page' => 10
+        ]);
+
+        return array_map(fn($post) => new FixturePost(
+            ID: $post->ID,
+            post_author: $post->post_author,
+            post_date: $post->post_date,
+            post_date_gmt: $post->post_date_gmt,
+            post_content: $post->post_content,
+            post_title: $post->post_title,
+            post_status: $post->post_status,
+            post_name: $post->post_name,
+        ), $posts);
+    }
+}

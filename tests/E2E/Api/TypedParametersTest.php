@@ -5,13 +5,13 @@ use Test\Resta\Support\E2E\AbstractE2ETestCase;
 
 /**
  * callback のシグニチャから宣言したパラメータが、WordPress コアを経由しても wp-resta の規則で
- * 型変換されて届くことを確認する（/example/items は URL_PARAMS を持たない）
+ * 型変換されて届くことを確認する（/fixture/items は URL_PARAMS を持たない）
  */
 class TypedParametersTest extends AbstractE2ETestCase
 {
     public function testDefaultsApplyWhenOmitted(): void
     {
-        $response = $this->get('/wp-json/example/items');
+        $response = $this->get('/wp-json/fixture/items');
 
         $this->assertResponseCode(200, $response);
         $this->assertSame(
@@ -22,7 +22,7 @@ class TypedParametersTest extends AbstractE2ETestCase
 
     public function testValuesAreConvertedToDeclaredTypes(): void
     {
-        $response = $this->client->get('/wp-json/example/items?page=2&per_page=50&published=false&sort=desc&tags=a,b&slug=hello-world');
+        $response = $this->client->get('/wp-json/fixture/items?page=2&per_page=50&published=false&sort=desc&tags=a,b&slug=hello-world');
 
         $this->assertResponseCode(200, $response);
         $this->assertSame(
@@ -33,7 +33,7 @@ class TypedParametersTest extends AbstractE2ETestCase
 
     public function testArrayAcceptsRepeatedQueryKey(): void
     {
-        $response = $this->client->get('/wp-json/example/items?tags[]=x&tags[]=y');
+        $response = $this->client->get('/wp-json/fixture/items?tags[]=x&tags[]=y');
 
         $this->assertResponseCode(200, $response);
         $this->assertSame(['x', 'y'], $this->getJsonResponse($response)['tags']);
@@ -54,7 +54,7 @@ class TypedParametersTest extends AbstractE2ETestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('invalidQueries')]
     public function testInvalidValueIs400(string $query): void
     {
-        $response = $this->client->get('/wp-json/example/items?' . $query);
+        $response = $this->client->get('/wp-json/fixture/items?' . $query);
 
         $this->assertResponseCode(400, $response);
         $this->assertSame(400, $this->getJsonResponse($response)['data']['status']);

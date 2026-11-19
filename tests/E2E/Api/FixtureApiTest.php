@@ -4,15 +4,15 @@ namespace Test\Resta\E2E\Api;
 use Test\Resta\Support\E2E\AbstractE2ETestCase;
 
 /**
- * E2E tests for example API endpoints
+ * tests/E2E/Fixtures のルートに対する E2E
  *
  * These tests make real HTTP requests to WordPress running in Docker
  */
-class ExampleApiTest extends AbstractE2ETestCase
+class FixtureApiTest extends AbstractE2ETestCase
 {
     public function testSampleApiReturnsCorrectStructure(): void
     {
-        $response = $this->get('/wp-json/example/sample/1', [
+        $response = $this->get('/wp-json/fixture/sample/1', [
             'name' => 'test',
             'a_or_b' => 'a',
         ]);
@@ -44,7 +44,7 @@ class ExampleApiTest extends AbstractE2ETestCase
 
     public function testSampleApiWithDifferentParameters(): void
     {
-        $response = $this->get('/wp-json/example/sample/999', [
+        $response = $this->get('/wp-json/fixture/sample/999', [
             'name' => 'custom',
             'a_or_b' => 'b',
         ]);
@@ -60,7 +60,7 @@ class ExampleApiTest extends AbstractE2ETestCase
 
     public function testSampleApiWithoutOptionalParameters(): void
     {
-        $response = $this->get('/wp-json/example/sample/1');
+        $response = $this->get('/wp-json/fixture/sample/1');
 
         $this->assertResponseCode(200, $response);
 
@@ -73,7 +73,7 @@ class ExampleApiTest extends AbstractE2ETestCase
 
     public function testPostsApiReturnsPostList(): void
     {
-        $response = $this->get('/wp-json/example/posts');
+        $response = $this->get('/wp-json/fixture/posts');
 
         $this->assertResponseCode(200, $response);
 
@@ -99,7 +99,7 @@ class ExampleApiTest extends AbstractE2ETestCase
 
     public function testPostApiReturnsPostDetails(): void
     {
-        $response = $this->get('/wp-json/example/post/1');
+        $response = $this->get('/wp-json/fixture/post/1');
 
         $this->assertResponseCode(200, $response);
 
@@ -113,7 +113,7 @@ class ExampleApiTest extends AbstractE2ETestCase
 
     public function testPostApiWithNonExistentId(): void
     {
-        $response = $this->get('/wp-json/example/post/99999');
+        $response = $this->get('/wp-json/fixture/post/99999');
 
         // Non-existent post returns 404
         $this->assertResponseCode(404, $response);
@@ -129,7 +129,7 @@ class ExampleApiTest extends AbstractE2ETestCase
 
     public function testSampleStaticApiReturnsStaticValue(): void
     {
-        $response = $this->get('/wp-json/example/samplestatic');
+        $response = $this->get('/wp-json/fixture/samplestatic');
 
         $this->assertResponseCode(200, $response);
 
@@ -143,7 +143,7 @@ class ExampleApiTest extends AbstractE2ETestCase
 
     public function testApiNamespaceRoute(): void
     {
-        $response = $this->get('/wp-json/example');
+        $response = $this->get('/wp-json/fixture');
 
         $this->assertResponseCode(200, $response);
 
@@ -151,18 +151,18 @@ class ExampleApiTest extends AbstractE2ETestCase
 
         $this->assertArrayHasKey('namespace', $data);
         $this->assertArrayHasKey('routes', $data);
-        $this->assertEquals('example', $data['namespace']);
+        $this->assertEquals('fixture', $data['namespace']);
 
         // Verify expected routes exist
         $routes = array_keys($data['routes']);
-        $this->assertContains('/example/sample/(?P<id>\\d+)', $routes);
-        $this->assertContains('/example/posts', $routes);
-        $this->assertContains('/example/post/(?P<id>\\d+)', $routes);
+        $this->assertContains('/fixture/sample/(?P<id>\\d+)', $routes);
+        $this->assertContains('/fixture/posts', $routes);
+        $this->assertContains('/fixture/post/(?P<id>\\d+)', $routes);
     }
 
     public function testInvalidRouteReturns404(): void
     {
-        $response = $this->get('/wp-json/example/nonexistent');
+        $response = $this->get('/wp-json/fixture/nonexistent');
 
         $this->assertResponseCode(404, $response);
 
@@ -178,7 +178,7 @@ class ExampleApiTest extends AbstractE2ETestCase
      */
     public function testSimpleApiWithoutEnvelope(): void
     {
-        $response = $this->get('/wp-json/example/simpleapi');
+        $response = $this->get('/wp-json/fixture/simpleapi');
 
         $this->assertResponseCode(200, $response);
 

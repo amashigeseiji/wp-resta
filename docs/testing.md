@@ -105,6 +105,8 @@ Functions\expect('register_rest_route')->once()->with('myapi', Mockery::type('st
 
 `docker-compose.yml` の WordPress にプラグインとして wp-resta を有効化し、`tests/E2E/Api/` から Guzzle で叩く。WordPress を通したときの応答（ルートの照合、認証など）を確認したいケースはここに書く。Unit で再現できるものは Unit に書く。
 
+E2E が叩くルートは `tests/E2E/Fixtures/` にあり、`docker/config.php` が `/wp-json/fixture/` として登録する。本体の挙動を確かめるためのルートで、書きかたの手本ではない。手本は `src/REST/Example/` にある。
+
 ### Docker で動作確認する
 
 Docker を使って簡単に動作確認環境をセットアップできます。

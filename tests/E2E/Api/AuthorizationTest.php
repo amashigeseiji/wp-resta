@@ -5,13 +5,13 @@ use Test\Resta\Support\E2E\AbstractE2ETestCase;
 
 /**
  * 認可の拒否が WP コアを経由してもそのままのステータスとエラー形式で返ることを確認する。
- * /example/secret/[id] は未認証なら 401、認証済みでもその投稿を編集できなければ 403 を返す
+ * /fixture/secret/[id] は未認証なら 401、認証済みでもその投稿を編集できなければ 403 を返す
  */
 class AuthorizationTest extends AbstractE2ETestCase
 {
     public function testUnauthenticatedRequestIsRejectedWith401(): void
     {
-        $response = $this->get('/wp-json/example/secret/1');
+        $response = $this->get('/wp-json/fixture/secret/1');
 
         $this->assertResponseCode(401, $response);
         $data = $this->getJsonResponse($response);
@@ -22,7 +22,7 @@ class AuthorizationTest extends AbstractE2ETestCase
     public function testPublicRouteStillAllowsUnauthenticatedRequest(): void
     {
         // 認可を宣言していないルートは公開。permission_callback を常に許可にしても公開ルートが変わらないこと
-        $response = $this->get('/wp-json/example/hello/world');
+        $response = $this->get('/wp-json/fixture/hello/world');
 
         $this->assertResponseCode(200, $response);
     }
