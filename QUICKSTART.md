@@ -82,7 +82,7 @@ curl "http://localhost:8080/wp-json/example/posts/latest?exclude=1"
 curl -i "http://localhost:8080/wp-json/example/drafts"
 ```
 
-**機能:** `edit_posts` を持つユーザーだけが使える操作。ログインしていないので 401 が返ります。GET が一覧、POST が作成です
+**機能:** 権限を持つユーザーだけが使える操作。ログインしていないので 401 が返ります。GET が一覧（`edit_others_posts`）、POST が作成（`edit_posts`）です
 
 ### 5. 下書き 1 件
 

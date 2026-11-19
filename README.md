@@ -154,7 +154,7 @@ $ curl http://example.com/wp-json/myroute/helloworld
 | やりたいこと | 読むもの | 手本 |
 |---|---|---|
 | URL とパラメータを宣言する | [docs/routes.md](docs/routes.md) | `Hello.php`、`Posts.php`、`Post.php` |
-| クエリの組み立てを分けて、テストで固定する | [docs/di.md](docs/di.md) | `LatestPosts.php`、`src/REST/Example/Services/LatestPostsQuery.php` |
+| クエリの組み立てを分けて、テストで固定する | | `LatestPosts.php`、`src/REST/Example/Services/LatestPostsQuery.php` |
 | 同じ URL で GET と POST を分ける | [docs/routes.md](docs/routes.md) | `Drafts.php` |
 | ステータスやヘッダを指定する、エラーを返す | [docs/routes.md](docs/routes.md) | |
 | ログイン状態や権限で制限する | [docs/authorization.md](docs/authorization.md) | `Drafts.php`、`Draft.php` |

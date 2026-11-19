@@ -18,6 +18,7 @@ class LatestPostsQueryTest extends TestCase
         // 除く ID はクエリに入らない。リクエストごとにクエリが変わると、クエリのキャッシュが効かなくなる
         $this->assertArrayNotHasKey('post__not_in', $args);
         $this->assertSame('publish', $args['post_status']);
+        $this->assertFalse($args['has_password']);
         // 上限の 10 件が除かれても 5 件が残る
         $this->assertSame(15, $args['posts_per_page']);
     }

@@ -12,7 +12,7 @@ use WP_Post;
  * 公開されている記事 1 件。
  *
  * ROUTE の [id] は callback の引数 int $id で宣言する。戻り値が body で、戻り値型がレスポンスのスキーマになる。
- * 見つからないときは例外で 404 を返す
+ * 見つからないときは例外で 404 を返す。公開されていない記事と、パスワードで保護された記事も、見つからない扱いにする
  */
 #[RouteMeta(
     description: "公開されている記事を 1 件返します",
@@ -26,7 +26,12 @@ class Post extends AbstractRoute
     public function callback(int $id): PostSchema
     {
         $post = get_post($id);
-        if (!$post instanceof WP_Post || $post->post_type !== 'post' || $post->post_status !== 'publish') {
+        if (
+            !$post instanceof WP_Post
+            || $post->post_type !== 'post'
+            || $post->post_status !== 'publish'
+            || $post->post_password !== ''
+        ) {
             throw new HttpException('Post not found', 404, 'rest_post_invalid_id');
         }
 

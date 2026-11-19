@@ -33,6 +33,14 @@ class DraftsTest extends TestCase
         $this->assertSame(403, $this->request($subscriber, 'POST', '/example/drafts?title=Hello')->getStatusCode());
     }
 
+    public function testListRequiresMoreThanCreating(): void
+    {
+        // 寄稿者に当たる。自分の下書きは作れるが、他人の下書きも返す一覧は読めない
+        $contributor = new TestPrincipal(authenticated: true, capabilities: ['edit_posts']);
+
+        $this->assertSame(403, $this->request($contributor, 'GET', '/example/drafts')->getStatusCode());
+    }
+
     public function testPostWithoutTitleIs400(): void
     {
         $editor = new TestPrincipal(authenticated: true, capabilities: ['edit_posts']);

@@ -39,6 +39,8 @@ class Posts extends AbstractRoute
         return Post::fromWpPosts((new WP_Query())->query([
             'post_type' => 'post',
             'post_status' => 'publish',
+            // パスワードで保護された記事は、本文を返してしまうので除く
+            'has_password' => false,
             'orderby' => 'date',
             'order' => $order === Order::Asc ? 'ASC' : 'DESC',
             'paged' => $page,

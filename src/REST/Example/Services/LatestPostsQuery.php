@@ -31,6 +31,8 @@ class LatestPostsQuery
         return [
             'post_type' => 'post',
             'post_status' => 'publish',
+            // パスワードで保護された記事は、本文を返してしまうので除く
+            'has_password' => false,
             'orderby' => 'date',
             'order' => 'DESC',
             // 上限まで除かれても LIMIT 件が残るように取る

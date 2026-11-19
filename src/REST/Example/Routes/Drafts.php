@@ -13,10 +13,11 @@ use WP_Query;
  * 下書きの一覧と作成。
  *
  * 同じ URL で GET と POST を分けるときは、HTTP メソッド名のメソッドを書く。それぞれが 1 つの操作になり、
- * 引数の宣言も認可のアトリビュートも操作ごとに独立している。どちらも edit_posts を持つユーザーだけが使える
+ * 引数の宣言も認可のアトリビュートも操作ごとに独立している。
+ * 一覧は他人の下書きも返すので edit_others_posts を、作成は edit_posts を求める
  */
 #[RouteMeta(
-    description: "下書きの一覧と作成です。edit_posts 権限が必要です",
+    description: "下書きの一覧と作成です。一覧には edit_others_posts、作成には edit_posts 権限が必要です",
     tags: ["下書き"]
 )]
 class Drafts extends AbstractRoute
@@ -26,7 +27,7 @@ class Drafts extends AbstractRoute
     /**
      * @return Post[]
      */
-    #[Permission('edit_posts')]
+    #[Permission('edit_others_posts')]
     public function get(): array
     {
         return Post::fromWpPosts((new WP_Query())->query([
