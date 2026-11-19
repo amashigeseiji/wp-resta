@@ -180,6 +180,18 @@ class SchemaInferenceTest extends TestCase
                 'array<string, 1|2|3>',
                 ['type' => 'object', 'additionalProperties' => ['type' => 'integer', 'enum' => [1, 2, 3]]],
             ],
+            '整数リテラルは 16 進・2 進・8 進・符号・桁区切りを値として読む' => [
+                'array<string, 0x10|0b11|0o17|017|-5|1_000>',
+                ['type' => 'object', 'additionalProperties' => ['type' => 'integer', 'enum' => [16, 3, 15, 15, -5, 1000]]],
+            ],
+            '括弧で入れ子にした union は、括弧が無いときと同じ' => [
+                "array{order: ('asc'|'desc')|'none'}",
+                [
+                    'type' => 'object',
+                    'properties' => ['order' => ['type' => 'string', 'enum' => ['asc', 'desc', 'none']]],
+                    'required' => ['order'],
+                ],
+            ],
             '要素の T|null と ?T は anyOf に null' => [
                 'array{a: string|null, b: ?int}',
                 [
@@ -254,6 +266,27 @@ class SchemaInferenceTest extends TestCase
         $this->assertSame([
             'anyOf' => [
                 ['type' => 'object', 'properties' => ['a' => ['type' => 'integer']], 'required' => ['a']],
+                ['type' => 'null'],
+            ],
+        ], $schema);
+    }
+
+    public function testParenthesizedPhpDocUnionIsTheSameAsWithoutParentheses()
+    {
+        $route = new class extends AbstractRoute {
+            /** @return (int[]|string[])|null */
+            public function callback(): ?array
+            {
+                return null;
+            }
+        };
+
+        $schema = $this->inference->inferSchema($route->getOperation('GET')->getCallback());
+
+        $this->assertSame([
+            'anyOf' => [
+                ['type' => 'array', 'items' => ['type' => 'integer']],
+                ['type' => 'array', 'items' => ['type' => 'string']],
                 ['type' => 'null'],
             ],
         ], $schema);

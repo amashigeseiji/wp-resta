@@ -129,7 +129,10 @@ class PhpDocToOpenApiSchema
             return [$type];
         }
         $candidates = [];
-        foreach ($type->types as $member) {
+        foreach (self::flatten($type->types) as $member) {
+            if ($member instanceof NullableTypeNode) {
+                $member = $member->type;
+            }
             if ($member instanceof IdentifierTypeNode) {
                 if ($member->name === 'null') {
                     continue;
@@ -288,7 +291,7 @@ class PhpDocToOpenApiSchema
         $members = [];
         /** @var array<string, int> $enumAt リテラルの型 => $members の位置 */
         $enumAt = [];
-        foreach ($types as $type) {
+        foreach (self::flatten($types) as $type) {
             $literal = $type instanceof ConstTypeNode ? self::literalOf($type) : null;
             if ($literal === null) {
                 $members[] = self::schemaOrAny($type, $scope);
@@ -316,9 +319,50 @@ class PhpDocToOpenApiSchema
             return ['string', $expr->value];
         }
         if ($expr instanceof ConstExprIntegerNode) {
-            return ['integer', (int) $expr->value];
+            return ['integer', self::intOf($expr->value)];
         }
         return null;
+    }
+
+    /**
+     * 括弧で入れ子になった union（(A|B)|C）を、1 段の並びにする。括弧の有無で出力を変えない
+     *
+     * @param array<TypeNode> $types
+     * @return list<TypeNode>
+     */
+    private static function flatten(array $types): array
+    {
+        $flat = [];
+        foreach ($types as $type) {
+            if ($type instanceof UnionTypeNode) {
+                array_push($flat, ...self::flatten($type->types));
+            } else {
+                $flat[] = $type;
+            }
+        }
+        return $flat;
+    }
+
+    /**
+     * docblock の整数リテラルの値。PHP と同じく、0x / 0b / 0o / 先頭の 0（8 進）と、桁区切りの _ を読む
+     */
+    private static function intOf(string $literal): int
+    {
+        $digits = str_replace('_', '', $literal);
+        $sign = 1;
+        if ($digits !== '' && ($digits[0] === '-' || $digits[0] === '+')) {
+            $sign = $digits[0] === '-' ? -1 : 1;
+            $digits = substr($digits, 1);
+        }
+        $prefix = strtolower(substr($digits, 0, 2));
+        $value = match (true) {
+            $prefix === '0x' => hexdec(substr($digits, 2)),
+            $prefix === '0b' => bindec(substr($digits, 2)),
+            $prefix === '0o' => octdec(substr($digits, 2)),
+            strlen($digits) > 1 && $digits[0] === '0' => octdec($digits),
+            default => (int) $digits,
+        };
+        return $sign * (int) $value;
     }
 
     /**
