@@ -22,9 +22,6 @@ Envelope Patternは、すべての API レスポンスを以下の構造で統�
 エンベロープパターンを使うには、`#[Envelope]` 属性を Route クラスに追加します：
 
 ```php
-<?php
-namespace MyREST\Routes;
-
 use Wp\Resta\REST\AbstractRoute;
 use Wp\Resta\REST\Attributes\Envelope;
 
@@ -33,19 +30,14 @@ class Posts extends AbstractRoute
 {
     protected const ROUTE = 'posts';
 
-    // スキーマはデータ部分のみ定義
-    public const SCHEMA = [
-        'type' => 'array',
-        'items' => [
-            '$ref' => '#/components/schemas/Post'
-        ],
-    ];
-
-    // 普通に配列を返すだけ（自動的にエンベロープでラップされる）
-    public function callback(): array
+    /**
+     * 戻り値の型は、データ部分だけを書く。普通に配列を返せば、自動的にエンベロープで包まれる
+     *
+     * @return Post[]
+     */
+    public function callback(/* ... */): array
     {
-        $posts = get_posts(['post_type' => 'post']);
-        return $posts;
+        // ...
     }
 }
 ```

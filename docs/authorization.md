@@ -12,19 +12,26 @@ use Wp\Resta\REST\Attributes\Permission;
 
 class Drafts extends AbstractRoute
 {
-    // 何も付けなければ公開
+    protected const ROUTE = 'drafts';
+
+    /**
+     * @return Post[]
+     */
+    #[Permission('edit_others_posts')]   // 一覧は他人の下書きも返す
     public function get(): array
     {
         // ...
     }
 
     #[Permission('edit_posts')]   // 未認証は 401、edit_posts が無ければ 403
-    public function post(string $title): array
+    public function post(string $title): Post
     {
         // ...
     }
 }
 ```
+
+- アトリビュートは操作ごとに独立しています。何も付けていない操作は公開です
 
 - `#[Authenticated]` は、ログイン済みであることだけを求めます。未認証は 401 です
 - `#[Permission('edit_posts')]` は `current_user_can('edit_posts')` に当たります。未認証は 401、capability が無ければ 403 です
